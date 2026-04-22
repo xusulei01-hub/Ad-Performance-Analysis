@@ -1,0 +1,28 @@
+{
+  "name": "external-purchase-workbench",
+  "version": "1.0.0",
+  "description": "端外买断工作台 - 广告投放数据分析仪表板",
+  "private": true,
+  "workspaces": [
+    "client",
+    "server"
+  ],
+  "scripts": {
+    "dev": "concurrently \"npm run dev:server\" \"npm run dev:client\"",
+    "dev:client": "cd client && npm run dev",
+    "dev:server": "cd server && npm run dev",
+    "build": "cd client && npm run build",
+    "db:generate": "cd server && npx prisma generate",
+    "db:migrate": "cd server && npx prisma migrate dev",
+    "db:studio": "cd server && npx prisma studio",
+    "db:seed": "cd server && npx ts-node prisma/seed.ts",
+    "lint": "cd client && npm run lint",
+    "format": "cd client && npm run format"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

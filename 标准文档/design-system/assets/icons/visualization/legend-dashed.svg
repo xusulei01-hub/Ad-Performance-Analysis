@@ -1,0 +1,7 @@
+<svg width="12" height="12" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- 03虚线：两段短线并排，模拟虚线效果，颜色跟随系列色 -->
+  <!-- 左段：x=2, y=5, width=3.5, height=2 -->
+  <rect x="2" y="5" width="3.5" height="2" rx="1" fill="currentColor"/>
+  <!-- 右段：x=6.5, y=5, width=3.5, height=2 -->
+  <rect x="6.5" y="5" width="3.5" height="2" rx="1" fill="currentColor"/>
+</svg>

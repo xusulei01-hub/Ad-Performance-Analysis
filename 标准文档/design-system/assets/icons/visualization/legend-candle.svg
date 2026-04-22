@@ -1,0 +1,9 @@
+<svg width="12" height="12" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- 04蜡烛：缩略蜡烛图，左侧阳线（实心红），右侧阴线（空心绿边框）。原始为嵌入图片，此为 SVG 近似表示。 -->
+  <!-- 阳线（上涨，实心红）：左侧 -->
+  <line x1="3.5" y1="1.5" x2="3.5" y2="10.5" stroke="#ff2436" stroke-width="0.75"/>
+  <rect x="2" y="3.5" width="3" height="4" fill="#ff2436" rx="0.5"/>
+  <!-- 阴线（下跌，空心绿边框）：右侧 -->
+  <line x1="8.5" y1="1.5" x2="8.5" y2="10.5" stroke="#07ab4b" stroke-width="0.75"/>
+  <rect x="7" y="5" width="3" height="4" fill="none" stroke="#07ab4b" stroke-width="0.75" rx="0.5"/>
+</svg>

@@ -1,0 +1,333 @@
+/* ============================================
+   Design System Tokens - 同花顺设计系统
+   ============================================ */
+
+/* THS Money Font - 数字专用字体 */
+@font-face {
+  font-family: 'THS Money';
+  src: url('/fonts/THSJinRongTi-Regular.otf') format('opentype');
+  font-weight: 400;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'THS Money';
+  src: url('/fonts/THSJinRongTi-Medium.otf') format('opentype');
+  font-weight: 500;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'THS Money';
+  src: url('/fonts/THSJinRongTi-Bold.otf') format('opentype');
+  font-weight: 600;
+  font-display: swap;
+}
+
+:root {
+  /* ---------- Color: Brand ---------- */
+  --color-brand-primary: #2E58FF;
+
+  /* ---------- Color: Price ---------- */
+  --color-price-up: #FF2436;
+  --color-price-down: #07AB4B;
+  --color-price-even: rgba(0,0,0,0.84);
+
+  /* ---------- Color: Status ---------- */
+  --color-status-success: #07AB4B;
+  --color-status-error: #FF2436;
+  --color-status-warning: #FF9500;
+  --color-status-info: #3366FF;
+
+  /* ---------- Color: Text ---------- */
+  --color-text-primary: rgba(0,0,0,0.84);
+  --color-text-secondary: rgba(0,0,0,0.60);
+  --color-text-tertiary: rgba(0,0,0,0.40);
+  --color-text-quaternary: rgba(0,0,0,0.24);
+  --color-text-inverse: #FFFFFF;
+  --color-text-link: #4167D9;
+  --color-text-inverse-primary: rgba(255,255,255,0.84);
+  --color-text-inverse-secondary: rgba(255,255,255,0.60);
+  --color-text-inverse-tertiary: rgba(255,255,255,0.40);
+  --color-text-inverse-quaternary: rgba(255,255,255,0.24);
+
+  /* ---------- Color: Background ---------- */
+  --color-background-layer1: #F5F5F5;
+  --color-foreground-layer1: #FFFFFF;
+  --color-background-layer2: #F5F5F5;
+  --color-foreground-layer2: #FFFFFF;
+  --color-background-layer3: #FFFFFF;
+  --color-background-weak: rgba(0,0,0,0.04);
+  --color-background-weak2: rgba(0,0,0,0.02);
+  --color-background-weak-solid: #F9F9F9;
+  --color-background-overlay: #FFFFFF;
+  --color-background-mask-level1: rgba(0,0,0,0.80);
+  --color-background-mask-level2: rgba(0,0,0,0.60);
+  --color-background-mask-level3: rgba(0,0,0,0.24);
+  --color-background-nav: #2E58FF;
+  --color-background-brand-weak: rgba(46,88,255,0.10);
+  --color-background-disabled: rgba(46,88,255,0.50);
+
+  /* ---------- Color: Interaction ---------- */
+  --color-hover: rgba(0,0,0,0.05);
+  --color-click: rgba(0,0,0,0.10);
+
+  /* ---------- Color: Divider ---------- */
+  --color-divider: rgba(0,0,0,0.08);
+
+  /* ---------- Color: Grey ---------- */
+  --color-grey-01: #E6E6E6;
+  --color-grey-02: #D1D1D1;
+  --color-grey-03: #B3B3B3;
+  --color-grey-04: #9C9C9C;
+  --color-grey-05: #858585;
+
+  /* ---------- Color: Auxiliary ---------- */
+  --color-red: #2E58FF;
+  --color-orange: #FF661A;
+  --color-yellow: #FF9500;
+  --color-green: #07AB4B;
+  --color-cyan: #14CCBD;
+  --color-acidblue: #29A6FF;
+  --color-blue: #3366FF;
+  --color-indigo: #4433FF;
+  --color-purple: #B341D9;
+  --color-gold: #CCA670;
+
+  /* ---------- Color: Visualization ---------- */
+  --color-visualization-primary: #3366FF;
+  --color-visualization-01: #FF4019;
+  --color-visualization-02: #FF9500;
+  --color-visualization-03: #62B312;
+  --color-visualization-04: #14CCBD;
+  --color-visualization-05: #199FFF;
+  --color-visualization-06: #4433FF;
+  --color-visualization-07: #FF33AA;
+  --color-visualization-08: #CC41D9;
+  --color-visualization-09: #858585;
+  --color-visualization-divider: rgba(0,0,0,0.06);
+  --color-visualization-tooltip: #3B3B3B;
+
+  /* ---------- Typography ---------- */
+  --font-family-cn: 'PingFang SC', 'Noto Sans SC', 'Microsoft YaHei', sans-serif;
+  --font-family-en: 'San Francisco', 'Roboto', -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-family-number: 'THS Money', 'DIN Alternate', 'DIN', monospace;
+
+  /* ---------- Font Size ---------- */
+  --font-size-super-large: 24px;
+  --font-size-extra-large: 20px;
+  --font-size-large: 18px;
+  --font-size-base: 16px;
+  --font-size-medium: 14px;
+  --font-size-small: 13px;
+  --font-size-extra-small: 12px;
+  --font-size-super-small: 11px;
+  --font-size-xxs: 10px;
+  --font-size-xxxs: 9px;
+
+  /* ---------- Line Height ---------- */
+  --line-height-super-large: 30px;
+  --line-height-extra-large: 24px;
+  --line-height-large: 22px;
+  --line-height-base: 20px;
+  --line-height-medium: 18px;
+  --line-height-small: 16px;
+  --line-height-extra-small: 14px;
+  --line-height-super-small: 12px;
+  --line-height-xxs: 10px;
+
+  /* ---------- Font Weight ---------- */
+  --font-weight-regular: 400;
+  --font-weight-medium: 500;
+  --font-weight-bold: 600;
+
+  /* ---------- Spacing: Padding ---------- */
+  --padding-none: 0;
+  --padding-super-tight: 1px;
+  --padding-extra-tight: 2px;
+  --padding-tight: 4px;
+  --padding-base-tight: 6px;
+  --padding-base: 8px;
+  --padding-base-loose: 10px;
+  --padding-loose: 12px;
+  --padding-extra-loose: 16px;
+  --padding-super-loose: 24px;
+
+  /* ---------- Spacing: Margin ---------- */
+  --margin-none: 0;
+  --margin-extra-tight: 2px;
+  --margin-tight: 4px;
+  --margin-base-tight: 6px;
+  --margin-base: 8px;
+  --margin-base-loose: 12px;
+  --margin-loose: 16px;
+  --margin-extra-loose: 20px;
+  --margin-super-loose: 24px;
+
+  /* ---------- Radius ---------- */
+  --radius-none: 0;
+  --radius-extra-small: 1px;
+  --radius-small: 2px;
+  --radius-medium: 4px;
+  --radius-large: 6px;
+  --radius-extra-large: 8px;
+  --radius-xxl: 10px;
+  --radius-xxxl: 12px;
+  --radius-circle: 50%;
+
+  /* ---------- Shadow ---------- */
+  --shadow-elevation-small: 0 0 8px 0 rgba(0,0,0,0.12);
+  --shadow-elevation-medium: 0 4px 12px 0 rgba(0,0,0,0.12);
+  --shadow-elevation-large: 0 0 20px 0 rgba(0,0,0,0.12);
+}
+
+/* ============================================
+   Global Reset & Base Styles
+   ============================================ */
+
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+html, body {
+  margin: 0;
+  padding: 0;
+  font-family: var(--font-family-cn);
+  font-size: var(--font-size-medium);
+  line-height: var(--line-height-medium);
+  color: var(--color-text-primary);
+  background-color: var(--color-background-layer1);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+#root {
+  width: 100%;
+  min-height: 100vh;
+}
+
+/* 数字字体工具类 */
+.font-number {
+  font-family: var(--font-family-number);
+}
+
+.font-number-medium {
+  font-family: var(--font-family-number);
+  font-weight: var(--font-weight-medium);
+}
+
+.font-number-bold {
+  font-family: var(--font-family-number);
+  font-weight: var(--font-weight-bold);
+}
+
+/* ============================================
+   Scrollbar
+   ============================================ */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--color-background-weak);
+  border-radius: var(--radius-medium);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--color-grey-03);
+  border-radius: var(--radius-medium);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-grey-04);
+}
+
+/* ============================================
+   Ant Design Overrides
+   ============================================ */
+
+/* 卡片圆角和阴影 */
+.ant-card {
+  border-radius: var(--radius-extra-large) !important;
+  box-shadow: var(--shadow-elevation-small);
+  border: none;
+}
+
+.ant-card-head {
+  border-bottom: 1px solid var(--color-divider);
+  font-size: var(--font-size-large);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-primary);
+  padding: var(--padding-loose) var(--padding-extra-loose);
+}
+
+.ant-card-body {
+  padding: var(--padding-extra-loose);
+}
+
+/* 按钮 - 匹配设计系统 */
+.ant-btn-primary {
+  background-color: var(--color-brand-primary);
+  border-color: var(--color-brand-primary);
+  border-radius: var(--radius-medium);
+}
+
+.ant-btn-primary:hover,
+.ant-btn-primary:focus {
+  background-color: #1a3fd9;
+  border-color: #1a3fd9;
+}
+
+/* 表格 */
+.ant-table {
+  border-radius: var(--radius-extra-large);
+  overflow: hidden;
+}
+
+.ant-table-thead > tr > th {
+  background-color: var(--color-background-weak-solid);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-secondary);
+}
+
+/* 分页 */
+.ant-pagination-item-active {
+  border-color: var(--color-brand-primary);
+  background-color: var(--color-brand-primary);
+}
+
+.ant-pagination-item-active a {
+  color: white;
+}
+
+/* 导航菜单 */
+.ant-menu-light .ant-menu-item-selected {
+  background-color: var(--color-background-brand-weak);
+  color: var(--color-brand-primary);
+}
+
+/* 上传 */
+.ant-upload-drag {
+  border-radius: var(--radius-extra-large);
+  border-color: var(--color-divider);
+}
+
+.ant-upload-drag:hover {
+  border-color: var(--color-brand-primary);
+}
+
+/* 标签 */
+.ant-tag {
+  border-radius: var(--radius-small);
+}
+
+/* 选择器 */
+.ant-select-selector {
+  border-radius: var(--radius-medium) !important;
+}
+
+/* 日期选择器 */
+.ant-picker {
+  border-radius: var(--radius-medium);
+}

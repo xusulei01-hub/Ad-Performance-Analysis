@@ -1,0 +1,48 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model RawData {
+  id            Int      @id @default(autoincrement())
+  channel       String   @db.VarChar(100)
+  recordDate    DateTime @db.Date @map("record_date")
+  campaignId    String   @db.VarChar(100) @map("campaign_id")
+  campaignName  String?  @db.VarChar(255) @map("campaign_name")
+  impressions   BigInt   @default(0)
+  clicks        BigInt   @default(0)
+  cost          Decimal  @db.Decimal(15, 4) @default(0)
+  downloads     BigInt   @default(0)
+  activations   BigInt   @default(0)
+  credits       BigInt   @default(0)
+  accounts      BigInt   @default(0)
+  roi           Decimal  @db.Decimal(10, 4) @default(0)
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt     DateTime @updatedAt @map("updated_at") @db.Timestamp(6)
+
+  @@unique([channel, recordDate, campaignId], name: "unique_channel_date_campaign")
+  @@index([channel])
+  @@index([recordDate])
+  @@index([campaignId])
+  @@index([channel, recordDate])
+  @@map("raw_data")
+}
+
+model UploadLog {
+  id             Int      @id @default(autoincrement())
+  filename       String   @db.VarChar(255)
+  recordCount    Int      @default(0) @map("record_count")
+  insertedCount  Int      @default(0) @map("inserted_count")
+  updatedCount   Int      @default(0) @map("updated_count")
+  failedCount    Int      @default(0) @map("failed_count")
+  errorDetails   String?  @map("error_details") @db.Text
+  uploadedBy     String?  @db.VarChar(100) @map("uploaded_by")
+  uploadedAt     DateTime @default(now()) @map("uploaded_at") @db.Timestamp(6)
+
+  @@index([uploadedAt])
+  @@map("upload_logs")
+}

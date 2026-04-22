@@ -1,0 +1,7 @@
+<svg width="12" height="12" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- 05红绿柱：左红右绿双色分割小块 -->
+  <!-- 左半（涨色，左侧圆角）：x=1.5, y=3, width=4.5, height=6 -->
+  <rect x="1.5" y="3" width="4.5" height="6" rx="1" fill="#ff2436"/>
+  <!-- 右半（跌色，右侧圆角）：x=6, y=3, width=4.5, height=6 -->
+  <rect x="6" y="3" width="4.5" height="6" rx="1" fill="#07ab4b"/>
+</svg>
