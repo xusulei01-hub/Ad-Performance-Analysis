@@ -1,10 +1,141 @@
 import { Router } from 'express'
+import dayjs from 'dayjs'
+import { prisma } from '../lib/prisma'
 
 const router = Router()
 
-// GET /api/v1/channels/:channel/metrics - 渠道指标数据
-router.get('/:channel/metrics', (req, res) => {
-  res.json({ success: true, message: 'Channel metrics endpoint - TODO' })
+// GET /api/v1/channels/:channel/metrics?start_date=...&end_date=...
+router.get('/:channel/metrics', async (req, res, next) => {
+  try {
+    const channels = req.params.channel.split(',').filter(Boolean)
+    const startDate = req.query.start_date ? String(req.query.start_date) : dayjs().subtract(6, 'day').format('YYYY-MM-DD')
+    const endDate = req.query.end_date ? String(req.query.end_date) : dayjs().format('YYYY-MM-DD')
+
+    const sDate = new Date(startDate)
+    const eDate = new Date(endDate)
+    eDate.setHours(23, 59, 59, 999)
+
+    const where: any = {
+      recordDate: {
+        gte: sDate,
+        lte: eDate,
+      },
+    }
+    if (channels.length > 0) {
+      where.channel = { in: channels }
+    }
+
+    // 总指标
+    const totalAgg = await prisma.rawData.aggregate({
+      where,
+      _sum: {
+        cost: true,
+        activations: true,
+        accounts: true,
+      },
+      _avg: {
+        roi: true,
+      },
+    })
+
+    const totalMetrics = {
+      cost: totalAgg._sum.cost ?? 0,
+      activations: totalAgg._sum.activations ?? 0,
+      accounts: totalAgg._sum.accounts ?? 0,
+      roi: totalAgg._avg.roi ?? 0,
+    }
+
+    // 分计划指标（Top 5）
+    const [costTop, activationsTop, accountsTop, roiTop] = await Promise.all([
+      prisma.rawData.groupBy({
+        by: ['campaignId', 'campaignName'],
+        where,
+        _sum: { cost: true },
+        orderBy: { _sum: { cost: 'desc' } },
+        take: 5,
+      }),
+      prisma.rawData.groupBy({
+        by: ['campaignId', 'campaignName'],
+        where,
+        _sum: { activations: true },
+        orderBy: { _sum: { activations: 'desc' } },
+        take: 5,
+      }),
+      prisma.rawData.groupBy({
+        by: ['campaignId', 'campaignName'],
+        where,
+        _sum: { accounts: true },
+        orderBy: { _sum: { accounts: 'desc' } },
+        take: 5,
+      }),
+      prisma.rawData.groupBy({
+        by: ['campaignId', 'campaignName'],
+        where,
+        _avg: { roi: true },
+        orderBy: { _avg: { roi: 'desc' } },
+        take: 5,
+      }),
+    ])
+
+    const campaignMetrics = {
+      cost: costTop.map((r) => ({
+        campaignId: r.campaignId,
+        campaignName: r.campaignName,
+        cost: r._sum.cost ?? 0,
+      })),
+      activations: activationsTop.map((r) => ({
+        campaignId: r.campaignId,
+        campaignName: r.campaignName,
+        activations: r._sum.activations ?? 0,
+      })),
+      accounts: accountsTop.map((r) => ({
+        campaignId: r.campaignId,
+        campaignName: r.campaignName,
+        accounts: r._sum.accounts ?? 0,
+      })),
+      roi: roiTop.map((r) => ({
+        campaignId: r.campaignId,
+        campaignName: r.campaignName,
+        roi: r._avg.roi ?? 0,
+      })),
+    }
+
+    // 每日趋势
+    const dailyRaw = await prisma.rawData.groupBy({
+      by: ['recordDate'],
+      where,
+      _sum: {
+        cost: true,
+        activations: true,
+        accounts: true,
+      },
+      _avg: {
+        roi: true,
+      },
+      orderBy: { recordDate: 'asc' },
+    })
+
+    const dailyTrends = dailyRaw.map((r) => ({
+      date: dayjs(r.recordDate).format('YYYY-MM-DD'),
+      cost: r._sum.cost ?? 0,
+      activations: r._sum.activations ?? 0,
+      accounts: r._sum.accounts ?? 0,
+      roi: r._avg.roi ?? 0,
+    }))
+
+    res.json({
+      success: true,
+      data: {
+        channels,
+        dateRange: { startDate, endDate },
+        totalMetrics,
+        campaignMetrics,
+        dailyTrends,
+      },
+    })
+  } catch (err) {
+    next(err)
+  }
 })
 
 export default router

@@ -3,26 +3,26 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
+  provider = "sqlite"
   url      = env("DATABASE_URL")
 }
 
 model RawData {
   id            Int      @id @default(autoincrement())
-  channel       String   @db.VarChar(100)
-  recordDate    DateTime @db.Date @map("record_date")
-  campaignId    String   @db.VarChar(100) @map("campaign_id")
-  campaignName  String?  @db.VarChar(255) @map("campaign_name")
-  impressions   BigInt   @default(0)
-  clicks        BigInt   @default(0)
-  cost          Decimal  @db.Decimal(15, 4) @default(0)
-  downloads     BigInt   @default(0)
-  activations   BigInt   @default(0)
-  credits       BigInt   @default(0)
-  accounts      BigInt   @default(0)
-  roi           Decimal  @db.Decimal(10, 4) @default(0)
-  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamp(6)
-  updatedAt     DateTime @updatedAt @map("updated_at") @db.Timestamp(6)
+  channel       String
+  recordDate    DateTime @map("record_date")
+  campaignId    String   @map("campaign_id")
+  campaignName  String?  @map("campaign_name")
+  impressions   Int      @default(0)
+  clicks        Int      @default(0)
+  cost          Float    @default(0)
+  downloads     Int      @default(0)
+  activations   Int      @default(0)
+  credits       Int      @default(0)
+  accounts      Int      @default(0)
+  roi           Float    @default(0)
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
 
   @@unique([channel, recordDate, campaignId], name: "unique_channel_date_campaign")
   @@index([channel])
@@ -34,14 +34,14 @@ model RawData {
 
 model UploadLog {
   id             Int      @id @default(autoincrement())
-  filename       String   @db.VarChar(255)
+  filename       String
   recordCount    Int      @default(0) @map("record_count")
   insertedCount  Int      @default(0) @map("inserted_count")
   updatedCount   Int      @default(0) @map("updated_count")
   failedCount    Int      @default(0) @map("failed_count")
-  errorDetails   String?  @map("error_details") @db.Text
-  uploadedBy     String?  @db.VarChar(100) @map("uploaded_by")
-  uploadedAt     DateTime @default(now()) @map("uploaded_at") @db.Timestamp(6)
+  errorDetails   String?  @map("error_details")
+  uploadedBy     String?  @map("uploaded_by")
+  uploadedAt     DateTime @default(now()) @map("uploaded_at")
 
   @@index([uploadedAt])
   @@map("upload_logs")
