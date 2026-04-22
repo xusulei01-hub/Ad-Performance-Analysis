@@ -88,9 +88,8 @@ function MetricCard({
   )
 }
 
-function getHeatColor(value: number, min: number, max: number): string {
-  const range = max - min || 1
-  const ratio = (value - min) / range
+function getRankColor(index: number, total: number): string {
+  const ratio = index / (total - 1 || 1)
   const hue = Math.round(120 * (1 - ratio))
   return `hsl(${hue}, 75%, 50%)`
 }
@@ -104,10 +103,6 @@ function CampaignChart({
   data: Array<{ campaignName: string | null; [key: string]: any }>
   valueKey: string
 }) {
-  const values = data.map((d) => Number(d[valueKey]))
-  const min = Math.min(...values)
-  const max = Math.max(...values)
-
   const option = data.length
     ? {
         tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
@@ -130,10 +125,10 @@ function CampaignChart({
             type: 'bar',
             data: [...data]
               .reverse()
-              .map((d) => ({
+              .map((d, i) => ({
                 value: d[valueKey],
                 itemStyle: {
-                  color: getHeatColor(Number(d[valueKey]), min, max),
+                  color: getRankColor(data.length - 1 - i, data.length),
                   borderRadius: [0, 4, 4, 0],
                 },
               })),
