@@ -31,16 +31,41 @@ export interface DateRange {
   endDate: string
 }
 
-export interface OverviewData {
+export interface DailyOverview {
   date: string
   cost: number
   activations: number
   accounts: number
   roi: number
-  costChange?: number
-  activationsChange?: number
-  accountsChange?: number
-  roiChange?: number
+  costChange: number
+  activationsChange: number
+  accountsChange: number
+  roiChange: number
+}
+
+export interface WeeklyOverview {
+  startDate: string
+  endDate: string
+  cost: number
+  activations: number
+  accounts: number
+  roi: number
+  targetCost: number
+  targetActivations: number
+  targetAccounts: number
+  targetRoi: number
+}
+
+export interface MonthlyOverview {
+  month: string
+  cost: number
+  activations: number
+  accounts: number
+  roi: number
+  targetCost: number
+  targetActivations: number
+  targetAccounts: number
+  targetRoi: number
 }
 
 export interface RankingItem {
@@ -51,8 +76,13 @@ export interface RankingItem {
   activations?: number
 }
 
+export interface RankingsData {
+  costRanking: RankingItem[]
+  performanceRanking: RankingItem[]
+}
+
 export interface ChannelMetrics {
-  channel: string
+  channels: string[]
   dateRange: DateRange
   totalMetrics: {
     cost: number
@@ -61,10 +91,10 @@ export interface ChannelMetrics {
     roi: number
   }
   campaignMetrics: {
-    cost: Array<{ campaignId: string; campaignName: string; cost: number }>
-    activations: Array<{ campaignId: string; campaignName: string; activations: number }>
-    accounts: Array<{ campaignId: string; campaignName: string; accounts: number }>
-    roi: Array<{ campaignId: string; campaignName: string; roi: number }>
+    cost: Array<{ campaignId: string; campaignName: string | null; cost: number }>
+    activations: Array<{ campaignId: string; campaignName: string | null; activations: number }>
+    accounts: Array<{ campaignId: string; campaignName: string | null; accounts: number }>
+    roi: Array<{ campaignId: string; campaignName: string | null; roi: number }>
   }
   dailyTrends: Array<{
     date: string
@@ -73,6 +103,18 @@ export interface ChannelMetrics {
     accounts: number
     roi: number
   }>
+}
+
+export interface UploadLog {
+  id: number
+  filename: string
+  recordCount: number
+  insertedCount: number
+  updatedCount: number
+  failedCount: number
+  errorDetails?: string
+  uploadedBy?: string
+  uploadedAt: string
 }
 
 export interface ApiResponse<T> {

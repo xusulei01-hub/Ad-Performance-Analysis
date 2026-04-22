@@ -1,23 +1,20 @@
 import { request } from './api/client'
-import { OverviewData, RankingItem } from '@/types'
+import { DailyOverview, WeeklyOverview, MonthlyOverview, RankingsData } from '@/types'
 
 export const dashboardService = {
-  async getDailyOverview(): Promise<OverviewData> {
-    return request.get<OverviewData>('/v1/overview/daily')
+  async getDailyOverview(): Promise<DailyOverview> {
+    return request.get<DailyOverview>('/v1/overview/daily')
   },
 
-  async getWeeklyOverview(): Promise<OverviewData> {
-    return request.get<OverviewData>('/v1/overview/weekly')
+  async getWeeklyOverview(): Promise<WeeklyOverview> {
+    return request.get<WeeklyOverview>('/v1/overview/weekly')
   },
 
-  async getMonthlyOverview(): Promise<OverviewData> {
-    return request.get<OverviewData>('/v1/overview/monthly')
+  async getMonthlyOverview(): Promise<MonthlyOverview> {
+    return request.get<MonthlyOverview>('/v1/overview/monthly')
   },
 
-  async getRankings(): Promise<{
-    costRanking: RankingItem[]
-    performanceRanking: RankingItem[]
-  }> {
-    return request.get('/v1/overview/rankings')
+  async getRankings(): Promise<RankingsData> {
+    return request.get<RankingsData>('/v1/overview/rankings')
   },
 }

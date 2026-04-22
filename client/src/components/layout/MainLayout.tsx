@@ -1,4 +1,4 @@
-import React, { ReactNode } from 'react'
+import React, { ReactNode, useState } from 'react'
 import { Layout, Menu, Typography, Button } from 'antd'
 import {
   DashboardOutlined,
@@ -17,6 +17,12 @@ interface MainLayoutProps {
 
 const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
   const location = useLocation()
+  const [refreshing, setRefreshing] = useState(false)
+
+  const handleRefresh = () => {
+    setRefreshing(true)
+    window.location.reload()
+  }
 
   const menuItems = [
     {
@@ -38,7 +44,6 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
 
   return (
     <Layout style={{ minHeight: '100vh' }}>
-      {/* 顶部导航栏 */}
       <Header
         style={{
           backgroundColor: 'var(--color-background-nav)',
@@ -73,7 +78,8 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
         </div>
         <Button
           type="text"
-          icon={<ReloadOutlined />}
+          icon={<ReloadOutlined spin={refreshing} />}
+          onClick={handleRefresh}
           style={{
             color: 'var(--color-text-inverse)',
             fontSize: 'var(--font-size-small)',
@@ -84,7 +90,6 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
       </Header>
 
       <Layout>
-        {/* 侧边栏 */}
         <Sider
           width={200}
           style={{
@@ -105,7 +110,6 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
           />
         </Sider>
 
-        {/* 主内容区 */}
         <Content
           style={{
             margin: 'var(--padding-super-loose)',
