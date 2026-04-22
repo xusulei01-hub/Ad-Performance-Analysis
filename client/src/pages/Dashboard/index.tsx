@@ -18,6 +18,19 @@ const cardTitleStyle: React.CSSProperties = {
   marginBottom: 'var(--margin-loose)',
 }
 
+const SOFT_COLORS = [
+  '#6B8DD6',
+  '#E8917A',
+  '#7BC4A6',
+  '#D4A5A5',
+  '#A8C6E0',
+  '#D4B483',
+  '#9DB0CE',
+  '#B8D4B8',
+  '#D9B8D4',
+  '#C8C8A9',
+]
+
 const metricCardStyle: React.CSSProperties = {
   borderRadius: 'var(--radius-extra-large)',
   boxShadow: 'var(--shadow-elevation-small)',
@@ -164,8 +177,13 @@ const Dashboard: React.FC = () => {
           {
             name: '花费',
             type: 'bar',
-            data: rankings.costRanking.map((r) => r.cost),
-            itemStyle: { color: 'var(--color-brand-primary)', borderRadius: [4, 4, 0, 0] },
+            data: rankings.costRanking.map((r, i) => ({
+              value: r.cost,
+              itemStyle: {
+                color: SOFT_COLORS[i % SOFT_COLORS.length],
+                borderRadius: [4, 4, 0, 0],
+              },
+            })),
             barWidth: '50%',
           },
         ],
@@ -301,6 +319,7 @@ const Dashboard: React.FC = () => {
               value={weekly?.roi ?? 0}
               precision={2}
               icon={<PercentageOutlined />}
+              target={weekly?.targetRoi}
             />
           </Col>
         </Row>
@@ -339,6 +358,7 @@ const Dashboard: React.FC = () => {
               value={monthly?.roi ?? 0}
               precision={2}
               icon={<PercentageOutlined />}
+              target={monthly?.targetRoi}
             />
           </Col>
         </Row>
