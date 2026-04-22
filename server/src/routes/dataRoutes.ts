@@ -136,13 +136,24 @@ const CONV_HEADERS: Record<string, string> = {
 function parseRows(rows: unknown[][], headerMap: Record<string, string>): Array<Record<string, unknown>> {
   if (rows.length < 2) return []
   const headers = (rows[0] as string[]).map((h) => String(h).trim())
+
+  // 建立大小写/去空格兼容的表头映射
+  const fuzzyHeaderMap = new Map<string, string>()
+  for (const [key, val] of Object.entries(headerMap)) {
+    fuzzyHeaderMap.set(key, val)
+    fuzzyHeaderMap.set(key.toLowerCase(), val)
+    fuzzyHeaderMap.set(key.replace(/\s+/g, ''), val)
+    fuzzyHeaderMap.set(key.toLowerCase().replace(/\s+/g, ''), val)
+  }
+
   const out: Array<Record<string, unknown>> = []
 
   for (let i = 1; i < rows.length; i++) {
     const row = rows[i] as string[]
     const obj: Record<string, unknown> = {}
     for (let j = 0; j < headers.length; j++) {
-      const dbKey = headerMap[headers[j]]
+      const h = headers[j]
+      const dbKey = fuzzyHeaderMap.get(h) || fuzzyHeaderMap.get(h.toLowerCase()) || fuzzyHeaderMap.get(h.replace(/\s+/g, '')) || fuzzyHeaderMap.get(h.toLowerCase().replace(/\s+/g, ''))
       if (dbKey) obj[dbKey] = row[j]
     }
     out.push(obj)
@@ -277,6 +288,14 @@ router.post('/upload', upload.fields([
     }
 
     if (matched.length === 0) {
+      // 收集诊断信息帮助用户排查
+      const mediaChannels = [...new Set(mediaParsed.map((r) => r.channel))].slice(0, 10)
+      const convChannels = [...new Set(convParsed.map((r) => r.channel))].slice(0, 10)
+      const mediaDates = [...new Set(mediaParsed.map((r) => r.recordDate))].slice(0, 5)
+      const convDates = [...new Set(convParsed.map((r) => r.recordDate))].slice(0, 5)
+      const mediaCampaignIds = mediaParsed.slice(0, 3).map((r) => r.campaignId)
+      const convCampaignIds = convParsed.slice(0, 3).map((r) => r.campaignId)
+
       res.status(400).json({
         success: false,
         message: '两份文件未能匹配到任何数据，请检查日期格式和计划ID是否一致',
@@ -286,6 +305,19 @@ router.post('/upload', upload.fields([
           matchedCount: 0,
           unmatchedMediaCount: unmatchedMedia.length,
           unmatchedConvCount: convMap.size,
+          diagnosis: {
+            mediaChannels,
+            convChannels,
+            mediaDates,
+            convDates,
+            mediaCampaignIds,
+            convCampaignIds,
+            suggestion: !mediaChannels.some((c) => convChannels.includes(c))
+              ? '渠道名称不一致，请添加渠道映射规则（如 mi → xiaomi）'
+              : !mediaDates.some((d) => convDates.includes(d))
+                ? '日期没有交集，请检查两份文件的日期范围是否一致'
+                : '计划ID不一致，请检查两边的计划ID格式是否相同',
+          },
         },
       })
       return
@@ -398,14 +430,27 @@ router.post('/channel-mappings', async (req, res, next) => {
       res.status(400).json({ success: false, message: 'sourceName 和 targetName 必填' })
       return
     }
-    const row = await prisma.channelMapping.upsert({
-      where: { sourceName: String(sourceName).trim().toLowerCase() },
-      update: { targetName: String(targetName).trim() },
-      create: {
-        sourceName: String(sourceName).trim().toLowerCase(),
-        targetName: String(targetName).trim(),
-      },
+    const normalizedSource = String(sourceName).trim().toLowerCase()
+    const normalizedTarget = String(targetName).trim()
+
+    const existing = await prisma.channelMapping.findFirst({
+      where: { sourceName: normalizedSource },
     })
+
+    let row
+    if (existing) {
+      row = await prisma.channelMapping.update({
+        where: { id: existing.id },
+        data: { targetName: normalizedTarget },
+      })
+    } else {
+      row = await prisma.channelMapping.create({
+        data: {
+          sourceName: normalizedSource,
+          targetName: normalizedTarget,
+        },
+      })
+    }
     res.json({ success: true, data: row })
   } catch (err) {
     next(err)

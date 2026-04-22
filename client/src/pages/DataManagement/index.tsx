@@ -51,6 +51,9 @@ const DataManagement: React.FC = () => {
     unmatchedConvCount: number
   } | null>(null)
 
+  const [uploadError, setUploadError] = useState<any>(null)
+  const [uploadErrorVisible, setUploadErrorVisible] = useState(false)
+
   const [records, setRecords] = useState<RawData[]>([])
   const [recordsTotal, setRecordsTotal] = useState(0)
   const [recordsPage, setRecordsPage] = useState(1)
@@ -120,6 +123,7 @@ const DataManagement: React.FC = () => {
       return
     }
     setUploading(true)
+    setUploadError(null)
     try {
       const result = await dataManageService.uploadFiles(mediaFile, convFile)
       setUploadResult({
@@ -138,6 +142,11 @@ const DataManagement: React.FC = () => {
       setMediaFile(null)
       setConvFile(null)
     } catch (e: any) {
+      const errData = e.responseData
+      if (errData?.data?.diagnosis) {
+        setUploadError(errData)
+        setUploadErrorVisible(true)
+      }
       message.error(`上传失败: ${e.message || '未知错误'}`)
     } finally {
       setUploading(false)
@@ -385,6 +394,40 @@ const DataManagement: React.FC = () => {
             locale={{ emptyText: <Empty description="暂无上传记录" /> }}
           />
         </Spin>
+      </Modal>
+
+      <Modal
+        title="上传失败诊断"
+        open={uploadErrorVisible}
+        onCancel={() => setUploadErrorVisible(false)}
+        footer={<Button onClick={() => setUploadErrorVisible(false)}>关闭</Button>}
+        width={640}
+      >
+        {uploadError?.data?.diagnosis && (
+          <div>
+            <div style={{ marginBottom: 16, padding: 12, backgroundColor: 'var(--color-background-secondary)', borderRadius: 'var(--radius-large)' }}>
+              <strong>建议：</strong>{uploadError.data.diagnosis.suggestion}
+            </div>
+            <Row gutter={[16, 16]}>
+              <Col span={12}>
+                <Card size="small" title="媒体数据表">
+                  <p><strong>解析行数：</strong>{uploadError.data.mediaRows}</p>
+                  <p><strong>渠道：</strong>{uploadError.data.diagnosis.mediaChannels?.join(', ') || '无'}</p>
+                  <p><strong>日期样例：</strong>{uploadError.data.diagnosis.mediaDates?.join(', ') || '无'}</p>
+                  <p><strong>计划ID样例：</strong>{uploadError.data.diagnosis.mediaCampaignIds?.join(', ') || '无'}</p>
+                </Card>
+              </Col>
+              <Col span={12}>
+                <Card size="small" title="转化数据表">
+                  <p><strong>解析行数：</strong>{uploadError.data.convRows}</p>
+                  <p><strong>渠道：</strong>{uploadError.data.diagnosis.convChannels?.join(', ') || '无'}</p>
+                  <p><strong>日期样例：</strong>{uploadError.data.diagnosis.convDates?.join(', ') || '无'}</p>
+                  <p><strong>计划ID样例：</strong>{uploadError.data.diagnosis.convCampaignIds?.join(', ') || '无'}</p>
+                </Card>
+              </Col>
+            </Row>
+          </div>
+        )}
       </Modal>
     </div>
   )

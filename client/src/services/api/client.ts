@@ -23,7 +23,9 @@ apiClient.interceptors.response.use(
   (response) => response.data?.data ?? response.data,
   (error) => {
     const message = error.response?.data?.message || error.message || '请求失败'
-    return Promise.reject(new Error(message))
+    const err = new Error(message) as any
+    err.responseData = error.response?.data
+    return Promise.reject(err)
   }
 )
 
