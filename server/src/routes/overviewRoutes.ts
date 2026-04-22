@@ -92,7 +92,7 @@ router.get('/weekly', async (req, res, next) => {
         targetCost: 1000000,
         targetActivations: 8000,
         targetAccounts: 5000,
-        targetRoi: 2.5,
+        targetRoi: 1.5,
       },
     })
   } catch (err) {
@@ -120,7 +120,7 @@ router.get('/monthly', async (req, res, next) => {
         targetCost: 5000000,
         targetActivations: 40000,
         targetAccounts: 25000,
-        targetRoi: 2.5,
+        targetRoi: 1.5,
       },
     })
   } catch (err) {

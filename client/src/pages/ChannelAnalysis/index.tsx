@@ -88,17 +88,26 @@ function MetricCard({
   )
 }
 
+function getHeatColor(value: number, min: number, max: number): string {
+  const range = max - min || 1
+  const ratio = (value - min) / range
+  const hue = Math.round(120 * (1 - ratio))
+  return `hsl(${hue}, 75%, 50%)`
+}
+
 function CampaignChart({
   title,
   data,
   valueKey,
-  color,
 }: {
   title: string
   data: Array<{ campaignName: string | null; [key: string]: any }>
   valueKey: string
-  color: string
 }) {
+  const values = data.map((d) => Number(d[valueKey]))
+  const min = Math.min(...values)
+  const max = Math.max(...values)
+
   const option = data.length
     ? {
         tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
@@ -119,8 +128,15 @@ function CampaignChart({
           {
             name: title,
             type: 'bar',
-            data: data.map((d) => d[valueKey]).reverse(),
-            itemStyle: { color, borderRadius: [0, 4, 4, 0] },
+            data: [...data]
+              .reverse()
+              .map((d) => ({
+                value: d[valueKey],
+                itemStyle: {
+                  color: getHeatColor(Number(d[valueKey]), min, max),
+                  borderRadius: [0, 4, 4, 0],
+                },
+              })),
             barWidth: '60%',
             label: {
               show: true,
@@ -387,7 +403,6 @@ const ChannelAnalysis: React.FC = () => {
               title="分计划花费"
               data={metrics?.campaignMetrics.cost ?? []}
               valueKey="cost"
-              color="var(--color-brand-primary)"
             />
           </Col>
           <Col xs={24} lg={12}>
@@ -395,7 +410,6 @@ const ChannelAnalysis: React.FC = () => {
               title="分计划激活"
               data={metrics?.campaignMetrics.activations ?? []}
               valueKey="activations"
-              color="var(--color-data-red)"
             />
           </Col>
           <Col xs={24} lg={12}>
@@ -403,7 +417,6 @@ const ChannelAnalysis: React.FC = () => {
               title="分计划开户"
               data={metrics?.campaignMetrics.accounts ?? []}
               valueKey="accounts"
-              color="var(--color-data-green)"
             />
           </Col>
           <Col xs={24} lg={12}>
@@ -411,7 +424,6 @@ const ChannelAnalysis: React.FC = () => {
               title="分计划ROI"
               data={metrics?.campaignMetrics.roi ?? []}
               valueKey="roi"
-              color="var(--color-data-orange)"
             />
           </Col>
         </Row>
