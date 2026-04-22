@@ -25,24 +25,29 @@ router.get('/:channel/metrics', async (req, res, next) => {
       where.channel = { in: channels }
     }
 
-    // 总指标
-    const totalAgg = await prisma.rawData.aggregate({
+    // 总指标 — 手动聚合，ROI 按花费加权
+    const totalRows = await prisma.rawData.findMany({
       where,
-      _sum: {
-        cost: true,
-        activations: true,
-        accounts: true,
-      },
-      _avg: {
-        roi: true,
-      },
+      select: { cost: true, activations: true, accounts: true, roi: true },
     })
 
+    let totalCost = 0
+    let totalActivations = 0
+    let totalAccounts = 0
+    let weightedRoiSum = 0
+
+    for (const row of totalRows) {
+      totalCost += row.cost
+      totalActivations += row.activations
+      totalAccounts += row.accounts
+      weightedRoiSum += row.cost * row.roi
+    }
+
     const totalMetrics = {
-      cost: totalAgg._sum.cost ?? 0,
-      activations: totalAgg._sum.activations ?? 0,
-      accounts: totalAgg._sum.accounts ?? 0,
-      roi: totalAgg._avg.roi ?? 0,
+      cost: totalCost,
+      activations: totalActivations,
+      accounts: totalAccounts,
+      roi: totalCost > 0 ? Number((weightedRoiSum / totalCost).toFixed(4)) : 0,
     }
 
     // 分计划指标（Top 5）

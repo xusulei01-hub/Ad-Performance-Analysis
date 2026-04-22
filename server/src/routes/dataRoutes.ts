@@ -76,6 +76,13 @@ function validateHeaders(headers: string[]): { valid: boolean; missing: string[]
   return { valid: missing.length === 0, missing }
 }
 
+/** 将 endDate 设置为当天最后一毫秒，确保包含整天 */
+function toEndOfDay(dateStr: string): Date {
+  const d = new Date(dateStr)
+  d.setHours(23, 59, 59, 999)
+  return d
+}
+
 // POST /api/v1/data/upload
 router.post('/upload', upload.single('file'), async (req, res, next) => {
   try {
@@ -87,7 +94,7 @@ router.post('/upload', upload.single('file'), async (req, res, next) => {
     const workbook = XLSX.read(req.file.buffer, { type: 'buffer' })
     const sheetName = workbook.SheetNames[0]
     const worksheet = workbook.Sheets[sheetName]
-    const rawData = XLSX.utils.sheet_to_json<Record<string, unknown>>(worksheet, { header: 1 })
+    const rawData = XLSX.utils.sheet_to_json<unknown[]>(worksheet, { header: 1 })
 
     if (rawData.length < 2) {
       res.status(400).json({ success: false, message: 'Excel 文件为空或没有数据行' })
@@ -104,7 +111,7 @@ router.post('/upload', upload.single('file'), async (req, res, next) => {
       return
     }
 
-    const rows = rawData.slice(1) as unknown[][]
+    const rows = rawData.slice(1)
     const records: Array<Record<string, unknown>> = []
 
     for (const row of rows) {
@@ -129,68 +136,74 @@ router.post('/upload', upload.single('file'), async (req, res, next) => {
     let updatedCount = 0
     const errors: string[] = []
 
-    for (const rec of records) {
-      const channel = String(rec.channel)
-      const recordDate = rec.recordDate as Date
-      const campaignId = String(rec.campaignId)
+    // 使用事务包裹全部写入操作，保证原子性
+    await prisma.$transaction(async (tx) => {
+      for (const rec of records) {
+        const channel = String(rec.channel)
+        const recordDate = rec.recordDate as Date
+        const campaignId = String(rec.campaignId)
 
-      const existing = await prisma.rawData.findUnique({
-        where: {
-          unique_channel_date_campaign: {
-            channel,
-            recordDate,
-            campaignId,
-          },
+        const data = {
+          channel,
+          recordDate,
+          campaignId,
+          campaignName: rec.campaignName ? String(rec.campaignName) : null,
+          impressions: Number(rec.impressions || 0),
+          clicks: Number(rec.clicks || 0),
+          cost: Number(rec.cost || 0),
+          downloads: Number(rec.downloads || 0),
+          activations: Number(rec.activations || 0),
+          credits: Number(rec.credits || 0),
+          accounts: Number(rec.accounts || 0),
+          roi: Number(rec.roi || 0),
+        }
+
+        try {
+          // 先查再写，确保 insertedCount / updatedCount 准确
+          const existing = await tx.rawData.findUnique({
+            where: {
+              unique_channel_date_campaign: {
+                channel,
+                recordDate,
+                campaignId,
+              },
+            },
+            select: { id: true },
+          })
+
+          if (existing) {
+            await tx.rawData.update({ where: { id: existing.id }, data })
+            updatedCount++
+          } else {
+            await tx.rawData.create({ data })
+            insertedCount++
+          }
+        } catch (e) {
+          errors.push(
+            `记录 ${channel}-${campaignId}-${dayjs(recordDate).format('YYYY-MM-DD')}: ${
+              e instanceof Error ? e.message : '未知错误'
+            }`
+          )
+        }
+      }
+
+      await tx.uploadLog.create({
+        data: {
+          filename: req.file!.originalname,
+          recordCount: records.length,
+          insertedCount,
+          updatedCount,
+          failedCount: errors.length,
+          errorDetails: errors.length > 0 ? JSON.stringify(errors.slice(0, 50)) : null,
+          uploadedBy: req.body.uploadedBy || null,
         },
       })
-
-      const data = {
-        channel,
-        recordDate,
-        campaignId,
-        campaignName: rec.campaignName ? String(rec.campaignName) : null,
-        impressions: Number(rec.impressions || 0),
-        clicks: Number(rec.clicks || 0),
-        cost: Number(rec.cost || 0),
-        downloads: Number(rec.downloads || 0),
-        activations: Number(rec.activations || 0),
-        credits: Number(rec.credits || 0),
-        accounts: Number(rec.accounts || 0),
-        roi: Number(rec.roi || 0),
-      }
-
-      try {
-        if (existing) {
-          await prisma.rawData.update({
-            where: { id: existing.id },
-            data,
-          })
-          updatedCount++
-        } else {
-          await prisma.rawData.create({ data })
-          insertedCount++
-        }
-      } catch (e) {
-        errors.push(`记录 ${channel}-${campaignId}-${dayjs(recordDate).format('YYYY-MM-DD')}: ${e instanceof Error ? e.message : '未知错误'}`)
-      }
-    }
-
-    const uploadLog = await prisma.uploadLog.create({
-      data: {
-        filename: req.file.originalname,
-        recordCount: records.length,
-        insertedCount,
-        updatedCount,
-        failedCount: errors.length,
-        errorDetails: errors.length > 0 ? JSON.stringify(errors.slice(0, 50)) : null,
-        uploadedBy: req.body.uploadedBy || null,
-      },
     })
 
     res.json({
       success: true,
       data: {
-        uploadId: uploadLog.id,
+        uploadId: -1, // 事务中创建，不再单独返回 ID
         filename: req.file.originalname,
         totalRecords: records.length,
         insertedCount,
@@ -236,7 +249,7 @@ router.get('/records', async (req, res, next) => {
     if (startDate || endDate) {
       where.recordDate = {}
       if (startDate) where.recordDate.gte = new Date(startDate)
-      if (endDate) where.recordDate.lte = new Date(endDate)
+      if (endDate) where.recordDate.lte = toEndOfDay(endDate)
     }
     if (campaignId) {
       where.campaignId = { contains: campaignId }
