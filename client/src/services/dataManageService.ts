@@ -1,7 +1,21 @@
 import { request } from './api/client'
-import { RawData, UploadResult, UploadLog } from '@/types'
+import { RawData, UploadResult, UploadLog, ChannelMapping } from '@/types'
 
 export const dataManageService = {
+  async uploadFiles(mediaFile: File, convFile: File, uploadedBy?: string): Promise<UploadResult> {
+    const formData = new FormData()
+    formData.append('mediaFile', mediaFile)
+    formData.append('convFile', convFile)
+    if (uploadedBy) {
+      formData.append('uploadedBy', uploadedBy)
+    }
+    return request.post('/v1/data/upload', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    })
+  },
+
   async getRecords(params?: {
     channel?: string
     startDate?: string
@@ -36,16 +50,15 @@ export const dataManageService = {
     return request.get('/v1/data/upload-logs', { params })
   },
 
-  async uploadFile(file: File, uploadedBy?: string): Promise<UploadResult> {
-    const formData = new FormData()
-    formData.append('file', file)
-    if (uploadedBy) {
-      formData.append('uploadedBy', uploadedBy)
-    }
-    return request.post('/v1/data/upload', formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data',
-      },
-    })
+  async getChannelMappings(): Promise<ChannelMapping[]> {
+    return request.get<ChannelMapping[]>('/v1/data/channel-mappings')
+  },
+
+  async createChannelMapping(sourceName: string, targetName: string): Promise<ChannelMapping> {
+    return request.post('/v1/data/channel-mappings', { sourceName, targetName })
+  },
+
+  async deleteChannelMapping(id: number): Promise<void> {
+    return request.delete(`/v1/data/channel-mappings/${id}`)
   },
 }

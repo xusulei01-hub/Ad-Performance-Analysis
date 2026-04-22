@@ -25,29 +25,40 @@ router.get('/:channel/metrics', async (req, res, next) => {
       where.channel = { in: channels }
     }
 
-    // 总指标 — 手动聚合，ROI 按花费加权
+    // 总指标 — 手动聚合，ROI 按业务公式计算
     const totalRows = await prisma.rawData.findMany({
       where,
-      select: { cost: true, activations: true, accounts: true, roi: true },
+      select: { cost: true, activations: true, accounts: true, formalActivations: true, leads: true, impressions: true, clicks: true },
     })
 
     let totalCost = 0
     let totalActivations = 0
     let totalAccounts = 0
-    let weightedRoiSum = 0
+    let totalFormal = 0
+    let totalLeads = 0
+    let totalImpressions = 0
+    let totalClicks = 0
 
     for (const row of totalRows) {
       totalCost += row.cost
       totalActivations += row.activations
       totalAccounts += row.accounts
-      weightedRoiSum += row.cost * row.roi
+      totalFormal += row.formalActivations
+      totalLeads += row.leads
+      totalImpressions += row.impressions
+      totalClicks += row.clicks
     }
 
     const totalMetrics = {
       cost: totalCost,
       activations: totalActivations,
       accounts: totalAccounts,
-      roi: totalCost > 0 ? Number((weightedRoiSum / totalCost).toFixed(4)) : 0,
+      formalActivations: totalFormal,
+      leads: totalLeads,
+      impressions: totalImpressions,
+      clicks: totalClicks,
+      ctr: totalImpressions > 0 ? Number((totalClicks / totalImpressions).toFixed(4)) : 0,
+      roi: totalCost > 0 ? Number(((totalAccounts * 3100) / totalCost).toFixed(4)) : 0,
     }
 
     // 分计划指标（Top 5）
@@ -76,8 +87,8 @@ router.get('/:channel/metrics', async (req, res, next) => {
       prisma.rawData.groupBy({
         by: ['campaignId', 'campaignName'],
         where,
-        _avg: { roi: true },
-        orderBy: { _avg: { roi: 'desc' } },
+        _sum: { cost: true, accounts: true },
+        orderBy: { _sum: { accounts: 'desc' } },
         take: 5,
       }),
     ])
@@ -101,7 +112,9 @@ router.get('/:channel/metrics', async (req, res, next) => {
       roi: roiTop.map((r) => ({
         campaignId: r.campaignId,
         campaignName: r.campaignName,
-        roi: r._avg.roi ?? 0,
+        roi: (r._sum.cost ?? 0) > 0
+          ? Number((((r._sum.accounts ?? 0) * 3100) / (r._sum.cost ?? 0)).toFixed(4))
+          : 0,
       })),
     }
 
@@ -113,9 +126,10 @@ router.get('/:channel/metrics', async (req, res, next) => {
         cost: true,
         activations: true,
         accounts: true,
-      },
-      _avg: {
-        roi: true,
+        formalActivations: true,
+        leads: true,
+        impressions: true,
+        clicks: true,
       },
       orderBy: { recordDate: 'asc' },
     })
@@ -125,7 +139,16 @@ router.get('/:channel/metrics', async (req, res, next) => {
       cost: r._sum.cost ?? 0,
       activations: r._sum.activations ?? 0,
       accounts: r._sum.accounts ?? 0,
-      roi: r._avg.roi ?? 0,
+      formalActivations: r._sum.formalActivations ?? 0,
+      leads: r._sum.leads ?? 0,
+      impressions: r._sum.impressions ?? 0,
+      clicks: r._sum.clicks ?? 0,
+      ctr: (r._sum.impressions ?? 0) > 0
+        ? Number(((r._sum.clicks ?? 0) / (r._sum.impressions ?? 0)).toFixed(4))
+        : 0,
+      roi: (r._sum.cost ?? 0) > 0
+        ? Number((((r._sum.accounts ?? 0) * 3100) / (r._sum.cost ?? 0)).toFixed(4))
+        : 0,
     }))
 
     res.json({

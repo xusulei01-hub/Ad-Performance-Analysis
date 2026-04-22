@@ -5,9 +5,7 @@ import { prisma } from '../lib/prisma'
 const router = Router()
 
 /**
- * 按花费加权计算 ROI
- * 整体 ROI = SUM(cost * roi) / SUM(cost)
- * 这样花费多的计划对整体 ROI 影响更大，避免简单算术平均失真
+ * 聚合指标，ROI 按业务公式计算：合计开户 * 3100 / 合计花费
  */
 async function aggregateMetrics(startDate: Date, endDate: Date, channelFilter?: string[]) {
   const where: any = {
@@ -22,26 +20,37 @@ async function aggregateMetrics(startDate: Date, endDate: Date, channelFilter?: 
 
   const rows = await prisma.rawData.findMany({
     where,
-    select: { cost: true, activations: true, accounts: true, roi: true },
+    select: { cost: true, activations: true, accounts: true, formalActivations: true, leads: true, impressions: true, clicks: true },
   })
 
   let totalCost = 0
   let totalActivations = 0
   let totalAccounts = 0
-  let weightedRoiSum = 0
+  let totalFormal = 0
+  let totalLeads = 0
+  let totalImpressions = 0
+  let totalClicks = 0
 
   for (const row of rows) {
     totalCost += row.cost
     totalActivations += row.activations
     totalAccounts += row.accounts
-    weightedRoiSum += row.cost * row.roi
+    totalFormal += row.formalActivations
+    totalLeads += row.leads
+    totalImpressions += row.impressions
+    totalClicks += row.clicks
   }
 
   return {
     cost: totalCost,
     activations: totalActivations,
     accounts: totalAccounts,
-    roi: totalCost > 0 ? Number((weightedRoiSum / totalCost).toFixed(4)) : 0,
+    formalActivations: totalFormal,
+    leads: totalLeads,
+    impressions: totalImpressions,
+    clicks: totalClicks,
+    ctr: totalImpressions > 0 ? Number((totalClicks / totalImpressions).toFixed(4)) : 0,
+    roi: totalCost > 0 ? Number(((totalAccounts * 3100) / totalCost).toFixed(4)) : 0,
   }
 }
 
@@ -77,6 +86,9 @@ router.get('/daily', async (req, res, next) => {
         cost: yesterdayMetrics.cost,
         activations: yesterdayMetrics.activations,
         accounts: yesterdayMetrics.accounts,
+        formalActivations: yesterdayMetrics.formalActivations,
+        leads: yesterdayMetrics.leads,
+        ctr: yesterdayMetrics.ctr,
         roi: yesterdayMetrics.roi,
         costChange: calcChange(yesterdayMetrics.cost, dayBeforeMetrics.cost),
         activationsChange: calcChange(yesterdayMetrics.activations, dayBeforeMetrics.activations),
@@ -105,6 +117,9 @@ router.get('/weekly', async (req, res, next) => {
         cost: metrics.cost,
         activations: metrics.activations,
         accounts: metrics.accounts,
+        formalActivations: metrics.formalActivations,
+        leads: metrics.leads,
+        ctr: metrics.ctr,
         roi: metrics.roi,
         targetCost: 1000000,
         targetActivations: 8000,
@@ -133,6 +148,9 @@ router.get('/monthly', async (req, res, next) => {
         cost: metrics.cost,
         activations: metrics.activations,
         accounts: metrics.accounts,
+        formalActivations: metrics.formalActivations,
+        leads: metrics.leads,
+        ctr: metrics.ctr,
         roi: metrics.roi,
         targetCost: 5000000,
         targetActivations: 40000,
@@ -152,27 +170,26 @@ router.get('/rankings', async (req, res, next) => {
     const startOfMonth = now.startOf('month').toDate()
     const endOfMonth = now.endOf('month').toDate()
 
-    // 一次性查出本月所有原始数据，手动分组聚合，避免 _avg(roi) 的简单平均失真
     const rows = await prisma.rawData.findMany({
       where: {
         recordDate: { gte: startOfMonth, lte: endOfMonth },
       },
-      select: { channel: true, cost: true, activations: true, roi: true },
+      select: { channel: true, cost: true, activations: true, accounts: true },
     })
 
-    const channelMap = new Map<string, { cost: number; activations: number; roiWeightedSum: number }>()
+    const channelMap = new Map<string, { cost: number; activations: number; accounts: number }>()
 
     for (const row of rows) {
       const existing = channelMap.get(row.channel)
       if (existing) {
         existing.cost += row.cost
         existing.activations += row.activations
-        existing.roiWeightedSum += row.cost * row.roi
+        existing.accounts += row.accounts
       } else {
         channelMap.set(row.channel, {
           cost: row.cost,
           activations: row.activations,
-          roiWeightedSum: row.cost * row.roi,
+          accounts: row.accounts,
         })
       }
     }
@@ -180,7 +197,7 @@ router.get('/rankings', async (req, res, next) => {
     const channelData = Array.from(channelMap.entries()).map(([channel, data]) => ({
       channel,
       cost: data.cost,
-      roi: data.cost > 0 ? Number((data.roiWeightedSum / data.cost).toFixed(4)) : 0,
+      roi: data.cost > 0 ? Number(((data.accounts * 3100) / data.cost).toFixed(4)) : 0,
       cpa: data.activations > 0 ? Number((data.cost / data.activations).toFixed(2)) : 0,
       activations: data.activations,
     }))

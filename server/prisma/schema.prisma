@@ -8,21 +8,22 @@ datasource db {
 }
 
 model RawData {
-  id            Int      @id @default(autoincrement())
-  channel       String
-  recordDate    DateTime @map("record_date")
-  campaignId    String   @map("campaign_id")
-  campaignName  String?  @map("campaign_name")
-  impressions   Int      @default(0)
-  clicks        Int      @default(0)
-  cost          Float    @default(0)
-  downloads     Int      @default(0)
-  activations   Int      @default(0)
-  credits       Int      @default(0)
-  accounts      Int      @default(0)
-  roi           Float    @default(0)
-  createdAt     DateTime @default(now()) @map("created_at")
-  updatedAt     DateTime @updatedAt @map("updated_at")
+  id                Int      @id @default(autoincrement())
+  channel           String
+  recordDate        DateTime @map("record_date")
+  campaignId        String   @map("campaign_id")
+  campaignName      String?  @map("campaign_name")
+  impressions       Int      @default(0)
+  clicks            Int      @default(0)
+  cost              Float    @default(0)
+  downloads         Int      @default(0)
+  activations       Int      @default(0)
+  formalActivations Int      @default(0) @map("formal_activations")
+  leads             Int      @default(0) @map("leads")
+  accounts          Int      @default(0)
+  ctr               Float    @default(0) @map("ctr")
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @updatedAt @map("updated_at")
 
   @@unique([channel, recordDate, campaignId], name: "unique_channel_date_campaign")
   @@index([channel])
@@ -45,4 +46,14 @@ model UploadLog {
 
   @@index([uploadedAt])
   @@map("upload_logs")
+}
+
+model ChannelMapping {
+  id            Int      @id @default(autoincrement())
+  sourceName    String   @map("source_name")
+  targetName    String   @map("target_name")
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  @@unique([sourceName], name: "unique_source_name")
+  @@map("channel_mappings")
 }

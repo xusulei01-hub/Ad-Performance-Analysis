@@ -3,15 +3,16 @@ export interface RawData {
   channel: string
   recordDate: string
   campaignId: string
-  campaignName?: string
+  campaignName?: string | null
   impressions: number
   clicks: number
   cost: number
   downloads: number
   activations: number
-  credits: number
+  formalActivations: number
+  leads: number
   accounts: number
-  roi: number
+  ctr: number
   createdAt?: string
   updatedAt?: string
 }
@@ -20,9 +21,13 @@ export interface UploadResult {
   uploadId: number
   filename: string
   totalRecords: number
+  mediaRows: number
+  convRows: number
   insertedCount: number
   updatedCount: number
   failedCount: number
+  unmatchedMediaCount: number
+  unmatchedConvCount: number
   preview: RawData[]
 }
 
@@ -36,6 +41,9 @@ export interface DailyOverview {
   cost: number
   activations: number
   accounts: number
+  formalActivations: number
+  leads: number
+  ctr: number
   roi: number
   costChange: number
   activationsChange: number
@@ -49,6 +57,9 @@ export interface WeeklyOverview {
   cost: number
   activations: number
   accounts: number
+  formalActivations: number
+  leads: number
+  ctr: number
   roi: number
   targetCost: number
   targetActivations: number
@@ -61,6 +72,9 @@ export interface MonthlyOverview {
   cost: number
   activations: number
   accounts: number
+  formalActivations: number
+  leads: number
+  ctr: number
   roi: number
   targetCost: number
   targetActivations: number
@@ -88,6 +102,11 @@ export interface ChannelMetrics {
     cost: number
     activations: number
     accounts: number
+    formalActivations: number
+    leads: number
+    impressions: number
+    clicks: number
+    ctr: number
     roi: number
   }
   campaignMetrics: {
@@ -101,6 +120,11 @@ export interface ChannelMetrics {
     cost: number
     activations: number
     accounts: number
+    formalActivations: number
+    leads: number
+    impressions: number
+    clicks: number
+    ctr: number
     roi: number
   }>
 }
@@ -115,6 +139,13 @@ export interface UploadLog {
   errorDetails?: string
   uploadedBy?: string
   uploadedAt: string
+}
+
+export interface ChannelMapping {
+  id: number
+  sourceName: string
+  targetName: string
+  createdAt: string
 }
 
 export interface ApiResponse<T> {

@@ -16,6 +16,9 @@ import {
   BankOutlined,
   PercentageOutlined,
   ReloadOutlined,
+  CheckCircleOutlined,
+  FileTextOutlined,
+  BarChartOutlined,
 } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import ReactECharts from 'echarts-for-react'
@@ -208,7 +211,7 @@ const ChannelAnalysis: React.FC = () => {
   const trendOption = metrics?.dailyTrends.length
     ? {
         tooltip: { trigger: 'axis' },
-        legend: { data: ['花费', '激活', '开户', 'ROI'], bottom: 0 },
+        legend: { data: ['花费', '激活', '开户', '转正', '留资', 'ROI', 'CTR'], bottom: 0 },
         grid: { left: '3%', right: '4%', bottom: '15%', containLabel: true },
         xAxis: {
           type: 'category',
@@ -224,7 +227,7 @@ const ChannelAnalysis: React.FC = () => {
           },
           {
             type: 'value',
-            name: 'ROI',
+            name: '比率',
             position: 'right',
             axisLabel: { fontFamily: 'var(--font-family-number)' },
           },
@@ -258,11 +261,39 @@ const ChannelAnalysis: React.FC = () => {
             symbolSize: 6,
           },
           {
+            name: '转正',
+            type: 'line',
+            data: metrics.dailyTrends.map((d) => d.formalActivations),
+            itemStyle: { color: '#7BC4A6' },
+            smooth: true,
+            symbol: 'circle',
+            symbolSize: 6,
+          },
+          {
+            name: '留资',
+            type: 'line',
+            data: metrics.dailyTrends.map((d) => d.leads),
+            itemStyle: { color: '#D4A5A5' },
+            smooth: true,
+            symbol: 'circle',
+            symbolSize: 6,
+          },
+          {
             name: 'ROI',
             type: 'line',
             yAxisIndex: 1,
             data: metrics.dailyTrends.map((d) => Number(d.roi.toFixed(2))),
             itemStyle: { color: 'var(--color-data-orange)' },
+            smooth: true,
+            symbol: 'circle',
+            symbolSize: 6,
+          },
+          {
+            name: 'CTR',
+            type: 'line',
+            yAxisIndex: 1,
+            data: metrics.dailyTrends.map((d) => Number((d.ctr * 100).toFixed(2))),
+            itemStyle: { color: '#6B8DD6' },
             smooth: true,
             symbol: 'circle',
             symbolSize: 6,
@@ -357,7 +388,7 @@ const ChannelAnalysis: React.FC = () => {
 
         {/* 渠道总览 */}
         <h2 style={cardTitleStyle}>渠道总览</h2>
-        <Row gutter={[16, 16]} style={{ marginBottom: 'var(--margin-super-loose)' }}>
+        <Row gutter={[16, 16]} style={{ marginBottom: 'var(--margin-base)' }}>
           <Col xs={24} sm={12} lg={6}>
             <MetricCard
               title="总花费"
@@ -386,6 +417,31 @@ const ChannelAnalysis: React.FC = () => {
               value={metrics?.totalMetrics.roi ?? 0}
               precision={2}
               icon={<PercentageOutlined />}
+            />
+          </Col>
+        </Row>
+        <Row gutter={[16, 16]} style={{ marginBottom: 'var(--margin-super-loose)' }}>
+          <Col xs={24} sm={12} lg={8}>
+            <MetricCard
+              title="总转正"
+              value={metrics?.totalMetrics.formalActivations ?? 0}
+              icon={<CheckCircleOutlined />}
+            />
+          </Col>
+          <Col xs={24} sm={12} lg={8}>
+            <MetricCard
+              title="总留资"
+              value={metrics?.totalMetrics.leads ?? 0}
+              icon={<FileTextOutlined />}
+            />
+          </Col>
+          <Col xs={24} sm={12} lg={8}>
+            <MetricCard
+              title="CTR"
+              value={(metrics?.totalMetrics.ctr ?? 0) * 100}
+              precision={2}
+              suffix="%"
+              icon={<BarChartOutlined />}
             />
           </Col>
         </Row>

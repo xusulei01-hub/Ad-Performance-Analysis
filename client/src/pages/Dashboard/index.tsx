@@ -7,6 +7,9 @@ import {
   UserAddOutlined,
   BankOutlined,
   PercentageOutlined,
+  CheckCircleOutlined,
+  FileTextOutlined,
+  BarChartOutlined,
 } from '@ant-design/icons'
 import ReactECharts from 'echarts-for-react'
 import { dashboardService } from '@services/dashboardService'
@@ -248,7 +251,7 @@ const Dashboard: React.FC = () => {
 
         {/* 昨日数据 */}
         <h2 style={cardTitleStyle}>昨日数据</h2>
-        <Row gutter={[16, 16]} style={{ marginBottom: 'var(--margin-super-loose)' }}>
+        <Row gutter={[16, 16]} style={{ marginBottom: 'var(--margin-base)' }}>
           <Col xs={24} sm={12} lg={6}>
             <MetricCard
               title="昨日花费"
@@ -284,10 +287,35 @@ const Dashboard: React.FC = () => {
             />
           </Col>
         </Row>
+        <Row gutter={[16, 16]} style={{ marginBottom: 'var(--margin-super-loose)' }}>
+          <Col xs={24} sm={12} lg={8}>
+            <MetricCard
+              title="昨日转正"
+              value={daily?.formalActivations ?? 0}
+              icon={<CheckCircleOutlined />}
+            />
+          </Col>
+          <Col xs={24} sm={12} lg={8}>
+            <MetricCard
+              title="昨日留资"
+              value={daily?.leads ?? 0}
+              icon={<FileTextOutlined />}
+            />
+          </Col>
+          <Col xs={24} sm={12} lg={8}>
+            <MetricCard
+              title="昨日CTR"
+              value={daily?.ctr ?? 0}
+              precision={2}
+              suffix="%"
+              icon={<BarChartOutlined />}
+            />
+          </Col>
+        </Row>
 
         {/* 本周数据 */}
         <h2 style={cardTitleStyle}>本周数据</h2>
-        <Row gutter={[16, 16]} style={{ marginBottom: 'var(--margin-super-loose)' }}>
+        <Row gutter={[16, 16]} style={{ marginBottom: 'var(--margin-base)' }}>
           <Col xs={24} sm={12} lg={6}>
             <MetricCard
               title="本周花费"
@@ -323,10 +351,35 @@ const Dashboard: React.FC = () => {
             />
           </Col>
         </Row>
+        <Row gutter={[16, 16]} style={{ marginBottom: 'var(--margin-super-loose)' }}>
+          <Col xs={24} sm={12} lg={8}>
+            <MetricCard
+              title="本周转正"
+              value={weekly?.formalActivations ?? 0}
+              icon={<CheckCircleOutlined />}
+            />
+          </Col>
+          <Col xs={24} sm={12} lg={8}>
+            <MetricCard
+              title="本周留资"
+              value={weekly?.leads ?? 0}
+              icon={<FileTextOutlined />}
+            />
+          </Col>
+          <Col xs={24} sm={12} lg={8}>
+            <MetricCard
+              title="本周CTR"
+              value={(weekly?.ctr ?? 0) * 100}
+              precision={2}
+              suffix="%"
+              icon={<BarChartOutlined />}
+            />
+          </Col>
+        </Row>
 
         {/* 本月数据 */}
         <h2 style={cardTitleStyle}>本月数据</h2>
-        <Row gutter={[16, 16]} style={{ marginBottom: 'var(--margin-super-loose)' }}>
+        <Row gutter={[16, 16]} style={{ marginBottom: 'var(--margin-base)' }}>
           <Col xs={24} sm={12} lg={6}>
             <MetricCard
               title="本月花费"
@@ -359,6 +412,31 @@ const Dashboard: React.FC = () => {
               precision={2}
               icon={<PercentageOutlined />}
               target={monthly?.targetRoi}
+            />
+          </Col>
+        </Row>
+        <Row gutter={[16, 16]} style={{ marginBottom: 'var(--margin-super-loose)' }}>
+          <Col xs={24} sm={12} lg={8}>
+            <MetricCard
+              title="本月转正"
+              value={monthly?.formalActivations ?? 0}
+              icon={<CheckCircleOutlined />}
+            />
+          </Col>
+          <Col xs={24} sm={12} lg={8}>
+            <MetricCard
+              title="本月留资"
+              value={monthly?.leads ?? 0}
+              icon={<FileTextOutlined />}
+            />
+          </Col>
+          <Col xs={24} sm={12} lg={8}>
+            <MetricCard
+              title="本月CTR"
+              value={(monthly?.ctr ?? 0) * 100}
+              precision={2}
+              suffix="%"
+              icon={<BarChartOutlined />}
             />
           </Col>
         </Row>
