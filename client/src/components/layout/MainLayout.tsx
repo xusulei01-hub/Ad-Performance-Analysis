@@ -100,6 +100,16 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--margin-loose)' }}>
+          <img
+            src="/logo-for-alang.png"
+            alt="logo"
+            style={{
+              height: 36,
+              width: 36,
+              borderRadius: 'var(--radius-medium)',
+              objectFit: 'cover',
+            }}
+          />
           <Title
             level={4}
             style={{
