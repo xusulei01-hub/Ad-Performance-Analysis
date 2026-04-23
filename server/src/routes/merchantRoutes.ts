@@ -173,9 +173,19 @@ router.post('/upload', upload.single('file'), async (req, res, next) => {
       return
     }
 
+    // 去重：相同 user_id 保留第一条（最早出现的记录）
+    const seen = new Set<string>()
+    const uniqueParsed: ParsedMerchantRow[] = []
+    for (const row of parsed) {
+      if (!seen.has(row.userId)) {
+        seen.add(row.userId)
+        uniqueParsed.push(row)
+      }
+    }
+
     // 1. 先查出所有已有的 userId，建立映射
     const existingRows = await prisma.merchantData.findMany({
-      where: { userId: { in: parsed.map((r) => r.userId) } },
+      where: { userId: { in: uniqueParsed.map((r) => r.userId) } },
       select: { id: true, userId: true },
     })
     const existingMap = new Map(existingRows.map((r) => [r.userId, r.id]))
@@ -183,7 +193,7 @@ router.post('/upload', upload.single('file'), async (req, res, next) => {
     const toInsert: any[] = []
     const toUpdate: { id: number; data: any }[] = []
 
-    for (const row of parsed) {
+    for (const row of uniqueParsed) {
       const data = {
         userId: row.userId,
         qsId: row.qsId,
@@ -218,7 +228,7 @@ router.post('/upload', upload.single('file'), async (req, res, next) => {
       success: true,
       data: {
         filename: file.originalname,
-        totalRecords: parsed.length,
+        totalRecords: uniqueParsed.length,
         insertedCount,
         updatedCount,
       },
