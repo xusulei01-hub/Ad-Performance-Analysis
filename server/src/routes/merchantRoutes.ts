@@ -173,33 +173,46 @@ router.post('/upload', upload.single('file'), async (req, res, next) => {
       return
     }
 
-    let insertedCount = 0
-    let updatedCount = 0
-
-    await prisma.$transaction(async (tx) => {
-      for (const row of parsed) {
-        const data = {
-          userId: row.userId,
-          qsId: row.qsId,
-          channel: row.channel,
-          leadDate: new Date(row.leadDate),
-          accountDate: row.accountDate ? new Date(row.accountDate) : null,
-        }
-
-        const existing = await tx.merchantData.findUnique({
-          where: { userId: row.userId },
-          select: { id: true },
-        })
-
-        if (existing) {
-          await tx.merchantData.update({ where: { id: existing.id }, data })
-          updatedCount++
-        } else {
-          await tx.merchantData.create({ data })
-          insertedCount++
-        }
-      }
+    // 1. 先查出所有已有的 userId，建立映射
+    const existingRows = await prisma.merchantData.findMany({
+      where: { userId: { in: parsed.map((r) => r.userId) } },
+      select: { id: true, userId: true },
     })
+    const existingMap = new Map(existingRows.map((r) => [r.userId, r.id]))
+
+    const toInsert: any[] = []
+    const toUpdate: { id: number; data: any }[] = []
+
+    for (const row of parsed) {
+      const data = {
+        userId: row.userId,
+        qsId: row.qsId,
+        channel: row.channel,
+        leadDate: new Date(row.leadDate),
+        accountDate: row.accountDate ? new Date(row.accountDate) : null,
+      }
+      const existingId = existingMap.get(row.userId)
+      if (existingId) {
+        toUpdate.push({ id: existingId, data })
+      } else {
+        toInsert.push(data)
+      }
+    }
+
+    // 2. 批量插入新记录
+    const BATCH_SIZE = 200
+    for (let i = 0; i < toInsert.length; i += BATCH_SIZE) {
+      const batch = toInsert.slice(i, i + BATCH_SIZE)
+      await prisma.merchantData.createMany({ data: batch })
+    }
+
+    // 3. 逐条更新已有记录（不用事务包裹，避免超时）
+    for (const { id, data } of toUpdate) {
+      await prisma.merchantData.update({ where: { id }, data })
+    }
+
+    const insertedCount = toInsert.length
+    const updatedCount = toUpdate.length
 
     res.json({
       success: true,
