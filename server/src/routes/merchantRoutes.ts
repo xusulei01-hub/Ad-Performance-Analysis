@@ -335,18 +335,32 @@ router.get('/channels', async (req, res, next) => {
 
 /* ─────────── 报表 ─────────── */
 
-// GET /api/v1/merchants/reports/merchant?start_date=...&end_date=...
+function buildReportWhere(req: any): { startDate: string; endDate: string; where: any } {
+  const startDate = req.query.start_date ? String(req.query.start_date) : dayjs().startOf('month').format('YYYY-MM-DD')
+  const endDate = req.query.end_date ? String(req.query.end_date) : dayjs().format('YYYY-MM-DD')
+  const qsIds = req.query.qs_id ? String(req.query.qs_id).split(',').filter(Boolean) : undefined
+  const channels = req.query.channel ? String(req.query.channel).split(',').filter(Boolean) : undefined
+
+  const where: any = {
+    leadDate: {
+      gte: new Date(startDate),
+      lte: new Date(endDate + 'T23:59:59.999Z'),
+    },
+  }
+  if (qsIds && qsIds.length > 0) {
+    where.qsId = { in: qsIds }
+  }
+  if (channels && channels.length > 0) {
+    where.channel = { in: channels }
+  }
+
+  return { startDate, endDate, where }
+}
+
+// GET /api/v1/merchants/reports/merchant?start_date=...&end_date=...&qs_id=...&channel=...
 router.get('/reports/merchant', async (req, res, next) => {
   try {
-    const startDate = req.query.start_date ? String(req.query.start_date) : dayjs().startOf('month').format('YYYY-MM-DD')
-    const endDate = req.query.end_date ? String(req.query.end_date) : dayjs().format('YYYY-MM-DD')
-
-    const where = {
-      leadDate: {
-        gte: new Date(startDate),
-        lte: new Date(endDate + 'T23:59:59.999Z'),
-      },
-    }
+    const { startDate, endDate, where } = buildReportWhere(req)
 
     const rows = await prisma.merchantData.findMany({ where })
     const mappings = await prisma.merchantMapping.findMany()
@@ -387,18 +401,10 @@ router.get('/reports/merchant', async (req, res, next) => {
   }
 })
 
-// GET /api/v1/merchants/reports/channel?start_date=...&end_date=...
+// GET /api/v1/merchants/reports/channel?start_date=...&end_date=...&qs_id=...&channel=...
 router.get('/reports/channel', async (req, res, next) => {
   try {
-    const startDate = req.query.start_date ? String(req.query.start_date) : dayjs().startOf('month').format('YYYY-MM-DD')
-    const endDate = req.query.end_date ? String(req.query.end_date) : dayjs().format('YYYY-MM-DD')
-
-    const where = {
-      leadDate: {
-        gte: new Date(startDate),
-        lte: new Date(endDate + 'T23:59:59.999Z'),
-      },
-    }
+    const { startDate, endDate, where } = buildReportWhere(req)
 
     const rows = await prisma.merchantData.findMany({ where })
 

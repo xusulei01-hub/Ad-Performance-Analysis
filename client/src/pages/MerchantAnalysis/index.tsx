@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react'
-import { Card, DatePicker, Table, Spin, Empty, Space, Button, Row, Col, Statistic } from 'antd'
+import { Card, DatePicker, Table, Spin, Empty, Space, Button, Row, Col, Statistic, Select } from 'antd'
 import { ReloadOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import ReactECharts from 'echarts-for-react'
@@ -18,22 +18,45 @@ const MerchantAnalysis: React.FC = () => {
     dayjs().startOf('month'),
     dayjs(),
   ])
+  const [selectedMerchants, setSelectedMerchants] = useState<string[]>([])
+  const [selectedChannels, setSelectedChannels] = useState<string[]>([])
+  const [merchantOptions, setMerchantOptions] = useState<{ qsId: string; merchantName: string }[]>([])
+  const [channelOptions, setChannelOptions] = useState<string[]>([])
+
   const [loading, setLoading] = useState(false)
   const [merchantReport, setMerchantReport] = useState<MerchantReportItem[]>([])
   const [channelReport, setChannelReport] = useState<ChannelReportItem[]>([])
 
+  const fetchFilterOptions = useCallback(async () => {
+    try {
+      const [merchants, channels] = await Promise.all([
+        merchantService.getMerchants(),
+        merchantService.getChannels(),
+      ])
+      setMerchantOptions(merchants.map((m) => ({ qsId: m.qsId, merchantName: m.merchantName })))
+      setChannelOptions(channels)
+    } catch (e) {
+      console.error('Fetch filter options error:', e)
+    }
+  }, [])
+
+  useEffect(() => {
+    fetchFilterOptions()
+  }, [fetchFilterOptions])
+
   const fetchData = useCallback(async () => {
     setLoading(true)
     try {
+      const params: any = {
+        start_date: dateRange[0].format('YYYY-MM-DD'),
+        end_date: dateRange[1].format('YYYY-MM-DD'),
+      }
+      if (selectedMerchants.length > 0) params.qs_id = selectedMerchants.join(',')
+      if (selectedChannels.length > 0) params.channel = selectedChannels.join(',')
+
       const [mRes, cRes] = await Promise.all([
-        merchantService.getMerchantReport({
-          startDate: dateRange[0].format('YYYY-MM-DD'),
-          endDate: dateRange[1].format('YYYY-MM-DD'),
-        }),
-        merchantService.getChannelReport({
-          startDate: dateRange[0].format('YYYY-MM-DD'),
-          endDate: dateRange[1].format('YYYY-MM-DD'),
-        }),
+        merchantService.getMerchantReport(params),
+        merchantService.getChannelReport(params),
       ])
       setMerchantReport(mRes.report)
       setChannelReport(cRes.report)
@@ -42,7 +65,7 @@ const MerchantAnalysis: React.FC = () => {
     } finally {
       setLoading(false)
     }
-  }, [dateRange])
+  }, [dateRange, selectedMerchants, selectedChannels])
 
   useEffect(() => {
     fetchData()
@@ -52,7 +75,6 @@ const MerchantAnalysis: React.FC = () => {
   const totalAccounts = merchantReport.reduce((sum, r) => sum + r.accounts, 0)
   const totalCost = merchantReport.reduce((sum, r) => sum + r.cost, 0)
   const overallAccountRate = totalLeads > 0 ? Number((totalAccounts / totalLeads).toFixed(4)) : 0
-  // const overallAccountCost = totalAccounts > 0 ? Number((totalCost / totalAccounts).toFixed(2)) : 0
 
   const merchantChartOption = merchantReport.length
     ? {
@@ -148,10 +170,38 @@ const MerchantAnalysis: React.FC = () => {
         </h1>
 
         <Row gutter={[16, 16]} style={{ marginBottom: 'var(--margin-loose)' }}>
-          <Col xs={24} md={12} lg={8}>
-            <RangePicker style={{ width: '100%' }} value={dateRange as any} onChange={(dates) => dates && setDateRange(dates as [dayjs.Dayjs, dayjs.Dayjs])} />
+          <Col xs={24} md={12} lg={6}>
+            <RangePicker
+              style={{ width: '100%' }}
+              value={dateRange as any}
+              onChange={(dates) => dates && setDateRange(dates as [dayjs.Dayjs, dayjs.Dayjs])}
+            />
           </Col>
-          <Col xs={24} md={12} lg={8}>
+          <Col xs={24} md={12} lg={6}>
+            <Select
+              mode="multiple"
+              style={{ width: '100%' }}
+              placeholder="选择期商"
+              allowClear
+              value={selectedMerchants}
+              onChange={setSelectedMerchants}
+              options={merchantOptions.map((m) => ({ label: m.merchantName, value: m.qsId }))}
+              maxTagCount={2}
+            />
+          </Col>
+          <Col xs={24} md={12} lg={6}>
+            <Select
+              mode="multiple"
+              style={{ width: '100%' }}
+              placeholder="选择渠道"
+              allowClear
+              value={selectedChannels}
+              onChange={setSelectedChannels}
+              options={channelOptions.map((c) => ({ label: c, value: c }))}
+              maxTagCount={2}
+            />
+          </Col>
+          <Col xs={24} md={12} lg={6}>
             <Space>
               <Button type="primary" icon={<ReloadOutlined />} onClick={fetchData}>刷新</Button>
             </Space>

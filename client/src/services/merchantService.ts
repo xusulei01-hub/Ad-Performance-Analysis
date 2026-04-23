@@ -44,15 +44,19 @@ export const merchantService = {
   },
 
   async getMerchantReport(params?: {
-    startDate?: string
-    endDate?: string
+    start_date?: string
+    end_date?: string
+    qs_id?: string
+    channel?: string
   }): Promise<MerchantReport> {
     return request.get('/v1/merchants/reports/merchant', { params })
   },
 
   async getChannelReport(params?: {
-    startDate?: string
-    endDate?: string
+    start_date?: string
+    end_date?: string
+    qs_id?: string
+    channel?: string
   }): Promise<ChannelReport> {
     return request.get('/v1/merchants/reports/channel', { params })
   },
