@@ -57,3 +57,30 @@ model ChannelMapping {
   @@unique([sourceName], name: "unique_source_name")
   @@map("channel_mappings")
 }
+
+model MerchantData {
+  id            Int       @id @default(autoincrement())
+  userId        String    @unique @map("user_id")
+  qsId          String    @map("qs_id")
+  channel       String
+  leadDate      DateTime  @map("lead_date")
+  accountDate   DateTime? @map("account_date")
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+
+  @@index([qsId])
+  @@index([channel])
+  @@index([leadDate])
+  @@index([qsId, leadDate])
+  @@index([channel, leadDate])
+  @@map("merchant_data")
+}
+
+model MerchantMapping {
+  id            Int      @id @default(autoincrement())
+  qsId          String   @unique @map("qs_id")
+  merchantName  String   @map("merchant_name")
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  @@map("merchant_mappings")
+}

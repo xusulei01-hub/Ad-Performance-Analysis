@@ -4,6 +4,7 @@ import dotenv from 'dotenv'
 import dataRoutes from './routes/dataRoutes'
 import overviewRoutes from './routes/overviewRoutes'
 import channelRoutes from './routes/channelRoutes'
+import merchantRoutes from './routes/merchantRoutes'
 
 dotenv.config()
 
@@ -26,6 +27,7 @@ app.get('/health', (req, res) => {
 app.use('/api/v1/data', dataRoutes)
 app.use('/api/v1/overview', overviewRoutes)
 app.use('/api/v1/channels', channelRoutes)
+app.use('/api/v1/merchants', merchantRoutes)
 
 // 错误处理中间件
 app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {

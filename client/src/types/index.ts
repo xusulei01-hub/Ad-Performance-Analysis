@@ -148,6 +148,65 @@ export interface ChannelMapping {
   createdAt: string
 }
 
+export interface MerchantData {
+  id: number
+  userId: string
+  qsId: string
+  channel: string
+  leadDate: string
+  accountDate: string | null
+  merchantName?: string | null
+  createdAt: string
+  updatedAt: string
+}
+
+export interface MerchantUploadResult {
+  filename: string
+  totalRecords: number
+  insertedCount: number
+  updatedCount: number
+}
+
+export interface MerchantMapping {
+  id: number
+  qsId: string
+  merchantName: string
+  createdAt: string
+}
+
+export interface MerchantInfo {
+  qsId: string
+  merchantName: string
+  count: number
+}
+
+export interface MerchantReportItem {
+  qsId: string
+  merchantName: string
+  leads: number
+  accounts: number
+  cost: number
+  accountRate: number
+  accountCost: number
+}
+
+export interface MerchantReport {
+  dateRange: DateRange
+  report: MerchantReportItem[]
+}
+
+export interface ChannelReportItem {
+  channel: string
+  leads: number
+  accounts: number
+  accountRate: number
+}
+
+export interface ChannelReport {
+  dateRange: DateRange
+  report: ChannelReportItem[]
+}
+
 export interface ApiResponse<T> {
   success: boolean
   data?: T

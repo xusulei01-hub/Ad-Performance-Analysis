@@ -5,6 +5,8 @@ import {
   BarChartOutlined,
   CloudUploadOutlined,
   ReloadOutlined,
+  ShopOutlined,
+  TeamOutlined,
 } from '@ant-design/icons'
 import { Link, useLocation } from 'react-router-dom'
 
@@ -39,6 +41,16 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
       key: '/data-management',
       icon: <CloudUploadOutlined />,
       label: <Link to="/data-management">数据管理</Link>,
+    },
+    {
+      key: '/merchant-data',
+      icon: <ShopOutlined />,
+      label: <Link to="/merchant-data">期商数据</Link>,
+    },
+    {
+      key: '/merchant-analysis',
+      icon: <TeamOutlined />,
+      label: <Link to="/merchant-analysis">期商分析</Link>,
     },
   ]
 
