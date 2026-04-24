@@ -206,7 +206,7 @@ const MerchantDataManagement: React.FC = () => {
             {uploadResult && (
               <Card style={{ marginTop: 'var(--margin-loose)', borderRadius: 'var(--radius-large)', backgroundColor: 'var(--color-background-secondary)' }}>
                 <Row gutter={[16, 16]}>
-                  <Col span={8}>
+                  <Col xs={24} sm={8}>
                     <div style={{ textAlign: 'center' }}>
                       <div style={{ fontSize: 28, fontFamily: 'var(--font-family-number)', fontWeight: 'bold', color: 'var(--color-brand-primary)' }}>
                         {uploadResult.totalRecords}
@@ -214,7 +214,7 @@ const MerchantDataManagement: React.FC = () => {
                       <div style={{ fontSize: 'var(--font-size-small)', color: 'var(--color-text-secondary)' }}>总记录</div>
                     </div>
                   </Col>
-                  <Col span={8}>
+                  <Col xs={24} sm={8}>
                     <div style={{ textAlign: 'center' }}>
                       <div style={{ fontSize: 28, fontFamily: 'var(--font-family-number)', fontWeight: 'bold', color: 'var(--color-data-green)' }}>
                         +{uploadResult.insertedCount}
@@ -222,7 +222,7 @@ const MerchantDataManagement: React.FC = () => {
                       <div style={{ fontSize: 'var(--font-size-small)', color: 'var(--color-text-secondary)' }}>新增</div>
                     </div>
                   </Col>
-                  <Col span={8}>
+                  <Col xs={24} sm={8}>
                     <div style={{ textAlign: 'center' }}>
                       <div style={{ fontSize: 28, fontFamily: 'var(--font-family-number)', fontWeight: 'bold', color: 'var(--color-data-blue)' }}>
                         {uploadResult.updatedCount}
@@ -238,16 +238,24 @@ const MerchantDataManagement: React.FC = () => {
 
         <TabPane tab={<Space><SettingOutlined />期商映射</Space>} key="mapping">
           <Card title="添加期商名称映射" style={{ marginBottom: 'var(--margin-loose)', borderRadius: 'var(--radius-extra-large)', boxShadow: 'var(--shadow-elevation-small)' }}>
-            <Form form={mappingForm} layout="inline" onFinish={handleAddMapping}>
-              <Form.Item name="qsId" rules={[{ required: true, message: '请输入期商ID' }]}>
-                <Input placeholder="期商ID（如 QS001）" />
-              </Form.Item>
-              <Form.Item name="merchantName" rules={[{ required: true, message: '请输入期商名称' }]}>
-                <Input placeholder="中文名称（如 中信期货）" />
-              </Form.Item>
-              <Form.Item>
-                <Button type="primary" htmlType="submit">添加映射</Button>
-              </Form.Item>
+            <Form form={mappingForm} layout="vertical" onFinish={handleAddMapping}>
+              <Row gutter={[16, 16]}>
+                <Col xs={24} sm={8}>
+                  <Form.Item name="qsId" rules={[{ required: true, message: '请输入期商ID' }]}>
+                    <Input placeholder="期商ID（如 QS001）" />
+                  </Form.Item>
+                </Col>
+                <Col xs={24} sm={8}>
+                  <Form.Item name="merchantName" rules={[{ required: true, message: '请输入期商名称' }]}>
+                    <Input placeholder="中文名称（如 中信期货）" />
+                  </Form.Item>
+                </Col>
+                <Col xs={24} sm={8}>
+                  <Form.Item>
+                    <Button type="primary" htmlType="submit" style={{ width: '100%' }}>添加映射</Button>
+                  </Form.Item>
+                </Col>
+              </Row>
             </Form>
             <div style={{ marginTop: 'var(--margin-base)', fontSize: 'var(--font-size-small)', color: 'var(--color-text-tertiary)' }}>
               设置 qs_id 对应的中文名称，报表中将显示中文名而非ID。

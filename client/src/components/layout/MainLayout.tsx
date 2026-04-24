@@ -7,6 +7,7 @@ import {
   ReloadOutlined,
   ShopOutlined,
   TeamOutlined,
+  MenuOutlined,
 } from '@ant-design/icons'
 import { Link, useLocation } from 'react-router-dom'
 
@@ -52,6 +53,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
   const location = useLocation()
   const [refreshing, setRefreshing] = useState(false)
   const [changelogVisible, setChangelogVisible] = useState(false)
+  const [siderCollapsed, setSiderCollapsed] = useState(false)
 
   const handleRefresh = () => {
     setRefreshing(true)
@@ -100,6 +102,16 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--margin-loose)' }}>
+          <Button
+            type="text"
+            icon={<MenuOutlined />}
+            onClick={() => setSiderCollapsed(!siderCollapsed)}
+            style={{
+              color: 'var(--color-text-inverse)',
+              display: 'none',
+            }}
+            className="mobile-menu-btn"
+          />
           <img
             src="/logo-for-alang.png"
             alt="logo"
@@ -129,6 +141,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
             v{CURRENT_VERSION}
           </Tag>
           <span
+            className="header-subtitle"
             style={{
               color: 'var(--color-text-inverse-secondary)',
               fontSize: 'var(--font-size-small)',
@@ -178,6 +191,12 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
       <Layout>
         <Sider
           width={200}
+          breakpoint="lg"
+          collapsedWidth={0}
+          onBreakpoint={(broken) => setSiderCollapsed(broken)}
+          trigger={null}
+          collapsible
+          collapsed={siderCollapsed}
           style={{
             backgroundColor: 'var(--color-foreground-layer1)',
             boxShadow: 'var(--shadow-elevation-small)',
@@ -193,10 +212,16 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
               paddingTop: 'var(--padding-base)',
             }}
             items={menuItems}
+            onClick={() => {
+              if (window.innerWidth < 992) {
+                setSiderCollapsed(true)
+              }
+            }}
           />
         </Sider>
 
         <Content
+          className="main-content"
           style={{
             margin: 'var(--padding-super-loose)',
             padding: 'var(--padding-super-loose)',

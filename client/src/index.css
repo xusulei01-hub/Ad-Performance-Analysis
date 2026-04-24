@@ -331,3 +331,64 @@ html, body {
 .ant-picker {
   border-radius: var(--radius-medium);
 }
+
+/* ============================================
+   Mobile Responsive Overrides
+   ============================================ */
+
+@media (max-width: 991px) {
+  .mobile-menu-btn {
+    display: inline-flex !important;
+  }
+
+  .header-subtitle {
+    display: none !important;
+  }
+
+  .main-content {
+    margin: 8px !important;
+    padding: 12px !important;
+    border-radius: var(--radius-large) !important;
+  }
+
+  .ant-layout-sider-zero-width-trigger {
+    top: 72px !important;
+  }
+}
+
+@media (max-width: 576px) {
+  .ant-card-body {
+    padding: var(--padding-base) !important;
+  }
+
+  .ant-card-head {
+    padding: var(--padding-base) var(--padding-loose) !important;
+    font-size: var(--font-size-base) !important;
+  }
+
+  .ant-modal {
+    max-width: calc(100vw - 32px) !important;
+    margin: 16px auto !important;
+  }
+
+  .ant-modal-content {
+    border-radius: var(--radius-extra-large) !important;
+  }
+
+  .ant-table {
+    font-size: var(--font-size-small) !important;
+  }
+
+  .ant-table-thead > tr > th,
+  .ant-table-tbody > tr > td {
+    padding: var(--padding-tight) var(--padding-base) !important;
+  }
+
+  .ant-pagination {
+    font-size: var(--font-size-small) !important;
+  }
+
+  .ant-pagination-options {
+    display: none !important;
+  }
+}

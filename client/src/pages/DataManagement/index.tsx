@@ -255,7 +255,7 @@ const DataManagement: React.FC = () => {
             {uploadResult && (
               <Card style={{ marginTop: 'var(--margin-loose)', borderRadius: 'var(--radius-large)', backgroundColor: 'var(--color-background-secondary)' }}>
                 <Row gutter={[16, 16]}>
-                  <Col span={8}>
+                  <Col xs={24} sm={8}>
                     <div style={{ textAlign: 'center' }}>
                       <div style={{ fontSize: 28, fontFamily: 'var(--font-family-number)', fontWeight: 'bold', color: 'var(--color-brand-primary)' }}>
                         {uploadResult.totalRecords}
@@ -263,7 +263,7 @@ const DataManagement: React.FC = () => {
                       <div style={{ fontSize: 'var(--font-size-small)', color: 'var(--color-text-secondary)' }}>匹配成功</div>
                     </div>
                   </Col>
-                  <Col span={8}>
+                  <Col xs={24} sm={8}>
                     <div style={{ textAlign: 'center' }}>
                       <div style={{ fontSize: 28, fontFamily: 'var(--font-family-number)', fontWeight: 'bold', color: 'var(--color-data-green)' }}>
                         +{uploadResult.insertedCount}
@@ -271,7 +271,7 @@ const DataManagement: React.FC = () => {
                       <div style={{ fontSize: 'var(--font-size-small)', color: 'var(--color-text-secondary)' }}>新增</div>
                     </div>
                   </Col>
-                  <Col span={8}>
+                  <Col xs={24} sm={8}>
                     <div style={{ textAlign: 'center' }}>
                       <div style={{ fontSize: 28, fontFamily: 'var(--font-family-number)', fontWeight: 'bold', color: 'var(--color-data-blue)' }}>
                         {uploadResult.updatedCount}
@@ -292,16 +292,24 @@ const DataManagement: React.FC = () => {
 
         <TabPane tab={<Space><SettingOutlined />渠道映射</Space>} key="mapping">
           <Card title="添加渠道名称映射规则" style={{ marginBottom: 'var(--margin-loose)', borderRadius: 'var(--radius-extra-large)', boxShadow: 'var(--shadow-elevation-small)' }}>
-            <Form form={mappingForm} layout="inline" onFinish={handleAddMapping}>
-              <Form.Item name="sourceName" rules={[{ required: true, message: '请输入来源名称' }]}>
-                <Input placeholder="来源名称（如 mi）" />
-              </Form.Item>
-              <Form.Item name="targetName" rules={[{ required: true, message: '请输入目标名称' }]}>
-                <Input placeholder="目标名称（如 xiaomi）" />
-              </Form.Item>
-              <Form.Item>
-                <Button type="primary" htmlType="submit">添加映射</Button>
-              </Form.Item>
+            <Form form={mappingForm} layout="vertical" onFinish={handleAddMapping}>
+              <Row gutter={[16, 16]}>
+                <Col xs={24} sm={8}>
+                  <Form.Item name="sourceName" rules={[{ required: true, message: '请输入来源名称' }]}>
+                    <Input placeholder="来源名称（如 mi）" />
+                  </Form.Item>
+                </Col>
+                <Col xs={24} sm={8}>
+                  <Form.Item name="targetName" rules={[{ required: true, message: '请输入目标名称' }]}>
+                    <Input placeholder="目标名称（如 xiaomi）" />
+                  </Form.Item>
+                </Col>
+                <Col xs={24} sm={8}>
+                  <Form.Item>
+                    <Button type="primary" htmlType="submit" style={{ width: '100%' }}>添加映射</Button>
+                  </Form.Item>
+                </Col>
+              </Row>
             </Form>
             <div style={{ marginTop: 'var(--margin-base)', fontSize: 'var(--font-size-small)', color: 'var(--color-text-tertiary)' }}>
               系统会自动将转化表中的来源名称替换为目标名称，再与媒体表进行匹配。
@@ -409,7 +417,7 @@ const DataManagement: React.FC = () => {
               <strong>建议：</strong>{uploadError.data.diagnosis.suggestion}
             </div>
             <Row gutter={[16, 16]}>
-              <Col span={12}>
+              <Col xs={24} md={12}>
                 <Card size="small" title="媒体数据表">
                   <p><strong>解析行数：</strong>{uploadError.data.mediaRows}</p>
                   <p><strong>渠道：</strong>{uploadError.data.diagnosis.mediaChannels?.join(', ') || '无'}</p>
@@ -417,7 +425,7 @@ const DataManagement: React.FC = () => {
                   <p><strong>计划ID样例：</strong>{uploadError.data.diagnosis.mediaCampaignIds?.join(', ') || '无'}</p>
                 </Card>
               </Col>
-              <Col span={12}>
+              <Col xs={24} md={12}>
                 <Card size="small" title="转化数据表">
                   <p><strong>解析行数：</strong>{uploadError.data.convRows}</p>
                   <p><strong>渠道：</strong>{uploadError.data.diagnosis.convChannels?.join(', ') || '无'}</p>

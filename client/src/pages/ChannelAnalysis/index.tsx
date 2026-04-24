@@ -331,7 +331,7 @@ const ChannelAnalysis: React.FC = () => {
               <Space wrap>
                 <Select
                   mode="multiple"
-                  style={{ minWidth: 280 }}
+                  style={{ width: '100%', maxWidth: 400 }}
                   placeholder="请选择渠道"
                   value={selectedChannels}
                   onChange={setSelectedChannels}
