@@ -84,3 +84,39 @@ model MerchantMapping {
 
   @@map("merchant_mappings")
 }
+
+model Plan {
+  id          Int         @id @default(autoincrement())
+  title       String
+  content     String?
+  priority    Int         // 1-5, P1 highest
+  status      String      @default("pending") // pending, in_progress, completed, delayed
+  startDate   DateTime    @map("start_date")
+  endDate     DateTime    @map("end_date")
+  progress    Int         @default(0) // 0-100
+  tag         String?
+  tagIcon     String?     @map("tag_icon")
+  createdAt   DateTime    @default(now()) @map("created_at")
+  updatedAt   DateTime    @updatedAt @map("updated_at")
+  milestones  Milestone[]
+
+  @@index([startDate])
+  @@index([endDate])
+  @@index([priority])
+  @@index([status])
+  @@map("plans")
+}
+
+model Milestone {
+  id          Int      @id @default(autoincrement())
+  planId      Int      @map("plan_id")
+  title       String
+  dueDate     DateTime @map("due_date")
+  completed   Boolean  @default(false)
+  sortOrder   Int      @default(0) @map("sort_order")
+  plan        Plan     @relation(fields: [planId], references: [id], onDelete: Cascade)
+
+  @@index([planId])
+  @@index([dueDate])
+  @@map("milestones")
+}

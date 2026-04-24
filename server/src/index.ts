@@ -5,6 +5,7 @@ import dataRoutes from './routes/dataRoutes'
 import overviewRoutes from './routes/overviewRoutes'
 import channelRoutes from './routes/channelRoutes'
 import merchantRoutes from './routes/merchantRoutes'
+import planRoutes from './routes/planRoutes'
 
 dotenv.config()
 
@@ -28,6 +29,7 @@ app.use('/api/v1/data', dataRoutes)
 app.use('/api/v1/overview', overviewRoutes)
 app.use('/api/v1/channels', channelRoutes)
 app.use('/api/v1/merchants', merchantRoutes)
+app.use('/api/v1/plans', planRoutes)
 
 // 错误处理中间件
 app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
