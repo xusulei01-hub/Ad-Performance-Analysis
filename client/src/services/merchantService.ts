@@ -72,4 +72,14 @@ export const merchantService = {
   async deleteMerchantMapping(id: number): Promise<void> {
     return request.delete(`/v1/merchants/merchant-mappings/${id}`)
   },
+
+  async uploadMerchantMappings(file: File): Promise<{ total: number; createdCount: number; updatedCount: number }> {
+    const formData = new FormData()
+    formData.append('file', file)
+    return request.post('/v1/merchants/merchant-mappings/import', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    })
+  },
 }

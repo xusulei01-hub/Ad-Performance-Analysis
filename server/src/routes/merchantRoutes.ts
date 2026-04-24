@@ -482,6 +482,78 @@ router.post('/merchant-mappings', async (req, res, next) => {
   }
 })
 
+// POST /api/v1/merchants/merchant-mappings/import
+// 批量导入期商映射（上传 Excel）
+router.post('/merchant-mappings/import', upload.single('file'), async (req, res, next) => {
+  try {
+    const file = req.file
+    if (!file) {
+      res.status(400).json({ success: false, message: '请上传文件' })
+      return
+    }
+
+    const raw = parseBuffer(file.buffer, file.originalname)
+    if (raw.length < 2) {
+      res.status(400).json({ success: false, message: '文件为空或没有数据行' })
+      return
+    }
+
+    const MAPPING_HEADERS: Record<string, string> = {
+      '期商id': 'qsId',
+      '期商ID': 'qsId',
+      'qs_id': 'qsId',
+      'qsId': 'qsId',
+      '期商名称': 'merchantName',
+      'merchantName': 'merchantName',
+    }
+
+    const rows = parseRows(raw, MAPPING_HEADERS)
+      .map((r) => ({
+        qsId: String(r.qsId || '').trim(),
+        merchantName: String(r.merchantName || '').trim(),
+      }))
+      .filter((r) => r.qsId && r.merchantName)
+
+    if (rows.length === 0) {
+      res.status(400).json({ success: false, message: '未能解析到有效映射数据，请检查表头是否包含「期商id」和「期商名称」' })
+      return
+    }
+
+    let createdCount = 0
+    let updatedCount = 0
+
+    for (const row of rows) {
+      const existing = await prisma.merchantMapping.findFirst({
+        where: { qsId: row.qsId },
+      })
+
+      if (existing) {
+        await prisma.merchantMapping.update({
+          where: { id: existing.id },
+          data: { merchantName: row.merchantName },
+        })
+        updatedCount++
+      } else {
+        await prisma.merchantMapping.create({
+          data: { qsId: row.qsId, merchantName: row.merchantName },
+        })
+        createdCount++
+      }
+    }
+
+    res.json({
+      success: true,
+      data: {
+        total: rows.length,
+        createdCount,
+        updatedCount,
+      },
+    })
+  } catch (err) {
+    next(err)
+  }
+})
+
 // DELETE /api/v1/merchants/merchant-mappings/:id
 router.delete('/merchant-mappings/:id', async (req, res, next) => {
   try {

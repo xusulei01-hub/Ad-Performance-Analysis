@@ -58,6 +58,9 @@ const MerchantDataManagement: React.FC = () => {
 
   const [mappings, setMappings] = useState<MerchantMapping[]>([])
   const [mappingForm] = Form.useForm()
+  const [mappingImporting, setMappingImporting] = useState(false)
+  const [mappingImportResult, setMappingImportResult] = useState<{ total: number; createdCount: number; updatedCount: number } | null>(null)
+  const [mappingImportFile, setMappingImportFile] = useState<File | null>(null)
 
   const fetchMerchants = useCallback(async () => {
     try {
@@ -133,6 +136,26 @@ const MerchantDataManagement: React.FC = () => {
       message.error(`上传失败: ${e.message || '未知错误'}`)
     } finally {
       setUploading(false)
+    }
+  }
+
+  const handleImportMappings = async () => {
+    if (!mappingImportFile) {
+      message.warning('请先选择映射表文件')
+      return
+    }
+    setMappingImporting(true)
+    try {
+      const res = await merchantService.uploadMerchantMappings(mappingImportFile)
+      setMappingImportResult(res)
+      message.success(`导入完成：新增 ${res.createdCount} 条，更新 ${res.updatedCount} 条`)
+      setMappingImportFile(null)
+      fetchMappings()
+      fetchMerchants()
+    } catch (e: any) {
+      message.error(`导入失败: ${e.message || '未知错误'}`)
+    } finally {
+      setMappingImporting(false)
     }
   }
 
@@ -237,7 +260,47 @@ const MerchantDataManagement: React.FC = () => {
         </TabPane>
 
         <TabPane tab={<Space><SettingOutlined />期商映射</Space>} key="mapping">
-          <Card title="添加期商名称映射" style={{ marginBottom: 'var(--margin-loose)', borderRadius: 'var(--radius-extra-large)', boxShadow: 'var(--shadow-elevation-small)' }}>
+          <Spin spinning={mappingImporting} tip="正在导入...">
+            <Card title="批量导入期商映射" style={{ marginBottom: 'var(--margin-loose)', borderRadius: 'var(--radius-extra-large)', boxShadow: 'var(--shadow-elevation-small)' }}>
+              <Row gutter={[16, 16]} align="middle">
+                <Col xs={24} sm={18}>
+                  <Dragger
+                    beforeUpload={(f) => { setMappingImportFile(f); return false }}
+                    accept=".xlsx,.xls,.csv"
+                    showUploadList={false}
+                    style={{ padding: 'var(--padding-base)' }}
+                  >
+                    <p className="ant-upload-drag-icon"><FileExcelOutlined style={{ fontSize: 32, color: 'var(--color-brand-primary)' }} /></p>
+                    <p style={{ color: 'var(--color-text-primary)' }}>
+                      {mappingImportFile ? mappingImportFile.name : '点击或拖拽上传期商映射表'}
+                    </p>
+                    <p style={{ fontSize: 'var(--font-size-small)', color: 'var(--color-text-tertiary)' }}>
+                      支持 .xlsx / .xls / .csv，需包含「期商id」和「期商名称」两列
+                    </p>
+                  </Dragger>
+                </Col>
+                <Col xs={24} sm={6}>
+                  <Button
+                    type="primary"
+                    block
+                    onClick={handleImportMappings}
+                    disabled={!mappingImportFile}
+                  >
+                    确认导入
+                  </Button>
+                  {mappingImportResult && (
+                    <div style={{ marginTop: 'var(--margin-base)', fontSize: 'var(--font-size-small)', color: 'var(--color-text-secondary)' }}>
+                      <div>共 {mappingImportResult.total} 条</div>
+                      <div>新增 {mappingImportResult.createdCount} 条</div>
+                      <div>更新 {mappingImportResult.updatedCount} 条</div>
+                    </div>
+                  )}
+                </Col>
+              </Row>
+            </Card>
+          </Spin>
+
+          <Card title="手动添加期商名称映射" style={{ marginBottom: 'var(--margin-loose)', borderRadius: 'var(--radius-extra-large)', boxShadow: 'var(--shadow-elevation-small)' }}>
             <Form form={mappingForm} layout="vertical" onFinish={handleAddMapping}>
               <Row gutter={[16, 16]}>
                 <Col xs={24} sm={8}>
@@ -258,7 +321,7 @@ const MerchantDataManagement: React.FC = () => {
               </Row>
             </Form>
             <div style={{ marginTop: 'var(--margin-base)', fontSize: 'var(--font-size-small)', color: 'var(--color-text-tertiary)' }}>
-              设置 qs_id 对应的中文名称，报表中将显示中文名而非ID。
+              设置 qs_id 对应的中文名称，报表中将显示中文名而非ID。也可通过上方批量导入功能一次性导入。
             </div>
           </Card>
 
