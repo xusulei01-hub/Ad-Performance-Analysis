@@ -5,6 +5,7 @@ import ChannelAnalysis from '@pages/ChannelAnalysis'
 import DataManagement from '@pages/DataManagement'
 import MerchantDataManagement from '@pages/MerchantDataManagement'
 import MerchantAnalysis from '@pages/MerchantAnalysis'
+import Schedule from '@pages/Schedule'
 
 function App() {
   return (
@@ -17,6 +18,7 @@ function App() {
           <Route path="/data-management" element={<DataManagement />} />
           <Route path="/merchant-data" element={<MerchantDataManagement />} />
           <Route path="/merchant-analysis" element={<MerchantAnalysis />} />
+          <Route path="/schedule" element={<Schedule />} />
         </Routes>
       </MainLayout>
     </BrowserRouter>

@@ -207,6 +207,31 @@ export interface ChannelReport {
   report: ChannelReportItem[]
 }
 
+export interface Milestone {
+  id: number
+  planId: number
+  title: string
+  dueDate: string
+  completed: boolean
+  sortOrder: number
+}
+
+export interface Plan {
+  id: number
+  title: string
+  content?: string | null
+  priority: number
+  status: string
+  startDate: string
+  endDate: string
+  progress: number
+  tag?: string | null
+  tagIcon?: string | null
+  createdAt: string
+  updatedAt: string
+  milestones: Milestone[]
+}
+
 export interface ApiResponse<T> {
   success: boolean
   data?: T

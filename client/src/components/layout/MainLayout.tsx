@@ -8,15 +8,28 @@ import {
   ShopOutlined,
   TeamOutlined,
   MenuOutlined,
+  CalendarOutlined,
 } from '@ant-design/icons'
 import { Link, useLocation } from 'react-router-dom'
 
 const { Header, Sider, Content } = Layout
 const { Title } = Typography
 
-const CURRENT_VERSION = '1.1'
+const CURRENT_VERSION = '1.2'
 
 const CHANGELOG = [
+  {
+    version: '1.2',
+    date: '2026-04-24',
+    changes: [
+      '新增日程表模块：月度日历视图，点击日期添加计划',
+      '计划管理：名称、内容、优先级（P1-P5）、状态、进度、标签图标',
+      '里程碑系统：每个计划可设置多个里程碑（名称、截止日期、完成状态）',
+      '本月关键事项 Top 5：按优先级排序展示',
+      '所有计划里程碑进度可视化',
+      '移动端响应式适配',
+    ],
+  },
   {
     version: '1.1',
     date: '2026-04-23',
@@ -61,6 +74,11 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
   }
 
   const menuItems = [
+    {
+      key: '/schedule',
+      icon: <CalendarOutlined />,
+      label: <Link to="/schedule">日程表</Link>,
+    },
     {
       key: '/dashboard',
       icon: <DashboardOutlined />,

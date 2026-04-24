@@ -32,7 +32,7 @@ async function getChannelMappings(): Promise<Map<string, string>> {
 
 function normalizeChannel(name: string, map: Map<string, string>): string {
   const key = String(name).trim().toLowerCase()
-  return map.get(key) || String(name).trim()
+  return map.get(key) || key
 }
 
 /* ─────────── 日期统一 ─────────── */
@@ -323,58 +323,67 @@ router.post('/upload', upload.fields([
       return
     }
 
-    // 6. 事务入库
+    // 6. 入库（去掉事务避免 SQLite 超时，先批量查重再逐条写入）
     let insertedCount = 0
     let updatedCount = 0
 
-    await prisma.$transaction(async (tx) => {
-      for (const row of matched) {
-        const data = {
-          channel: row.channel,
-          recordDate: new Date(row.recordDate),
-          campaignId: row.campaignId,
-          campaignName: row.campaignName,
-          impressions: row.impressions,
-          clicks: row.clicks,
-          cost: row.cost,
-          downloads: row.downloads,
-          activations: row.activations,
-          formalActivations: row.formalActivations,
-          leads: row.leads,
-          accounts: row.accounts,
-          ctr: row.ctr,
-        }
+    // 6.1 批量查出本月份已存在的记录，减少 N+1 查询
+    const allDates = [...new Set(matched.map((r) => r.recordDate))]
+    const allChannels = [...new Set(matched.map((r) => r.channel))]
+    const existingRows = await prisma.rawData.findMany({
+      where: {
+        recordDate: { in: allDates.map((d) => new Date(d)) },
+        channel: { in: allChannels },
+      },
+      select: { id: true, channel: true, recordDate: true, campaignId: true },
+    })
 
-        const existing = await tx.rawData.findUnique({
-          where: {
-            unique_channel_date_campaign: {
-              channel: row.channel,
-              recordDate: new Date(row.recordDate),
-              campaignId: row.campaignId,
-            },
-          },
-          select: { id: true },
-        })
+    const existingMap = new Map<string, number>()
+    for (const r of existingRows) {
+      const key = `${r.channel}__${dayjs(r.recordDate).format('YYYY-MM-DD')}__${r.campaignId}`
+      existingMap.set(key, r.id)
+    }
 
-        if (existing) {
-          await tx.rawData.update({ where: { id: existing.id }, data })
-          updatedCount++
-        } else {
-          await tx.rawData.create({ data })
-          insertedCount++
-        }
+    // 6.2 逐条 upsert（不用事务，避免大文件超时）
+    for (const row of matched) {
+      const data = {
+        channel: row.channel,
+        recordDate: new Date(row.recordDate),
+        campaignId: row.campaignId,
+        campaignName: row.campaignName,
+        impressions: row.impressions,
+        clicks: row.clicks,
+        cost: row.cost,
+        downloads: row.downloads,
+        activations: row.activations,
+        formalActivations: row.formalActivations,
+        leads: row.leads,
+        accounts: row.accounts,
+        ctr: row.ctr,
       }
 
-      await tx.uploadLog.create({
-        data: {
-          filename: `${mediaBuf.originalname} + ${convBuf.originalname}`,
-          recordCount: matched.length,
-          insertedCount,
-          updatedCount,
-          failedCount: 0,
-          uploadedBy: req.body.uploadedBy || null,
-        },
-      })
+      const key = `${row.channel}__${row.recordDate}__${row.campaignId}`
+      const existingId = existingMap.get(key)
+
+      if (existingId) {
+        await prisma.rawData.update({ where: { id: existingId }, data })
+        updatedCount++
+      } else {
+        await prisma.rawData.create({ data })
+        insertedCount++
+      }
+    }
+
+    // 6.3 记录上传日志
+    await prisma.uploadLog.create({
+      data: {
+        filename: `${mediaBuf.originalname} + ${convBuf.originalname}`,
+        recordCount: matched.length,
+        insertedCount,
+        updatedCount,
+        failedCount: 0,
+        uploadedBy: req.body.uploadedBy || null,
+      },
     })
 
     res.json({
