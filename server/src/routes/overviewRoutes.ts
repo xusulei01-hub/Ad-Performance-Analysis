@@ -21,7 +21,7 @@ async function aggregateMetrics(startDate: Date, endDate: Date, channelFilter?: 
 
   const rows = await prisma.rawData.findMany({
     where,
-    select: { cost: true, activations: true, accounts: true, formalActivations: true, leads: true, impressions: true, clicks: true },
+    select: { cost: true, activations: true, accounts: true, formalActivations: true, leads: true, impressions: true, clicks: true, downloads: true },
   })
 
   let totalCost = 0
@@ -31,6 +31,7 @@ async function aggregateMetrics(startDate: Date, endDate: Date, channelFilter?: 
   let totalLeads = 0
   let totalImpressions = 0
   let totalClicks = 0
+  let totalDownloads = 0
 
   for (const row of rows) {
     totalCost += row.cost
@@ -40,6 +41,7 @@ async function aggregateMetrics(startDate: Date, endDate: Date, channelFilter?: 
     totalLeads += row.leads
     totalImpressions += row.impressions
     totalClicks += row.clicks
+    totalDownloads += row.downloads
   }
 
   return {
@@ -50,6 +52,7 @@ async function aggregateMetrics(startDate: Date, endDate: Date, channelFilter?: 
     leads: totalLeads,
     impressions: totalImpressions,
     clicks: totalClicks,
+    downloads: totalDownloads,
     ctr: totalImpressions > 0 ? Number((totalClicks / totalImpressions).toFixed(4)) : 0,
     roi: totalCost > 0 ? Number(((totalAccounts * 3100) / totalCost).toFixed(4)) : 0,
     cpa: totalActivations > 0 ? Number((totalCost / totalActivations).toFixed(2)) : 0,

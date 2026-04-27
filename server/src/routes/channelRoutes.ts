@@ -62,7 +62,7 @@ router.get('/:channel/metrics', async (req, res, next) => {
     }
 
     // 分计划指标（Top 5）
-    const [costTop, activationsTop, accountsTop, roiTop] = await Promise.all([
+    const [costTop, activationsTop, accountsTop, roiRaw] = await Promise.all([
       prisma.rawData.groupBy({
         by: ['campaignId', 'campaignName'],
         where,
@@ -88,10 +88,20 @@ router.get('/:channel/metrics', async (req, res, next) => {
         by: ['campaignId', 'campaignName'],
         where,
         _sum: { cost: true, accounts: true },
-        orderBy: { _sum: { accounts: 'desc' } },
-        take: 5,
       }),
     ])
+
+    // ROI 按计算值排序（Prisma groupBy 不支持按表达式排序）
+    const roiTop = roiRaw
+      .map((r) => ({
+        campaignId: r.campaignId,
+        campaignName: r.campaignName,
+        roi: (r._sum.cost ?? 0) > 0
+          ? Number((((r._sum.accounts ?? 0) * 3100) / (r._sum.cost ?? 0)).toFixed(4))
+          : 0,
+      }))
+      .sort((a, b) => b.roi - a.roi)
+      .slice(0, 5)
 
     const campaignMetrics = {
       cost: costTop.map((r) => ({
@@ -109,13 +119,7 @@ router.get('/:channel/metrics', async (req, res, next) => {
         campaignName: r.campaignName,
         accounts: r._sum.accounts ?? 0,
       })),
-      roi: roiTop.map((r) => ({
-        campaignId: r.campaignId,
-        campaignName: r.campaignName,
-        roi: (r._sum.cost ?? 0) > 0
-          ? Number((((r._sum.accounts ?? 0) * 3100) / (r._sum.cost ?? 0)).toFixed(4))
-          : 0,
-      })),
+      roi: roiTop,
     }
 
     // 每日趋势
