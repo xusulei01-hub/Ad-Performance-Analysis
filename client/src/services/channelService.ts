@@ -15,4 +15,16 @@ export const channelService = {
       params: { start_date: startDate, end_date: endDate },
     })
   },
+
+  async getCampaignTrends(
+    channel: string,
+    campaignId: string,
+    startDate: string,
+    endDate: string
+  ): Promise<any[]> {
+    const res = await request.get<{ trends: any[] }>(`/v1/channels/${channel}/campaigns/${campaignId}/trends`, {
+      params: { start_date: startDate, end_date: endDate },
+    })
+    return res.trends || []
+  },
 }

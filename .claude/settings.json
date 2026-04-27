@@ -1,0 +1,8 @@
+{
+  "skills": {
+    "deploy-workbench": {
+      "description": "Deploy the 端外买断/workbench project to production server",
+      "prompt": "Read .claude/skills/deploy-workbench.md and execute the deployment steps."
+    }
+  }
+}

@@ -247,11 +247,13 @@ const ChannelAnalysis: React.FC = () => {
     setDrillModalVisible(true)
     setDrillLoading(true)
     try {
-      const res = await fetch(
-        `http://localhost:3001/api/v1/channels/${encodeURIComponent(selectedChannels[0])}/campaigns/${encodeURIComponent(campaignId)}/trends?start_date=${dateRange[0].format('YYYY-MM-DD')}&end_date=${dateRange[1].format('YYYY-MM-DD')}`
+      const trends = await channelService.getCampaignTrends(
+        selectedChannels[0],
+        campaignId,
+        dateRange[0].format('YYYY-MM-DD'),
+        dateRange[1].format('YYYY-MM-DD')
       )
-      const json = await res.json()
-      setDrillTrends(json.data?.trends || [])
+      setDrillTrends(trends)
     } catch (e) {
       console.error('Fetch drilldown error:', e)
       message.error('获取计划趋势失败')
