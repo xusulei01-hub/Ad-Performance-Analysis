@@ -28,7 +28,7 @@ router.get('/:channel/metrics', async (req, res, next) => {
     // 总指标 — 手动聚合，ROI 按业务公式计算
     const totalRows = await prisma.rawData.findMany({
       where,
-      select: { cost: true, activations: true, accounts: true, formalActivations: true, leads: true, impressions: true, clicks: true },
+      select: { cost: true, activations: true, accounts: true, formalActivations: true, leads: true, impressions: true, clicks: true, downloads: true },
     })
 
     let totalCost = 0
@@ -38,6 +38,7 @@ router.get('/:channel/metrics', async (req, res, next) => {
     let totalLeads = 0
     let totalImpressions = 0
     let totalClicks = 0
+    let totalDownloads = 0
 
     for (const row of totalRows) {
       totalCost += row.cost
@@ -47,6 +48,7 @@ router.get('/:channel/metrics', async (req, res, next) => {
       totalLeads += row.leads
       totalImpressions += row.impressions
       totalClicks += row.clicks
+      totalDownloads += row.downloads
     }
 
     const totalMetrics = {
@@ -57,6 +59,7 @@ router.get('/:channel/metrics', async (req, res, next) => {
       leads: totalLeads,
       impressions: totalImpressions,
       clicks: totalClicks,
+      downloads: totalDownloads,
       ctr: totalImpressions > 0 ? Number((totalClicks / totalImpressions).toFixed(4)) : 0,
       roi: totalCost > 0 ? Number(((totalAccounts * 3100) / totalCost).toFixed(4)) : 0,
     }
@@ -134,6 +137,7 @@ router.get('/:channel/metrics', async (req, res, next) => {
         leads: true,
         impressions: true,
         clicks: true,
+        downloads: true,
       },
       orderBy: { recordDate: 'asc' },
     })
@@ -147,6 +151,7 @@ router.get('/:channel/metrics', async (req, res, next) => {
       leads: r._sum.leads ?? 0,
       impressions: r._sum.impressions ?? 0,
       clicks: r._sum.clicks ?? 0,
+      downloads: r._sum.downloads ?? 0,
       ctr: (r._sum.impressions ?? 0) > 0
         ? Number(((r._sum.clicks ?? 0) / (r._sum.impressions ?? 0)).toFixed(4))
         : 0,

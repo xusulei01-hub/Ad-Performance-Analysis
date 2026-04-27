@@ -99,6 +99,15 @@ function getRankColor(index: number, total: number): string {
   return `hsl(${hue}, 75%, 50%)`
 }
 
+/** 获取本周一和本周日（中国习惯，周一开始） */
+function getWeekRange(now: dayjs.Dayjs) {
+  const dayOfWeek = now.day() // 0=周日, 1=周一, ..., 6=周六
+  const daysSinceMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1
+  const startOfWeek = now.subtract(daysSinceMonday, 'day').startOf('day')
+  const endOfWeek = startOfWeek.add(6, 'day').endOf('day')
+  return { startOfWeek, endOfWeek }
+}
+
 function CampaignChart({
   title,
   data,
@@ -407,7 +416,7 @@ const ChannelAnalysis: React.FC = () => {
                 选择时间范围
               </div>
               <RangePicker
-                style={{ width: '100%' }}
+                style={{ width: '100%', marginBottom: 8 }}
                 value={dateRange}
                 onChange={(dates) => {
                   if (dates && dates[0] && dates[1]) {
@@ -415,6 +424,14 @@ const ChannelAnalysis: React.FC = () => {
                   }
                 }}
               />
+              <Space wrap size="small">
+                <Button size="small" onClick={() => setDateRange([dayjs().subtract(1, 'day'), dayjs().subtract(1, 'day')])}>昨日</Button>
+                <Button size="small" onClick={() => setDateRange([dayjs().subtract(6, 'day'), dayjs()])}>近7天</Button>
+                <Button size="small" onClick={() => setDateRange([dayjs().subtract(29, 'day'), dayjs()])}>近30天</Button>
+                <Button size="small" onClick={() => { const { startOfWeek, endOfWeek } = getWeekRange(dayjs()); setDateRange([startOfWeek, endOfWeek]) }}>本周</Button>
+                <Button size="small" onClick={() => setDateRange([dayjs().startOf('month'), dayjs().endOf('month')])}>本月</Button>
+                <Button size="small" onClick={() => { const m = dayjs().subtract(1, 'month'); setDateRange([m.startOf('month'), m.endOf('month')]) }}>上月</Button>
+              </Space>
             </Col>
             <Col xs={24} md={4} style={{ textAlign: 'right' }}>
               <Button
@@ -541,6 +558,146 @@ const ChannelAnalysis: React.FC = () => {
                 <ReactECharts option={trendOption} style={{ height: 400 }} />
               ) : (
                 <Empty description="暂无数据" style={{ padding: '80px 0' }} />
+              )}
+            </Card>
+          </Col>
+        </Row>
+
+        {/* 转化漏斗 */}
+        <h2 style={{ ...cardTitleStyle, marginTop: 'var(--margin-super-loose)' }}>转化漏斗</h2>
+        <Row gutter={[16, 16]} style={{ marginBottom: 'var(--margin-super-loose)' }}>
+          <Col xs={24} lg={12}>
+            <Card
+              title="各环节转化率"
+              style={{ borderRadius: 'var(--radius-extra-large)', boxShadow: 'var(--shadow-elevation-small)' }}
+            >
+              {metrics?.totalMetrics.impressions ?? 0 > 0 ? (
+                <ReactECharts
+                  option={{
+                    tooltip: { trigger: 'item', formatter: '{b}: {c} ({d}%)' },
+                    series: [
+                      {
+                        type: 'funnel',
+                        left: '10%',
+                        top: 20,
+                        bottom: 20,
+                        width: '80%',
+                        min: 0,
+                        max: 100,
+                        minSize: '0%',
+                        maxSize: '100%',
+                        sort: 'none',
+                        gap: 2,
+                        label: {
+                          show: true,
+                          position: 'inside',
+                          formatter: '{b}\n{d}%',
+                          fontSize: 12,
+                        },
+                        data: [
+                          { value: 100, name: '曝光', itemStyle: { color: '#6B8DD6' } },
+                          {
+                            value: (metrics?.totalMetrics.ctr ?? 0) * 100,
+                            name: '点击',
+                            itemStyle: { color: '#E8917A' },
+                          },
+                          {
+                            value: (metrics?.totalMetrics.downloads ?? 0) > 0 && (metrics?.totalMetrics.clicks ?? 0) > 0
+                              ? Math.round(((metrics?.totalMetrics.downloads ?? 0) / (metrics?.totalMetrics.clicks ?? 0)) * 100)
+                              : 0,
+                            name: '下载',
+                            itemStyle: { color: '#7BC4A6' },
+                          },
+                          {
+                            value: (metrics?.totalMetrics.activations ?? 0) > 0 && (metrics?.totalMetrics.downloads ?? 0) > 0
+                              ? Math.round(((metrics?.totalMetrics.activations ?? 0) / (metrics?.totalMetrics.downloads ?? 0)) * 100)
+                              : 0,
+                            name: '激活',
+                            itemStyle: { color: '#D4A5A5' },
+                          },
+                          {
+                            value: (metrics?.totalMetrics.formalActivations ?? 0) > 0 && (metrics?.totalMetrics.activations ?? 0) > 0
+                              ? Math.round(((metrics?.totalMetrics.formalActivations ?? 0) / (metrics?.totalMetrics.activations ?? 0)) * 100)
+                              : 0,
+                            name: '转正',
+                            itemStyle: { color: '#A8C6E0' },
+                          },
+                          {
+                            value: (metrics?.totalMetrics.accounts ?? 0) > 0 && (metrics?.totalMetrics.leads ?? 0) > 0
+                              ? Math.round(((metrics?.totalMetrics.accounts ?? 0) / (metrics?.totalMetrics.leads ?? 0)) * 100)
+                              : 0,
+                            name: '开户',
+                            itemStyle: { color: '#D4B483' },
+                          },
+                        ],
+                      },
+                    ],
+                  }}
+                  style={{ height: 360 }}
+                />
+              ) : (
+                <Empty description="暂无数据" style={{ padding: '60px 0' }} />
+              )}
+            </Card>
+          </Col>
+          <Col xs={24} lg={12}>
+            <Card
+              title="转化效率指标"
+              style={{ borderRadius: 'var(--radius-extra-large)', boxShadow: 'var(--shadow-elevation-small)' }}
+            >
+              {metrics?.totalMetrics.impressions ?? 0 > 0 ? (
+                <ReactECharts
+                  option={{
+                    tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
+                    grid: { left: '3%', right: '8%', bottom: '3%', containLabel: true },
+                    xAxis: {
+                      type: 'value',
+                      max: 100,
+                      axisLabel: { formatter: '{value}%', fontFamily: 'var(--font-family-number)' },
+                    },
+                    yAxis: {
+                      type: 'category',
+                      data: ['开户率', '留资率', '转正率', '激活率', '下载率', '点击率'],
+                      axisLabel: { fontFamily: 'var(--font-family-cn)' },
+                    },
+                    series: [
+                      {
+                        type: 'bar',
+                        data: [
+                          {
+                            value: (metrics?.totalMetrics.leads ?? 0) > 0 ? Number((((metrics?.totalMetrics.accounts ?? 0) / (metrics?.totalMetrics.leads ?? 0)) * 100).toFixed(2)) : 0,
+                            itemStyle: { color: '#D4B483' },
+                          },
+                          {
+                            value: (metrics?.totalMetrics.activations ?? 0) > 0 ? Number((((metrics?.totalMetrics.leads ?? 0) / (metrics?.totalMetrics.activations ?? 0)) * 100).toFixed(2)) : 0,
+                            itemStyle: { color: '#9DB0CE' },
+                          },
+                          {
+                            value: (metrics?.totalMetrics.activations ?? 0) > 0 ? Number((((metrics?.totalMetrics.formalActivations ?? 0) / (metrics?.totalMetrics.activations ?? 0)) * 100).toFixed(2)) : 0,
+                            itemStyle: { color: '#A8C6E0' },
+                          },
+                          {
+                            value: (metrics?.totalMetrics.downloads ?? 0) > 0 ? Number((((metrics?.totalMetrics.activations ?? 0) / (metrics?.totalMetrics.downloads ?? 0)) * 100).toFixed(2)) : 0,
+                            itemStyle: { color: '#D4A5A5' },
+                          },
+                          {
+                            value: (metrics?.totalMetrics.clicks ?? 0) > 0 ? Number((((metrics?.totalMetrics.downloads ?? 0) / (metrics?.totalMetrics.clicks ?? 0)) * 100).toFixed(2)) : 0,
+                            itemStyle: { color: '#7BC4A6' },
+                          },
+                          {
+                            value: Number(((metrics?.totalMetrics.ctr ?? 0) * 100).toFixed(2)),
+                            itemStyle: { color: '#E8917A' },
+                          },
+                        ],
+                        label: { show: true, position: 'right', formatter: '{c}%', fontFamily: 'var(--font-family-number)' },
+                        barWidth: '50%',
+                      },
+                    ],
+                  }}
+                  style={{ height: 360 }}
+                />
+              ) : (
+                <Empty description="暂无数据" style={{ padding: '60px 0' }} />
               )}
             </Card>
           </Col>

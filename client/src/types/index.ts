@@ -115,6 +115,7 @@ export interface ChannelMetrics {
     leads: number
     impressions: number
     clicks: number
+    downloads: number
     ctr: number
     roi: number
   }
@@ -133,6 +134,7 @@ export interface ChannelMetrics {
     leads: number
     impressions: number
     clicks: number
+    downloads: number
     ctr: number
     roi: number
   }>
