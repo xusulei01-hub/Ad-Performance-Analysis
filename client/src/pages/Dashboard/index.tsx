@@ -354,6 +354,7 @@ const Dashboard: React.FC = () => {
               title="昨日花费"
               value={daily?.cost ?? 0}
               prefix="¥"
+              precision={2}
               icon={<DollarOutlined />}
               change={daily?.costChange}
               alert={Math.abs(daily?.costChange ?? 0) >= ALERT_THRESHOLD}
@@ -431,6 +432,7 @@ const Dashboard: React.FC = () => {
               title="本周花费"
               value={weekly?.cost ?? 0}
               prefix="¥"
+              precision={2}
               icon={<DollarOutlined />}
               target={weekly?.targetCost}
             />
@@ -504,6 +506,7 @@ const Dashboard: React.FC = () => {
               title="本月花费"
               value={monthly?.cost ?? 0}
               prefix="¥"
+              precision={2}
               icon={<DollarOutlined />}
               target={monthly?.targetCost}
             />

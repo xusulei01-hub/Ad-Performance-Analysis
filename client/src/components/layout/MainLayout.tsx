@@ -33,6 +33,7 @@ const CHANGELOG = [
       '修复上传历史列表不显示的 bug',
       '修复 aggregateMetrics 缺失 downloads 统计的问题',
       '修复分计划 ROI 图表排序错误（改为按 ROI 值排序）',
+      '花费卡片统一精确到小数点后两位',
     ],
   },
   {

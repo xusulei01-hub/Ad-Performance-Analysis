@@ -454,6 +454,7 @@ const ChannelAnalysis: React.FC = () => {
               title="总花费"
               value={metrics?.totalMetrics.cost ?? 0}
               prefix="¥"
+              precision={2}
               icon={<DollarOutlined />}
             />
           </Col>
