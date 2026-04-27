@@ -27,6 +27,7 @@ import {
   FileTextOutlined,
   SettingOutlined,
   DeleteOutlined,
+  HistoryOutlined,
 } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import { dataManageService } from '@services/dataManageService'
@@ -65,11 +66,11 @@ const DataManagement: React.FC = () => {
   const [filterDateRange, setFilterDateRange] = useState<[dayjs.Dayjs | null, dayjs.Dayjs | null] | null>(null)
   const [filterCampaignId, setFilterCampaignId] = useState('')
 
-  const [logs, _setLogs] = useState<UploadLog[]>([])
-  const [logsTotal, _setLogsTotal] = useState(0)
+  const [logs, setLogs] = useState<UploadLog[]>([])
+  const [logsTotal, setLogsTotal] = useState(0)
   const [logsPage, setLogsPage] = useState(1)
   const [logsPageSize, setLogsPageSize] = useState(10)
-  const [logsLoading, _setLogsLoading] = useState(false)
+  const [logsLoading, setLogsLoading] = useState(false)
   const [logsVisible, setLogsVisible] = useState(false)
 
   const [mappings, setMappings] = useState<ChannelMapping[]>([])
@@ -113,9 +114,24 @@ const DataManagement: React.FC = () => {
     }
   }, [])
 
+  const fetchUploadLogs = useCallback(async () => {
+    setLogsLoading(true)
+    try {
+      const res = await dataManageService.getUploadLogs({ page: logsPage, pageSize: logsPageSize })
+      setLogs(res.logs)
+      setLogsTotal(res.total)
+    } catch (e) {
+      console.error('Fetch upload logs error:', e)
+      message.error('获取上传历史失败')
+    } finally {
+      setLogsLoading(false)
+    }
+  }, [logsPage, logsPageSize])
+
   useEffect(() => { fetchChannels() }, [fetchChannels])
   useEffect(() => { fetchRecords() }, [fetchRecords])
   useEffect(() => { fetchMappings() }, [fetchMappings])
+  useEffect(() => { if (logsVisible) fetchUploadLogs() }, [logsVisible, fetchUploadLogs])
 
   const handleUpload = async () => {
     if (!mediaFile || !convFile) {
@@ -190,6 +206,18 @@ const DataManagement: React.FC = () => {
     { title: '开户', dataIndex: 'accounts', key: 'accounts', align: 'right' as const, render: (v: number) => <span className="font-number">{v.toLocaleString()}</span> },
   ]
 
+  const handleRollback = async (id: number) => {
+    try {
+      const result = await dataManageService.rollbackUpload(id)
+      message.success(result.message)
+      fetchUploadLogs()
+      fetchRecords()
+      fetchChannels()
+    } catch (e: any) {
+      message.error(`撤销失败: ${e.message || '未知错误'}`)
+    }
+  }
+
   const logColumns = [
     { title: '文件名', dataIndex: 'filename', key: 'filename' },
     { title: '总记录', dataIndex: 'recordCount', key: 'recordCount', align: 'right' as const, render: (v: number) => <span className="font-number">{v}</span> },
@@ -198,13 +226,36 @@ const DataManagement: React.FC = () => {
     { title: '失败', dataIndex: 'failedCount', key: 'failedCount', align: 'right' as const, render: (v: number) => v > 0 ? <Tag color="red"><span className="font-number">{v}</span></Tag> : <span className="font-number">{v}</span> },
     { title: '上传人', dataIndex: 'uploadedBy', key: 'uploadedBy', render: (v: string) => v || '-' },
     { title: '上传时间', dataIndex: 'uploadedAt', key: 'uploadedAt', render: (v: string) => dayjs(v).format('YYYY-MM-DD HH:mm:ss') },
+    {
+      title: '操作',
+      key: 'action',
+      render: (_: any, record: UploadLog) => (
+        record.errorDetails?.startsWith('已撤销')
+          ? <Tag color="default">已撤销</Tag>
+          : <Popconfirm
+              title="确定撤销本次上传？"
+              description="这将删除本次上传首次创建的所有数据，不可恢复。"
+              onConfirm={() => handleRollback(record.id)}
+              okText="撤销"
+              cancelText="取消"
+              okButtonProps={{ danger: true }}
+            >
+              <Button type="link" danger size="small">撤销</Button>
+            </Popconfirm>
+      ),
+    },
   ]
 
   return (
     <div>
-      <h1 style={{ fontSize: 'var(--font-size-extra-large)', fontWeight: 'var(--font-weight-medium)', marginBottom: 'var(--margin-super-loose)' }}>
-        数据管理
-      </h1>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--margin-super-loose)' }}>
+        <h1 style={{ fontSize: 'var(--font-size-extra-large)', fontWeight: 'var(--font-weight-medium)', margin: 0 }}>
+          数据管理
+        </h1>
+        <Button icon={<HistoryOutlined />} onClick={() => setLogsVisible(true)}>
+          上传历史
+        </Button>
+      </div>
 
       <Tabs defaultActiveKey="upload">
         <TabPane tab={<Space><FileExcelOutlined />数据上传</Space>} key="upload">

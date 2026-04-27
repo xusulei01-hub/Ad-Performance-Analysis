@@ -323,11 +323,24 @@ router.post('/upload', upload.fields([
       return
     }
 
-    // 6. 入库（去掉事务避免 SQLite 超时，先批量查重再逐条写入）
+    // 6. 先创建上传日志，获取 uploadLogId
+    const uploadLog = await prisma.uploadLog.create({
+      data: {
+        filename: `${mediaBuf.originalname} + ${convBuf.originalname}`,
+        recordCount: matched.length,
+        insertedCount: 0,
+        updatedCount: 0,
+        failedCount: 0,
+        uploadedBy: req.body.uploadedBy || null,
+      },
+    })
+    const uploadLogId = uploadLog.id
+
+    // 7. 入库（去掉事务避免 SQLite 超时，先批量查重再逐条写入）
     let insertedCount = 0
     let updatedCount = 0
 
-    // 6.1 批量查出本月份已存在的记录，减少 N+1 查询
+    // 7.1 批量查出本月份已存在的记录，减少 N+1 查询
     const allDates = [...new Set(matched.map((r) => r.recordDate))]
     const allChannels = [...new Set(matched.map((r) => r.channel))]
     const existingRows = await prisma.rawData.findMany({
@@ -335,16 +348,17 @@ router.post('/upload', upload.fields([
         recordDate: { in: allDates.map((d) => new Date(d)) },
         channel: { in: allChannels },
       },
-      select: { id: true, channel: true, recordDate: true, campaignId: true },
+      select: { id: true, channel: true, recordDate: true, campaignId: true, uploadLogId: true },
     })
 
-    const existingMap = new Map<string, number>()
+    const existingMap = new Map<string, { id: number; uploadLogId: number | null }>()
     for (const r of existingRows) {
       const key = `${r.channel}__${dayjs(r.recordDate).format('YYYY-MM-DD')}__${r.campaignId}`
-      existingMap.set(key, r.id)
+      existingMap.set(key, { id: r.id, uploadLogId: r.uploadLogId })
     }
 
-    // 6.2 逐条 upsert（不用事务，避免大文件超时）
+    // 7.2 逐条 upsert（不用事务，避免大文件超时）
+    // 插入时设置 uploadLogId；更新时保留原始的 uploadLogId
     for (const row of matched) {
       const data = {
         channel: row.channel,
@@ -363,27 +377,21 @@ router.post('/upload', upload.fields([
       }
 
       const key = `${row.channel}__${row.recordDate}__${row.campaignId}`
-      const existingId = existingMap.get(key)
+      const existing = existingMap.get(key)
 
-      if (existingId) {
-        await prisma.rawData.update({ where: { id: existingId }, data })
+      if (existing) {
+        await prisma.rawData.update({ where: { id: existing.id }, data })
         updatedCount++
       } else {
-        await prisma.rawData.create({ data })
+        await prisma.rawData.create({ data: { ...data, uploadLogId } })
         insertedCount++
       }
     }
 
-    // 6.3 记录上传日志
-    await prisma.uploadLog.create({
-      data: {
-        filename: `${mediaBuf.originalname} + ${convBuf.originalname}`,
-        recordCount: matched.length,
-        insertedCount,
-        updatedCount,
-        failedCount: 0,
-        uploadedBy: req.body.uploadedBy || null,
-      },
+    // 7.3 更新上传日志的计数
+    await prisma.uploadLog.update({
+      where: { id: uploadLogId },
+      data: { insertedCount, updatedCount },
     })
 
     res.json({
@@ -563,6 +571,39 @@ router.get('/upload-logs', async (req, res, next) => {
     ])
 
     res.json({ success: true, data: { total, page, pageSize, logs } })
+  } catch (err) {
+    next(err)
+  }
+})
+
+// DELETE /api/v1/data/upload-logs/:id/rollback — 撤销上传
+router.delete('/upload-logs/:id/rollback', async (req, res, next) => {
+  try {
+    const id = Number(req.params.id)
+    const uploadLog = await prisma.uploadLog.findUnique({ where: { id } })
+    if (!uploadLog) {
+      res.status(404).json({ success: false, message: '上传记录不存在' })
+      return
+    }
+
+    // 删除该上传批次首次创建的所有数据
+    const deleteResult = await prisma.rawData.deleteMany({
+      where: { uploadLogId: id },
+    })
+
+    // 标记上传日志为已撤销
+    await prisma.uploadLog.update({
+      where: { id },
+      data: { errorDetails: `已撤销，删除了 ${deleteResult.count} 条记录` },
+    })
+
+    res.json({
+      success: true,
+      data: {
+        deletedCount: deleteResult.count,
+        message: `已撤销上传，删除了 ${deleteResult.count} 条数据`,
+      },
+    })
   } catch (err) {
     next(err)
   }

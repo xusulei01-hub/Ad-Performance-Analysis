@@ -22,6 +22,7 @@ model RawData {
   leads             Int      @default(0) @map("leads")
   accounts          Int      @default(0)
   ctr               Float    @default(0) @map("ctr")
+  uploadLogId       Int?     @map("upload_log_id")
   createdAt         DateTime @default(now()) @map("created_at")
   updatedAt         DateTime @updatedAt @map("updated_at")
 
@@ -30,6 +31,7 @@ model RawData {
   @@index([recordDate])
   @@index([campaignId])
   @@index([channel, recordDate])
+  @@index([uploadLogId])
   @@map("raw_data")
 }
 
@@ -119,4 +121,22 @@ model Milestone {
   @@index([planId])
   @@index([dueDate])
   @@map("milestones")
+}
+
+model Target {
+  id                Int      @id @default(autoincrement())
+  periodType        String   @map("period_type")
+  periodStart       DateTime @map("period_start")
+  periodEnd         DateTime @map("period_end")
+  targetCost        Float    @default(0) @map("target_cost")
+  targetActivations Int      @default(0) @map("target_activations")
+  targetAccounts    Int      @default(0) @map("target_accounts")
+  targetRoi         Float    @default(0) @map("target_roi")
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @updatedAt @map("updated_at")
+
+  @@index([periodType])
+  @@index([periodStart])
+  @@unique([periodType, periodStart], name: "unique_period")
+  @@map("targets")
 }

@@ -45,6 +45,7 @@ export interface DailyOverview {
   leads: number
   ctr: number
   roi: number
+  cpa: number
   costChange: number
   activationsChange: number
   accountsChange: number
@@ -59,8 +60,12 @@ export interface WeeklyOverview {
   accounts: number
   formalActivations: number
   leads: number
+  impressions: number
+  clicks: number
+  downloads: number
   ctr: number
   roi: number
+  cpa: number
   targetCost: number
   targetActivations: number
   targetAccounts: number
@@ -74,8 +79,12 @@ export interface MonthlyOverview {
   accounts: number
   formalActivations: number
   leads: number
+  impressions: number
+  clicks: number
+  downloads: number
   ctr: number
   roi: number
+  cpa: number
   targetCost: number
   targetActivations: number
   targetAccounts: number

@@ -166,4 +166,62 @@ router.get('/:channel/metrics', async (req, res, next) => {
   }
 })
 
+// GET /api/v1/channels/:channel/campaigns/:campaignId/trends?start_date=...&end_date=...
+router.get('/:channel/campaigns/:campaignId/trends', async (req, res, next) => {
+  try {
+    const channel = req.params.channel
+    const campaignId = req.params.campaignId
+    const startDate = req.query.start_date ? String(req.query.start_date) : dayjs().subtract(6, 'day').format('YYYY-MM-DD')
+    const endDate = req.query.end_date ? String(req.query.end_date) : dayjs().format('YYYY-MM-DD')
+
+    const sDate = new Date(startDate)
+    const eDate = new Date(endDate)
+    eDate.setHours(23, 59, 59, 999)
+
+    const rows = await prisma.rawData.findMany({
+      where: {
+        channel,
+        campaignId,
+        recordDate: { gte: sDate, lte: eDate },
+      },
+      orderBy: { recordDate: 'asc' },
+      select: {
+        recordDate: true,
+        cost: true,
+        activations: true,
+        accounts: true,
+        formalActivations: true,
+        leads: true,
+        impressions: true,
+        clicks: true,
+      },
+    })
+
+    const trends = rows.map((r) => ({
+      date: dayjs(r.recordDate).format('YYYY-MM-DD'),
+      cost: r.cost,
+      activations: r.activations,
+      accounts: r.accounts,
+      formalActivations: r.formalActivations,
+      leads: r.leads,
+      impressions: r.impressions,
+      clicks: r.clicks,
+      ctr: r.impressions > 0 ? Number((r.clicks / r.impressions).toFixed(4)) : 0,
+      roi: r.cost > 0 ? Number(((r.accounts * 3100) / r.cost).toFixed(4)) : 0,
+    }))
+
+    res.json({
+      success: true,
+      data: {
+        channel,
+        campaignId,
+        dateRange: { startDate, endDate },
+        trends,
+      },
+    })
+  } catch (err) {
+    next(err)
+  }
+})
+
 export default router

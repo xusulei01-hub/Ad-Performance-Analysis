@@ -9,6 +9,8 @@ import {
   Empty,
   Button,
   Space,
+  Modal,
+  message,
 } from 'antd'
 import {
   DollarOutlined,
@@ -101,10 +103,12 @@ function CampaignChart({
   title,
   data,
   valueKey,
+  onBarClick,
 }: {
   title: string
   data: Array<{ campaignName: string | null; [key: string]: any }>
   valueKey: string
+  onBarClick?: (campaignId: string, campaignName: string | null) => void
 }) {
   const option = data.length
     ? {
@@ -147,13 +151,23 @@ function CampaignChart({
       }
     : null
 
+  const handleEvents = onBarClick
+    ? {
+        click: (params: any) => {
+          const index = params.dataIndex
+          const item = data[data.length - 1 - index]
+          if (item) onBarClick(item.campaignId, item.campaignName)
+        },
+      }
+    : undefined
+
   return (
     <Card
       title={title}
-      style={{ borderRadius: 'var(--radius-extra-large)', boxShadow: 'var(--shadow-elevation-small)' }}
+      style={{ borderRadius: 'var(--radius-extra-large)', boxShadow: 'var(--shadow-elevation-small)', cursor: onBarClick ? 'pointer' : 'default' }}
     >
       {option ? (
-        <ReactECharts option={option} style={{ height: 250 }} />
+        <ReactECharts option={option} style={{ height: 250 }} onEvents={handleEvents} />
       ) : (
         <Empty description="暂无数据" style={{ padding: '40px 0' }} />
       )}
@@ -170,6 +184,12 @@ const ChannelAnalysis: React.FC = () => {
   ])
   const [metrics, setMetrics] = useState<ChannelMetrics | null>(null)
   const [loading, setLoading] = useState(false)
+
+  const [drillModalVisible, setDrillModalVisible] = useState(false)
+  const [drillCampaignId, setDrillCampaignId] = useState('')
+  const [drillCampaignName, setDrillCampaignName] = useState<string | null>(null)
+  const [drillTrends, setDrillTrends] = useState<any[]>([])
+  const [drillLoading, setDrillLoading] = useState(false)
 
   const fetchChannels = useCallback(async () => {
     try {
@@ -207,6 +227,29 @@ const ChannelAnalysis: React.FC = () => {
   useEffect(() => {
     fetchMetrics()
   }, [fetchMetrics])
+
+  const handleDrillDown = async (campaignId: string, campaignName: string | null) => {
+    if (selectedChannels.length !== 1) {
+      message.warning('下钻功能仅支持单选渠道时使用')
+      return
+    }
+    setDrillCampaignId(campaignId)
+    setDrillCampaignName(campaignName)
+    setDrillModalVisible(true)
+    setDrillLoading(true)
+    try {
+      const res = await fetch(
+        `http://localhost:3001/api/v1/channels/${encodeURIComponent(selectedChannels[0])}/campaigns/${encodeURIComponent(campaignId)}/trends?start_date=${dateRange[0].format('YYYY-MM-DD')}&end_date=${dateRange[1].format('YYYY-MM-DD')}`
+      )
+      const json = await res.json()
+      setDrillTrends(json.data?.trends || [])
+    } catch (e) {
+      console.error('Fetch drilldown error:', e)
+      message.error('获取计划趋势失败')
+    } finally {
+      setDrillLoading(false)
+    }
+  }
 
   const trendOption = metrics?.dailyTrends.length
     ? {
@@ -454,6 +497,7 @@ const ChannelAnalysis: React.FC = () => {
               title="分计划花费"
               data={metrics?.campaignMetrics.cost ?? []}
               valueKey="cost"
+              onBarClick={handleDrillDown}
             />
           </Col>
           <Col xs={24} lg={12}>
@@ -461,6 +505,7 @@ const ChannelAnalysis: React.FC = () => {
               title="分计划激活"
               data={metrics?.campaignMetrics.activations ?? []}
               valueKey="activations"
+              onBarClick={handleDrillDown}
             />
           </Col>
           <Col xs={24} lg={12}>
@@ -468,6 +513,7 @@ const ChannelAnalysis: React.FC = () => {
               title="分计划开户"
               data={metrics?.campaignMetrics.accounts ?? []}
               valueKey="accounts"
+              onBarClick={handleDrillDown}
             />
           </Col>
           <Col xs={24} lg={12}>
@@ -475,6 +521,7 @@ const ChannelAnalysis: React.FC = () => {
               title="分计划ROI"
               data={metrics?.campaignMetrics.roi ?? []}
               valueKey="roi"
+              onBarClick={handleDrillDown}
             />
           </Col>
         </Row>
@@ -498,6 +545,89 @@ const ChannelAnalysis: React.FC = () => {
             </Card>
           </Col>
         </Row>
+
+        {/* 下钻 Modal */}
+        <Modal
+          title={`计划趋势: ${drillCampaignName || drillCampaignId}`}
+          open={drillModalVisible}
+          onCancel={() => setDrillModalVisible(false)}
+          footer={null}
+          width={800}
+          destroyOnClose
+        >
+          <Spin spinning={drillLoading}>
+            {drillTrends.length > 0 ? (
+              <ReactECharts
+                option={{
+                  tooltip: { trigger: 'axis' },
+                  legend: { data: ['花费', '激活', '开户', 'ROI'], bottom: 0 },
+                  grid: { left: '3%', right: '4%', bottom: '15%', containLabel: true },
+                  xAxis: {
+                    type: 'category',
+                    data: drillTrends.map((d: any) => d.date),
+                    axisLabel: { fontFamily: 'var(--font-family-cn)' },
+                  },
+                  yAxis: [
+                    {
+                      type: 'value',
+                      name: '数量',
+                      position: 'left',
+                      axisLabel: { fontFamily: 'var(--font-family-number)' },
+                    },
+                    {
+                      type: 'value',
+                      name: 'ROI',
+                      position: 'right',
+                      axisLabel: { fontFamily: 'var(--font-family-number)' },
+                    },
+                  ],
+                  series: [
+                    {
+                      name: '花费',
+                      type: 'line',
+                      data: drillTrends.map((d: any) => Number(d.cost.toFixed(2))),
+                      itemStyle: { color: 'var(--color-brand-primary)' },
+                      smooth: true,
+                      symbol: 'circle',
+                      symbolSize: 6,
+                    },
+                    {
+                      name: '激活',
+                      type: 'line',
+                      data: drillTrends.map((d: any) => d.activations),
+                      itemStyle: { color: 'var(--color-data-red)' },
+                      smooth: true,
+                      symbol: 'circle',
+                      symbolSize: 6,
+                    },
+                    {
+                      name: '开户',
+                      type: 'line',
+                      data: drillTrends.map((d: any) => d.accounts),
+                      itemStyle: { color: 'var(--color-data-green)' },
+                      smooth: true,
+                      symbol: 'circle',
+                      symbolSize: 6,
+                    },
+                    {
+                      name: 'ROI',
+                      type: 'line',
+                      yAxisIndex: 1,
+                      data: drillTrends.map((d: any) => Number(d.roi.toFixed(2))),
+                      itemStyle: { color: 'var(--color-data-orange)' },
+                      smooth: true,
+                      symbol: 'circle',
+                      symbolSize: 6,
+                    },
+                  ],
+                }}
+                style={{ height: 400 }}
+              />
+            ) : (
+              <Empty description="暂无数据" style={{ padding: '80px 0' }} />
+            )}
+          </Spin>
+        </Modal>
       </div>
     </Spin>
   )

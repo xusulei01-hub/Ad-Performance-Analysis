@@ -61,4 +61,8 @@ export const dataManageService = {
   async deleteChannelMapping(id: number): Promise<void> {
     return request.delete(`/v1/data/channel-mappings/${id}`)
   },
+
+  async rollbackUpload(id: number): Promise<{ deletedCount: number; message: string }> {
+    return request.delete(`/v1/data/upload-logs/${id}/rollback`)
+  },
 }

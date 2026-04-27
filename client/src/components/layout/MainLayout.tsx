@@ -15,9 +15,22 @@ import { Link, useLocation } from 'react-router-dom'
 const { Header, Sider, Content } = Layout
 const { Title } = Typography
 
-const CURRENT_VERSION = '1.2'
+const CURRENT_VERSION = '1.3'
 
 const CHANGELOG = [
+  {
+    version: '1.3',
+    date: '2026-04-27',
+    changes: [
+      '新增目标配置功能：支持按周/月设定花费、激活、开户、ROI目标',
+      '新增 CPA（激活成本）指标展示：昨日/本周/本月及渠道分析',
+      '新增转化漏斗图表：展示曝光→点击→下载→激活→开户完整链路',
+      '数据总览新增异常数据标记（红色高亮）',
+      '渠道分析新增计划下钻功能：点击柱状图查看单计划每日趋势',
+      '数据管理新增上传历史入口与上传回滚功能',
+      '修复上传历史列表不显示的 bug',
+    ],
+  },
   {
     version: '1.2',
     date: '2026-04-24',

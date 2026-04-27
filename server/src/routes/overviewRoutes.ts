@@ -1,6 +1,7 @@
 import { Router } from 'express'
 import dayjs from 'dayjs'
 import { prisma } from '../lib/prisma'
+import { getCurrentTarget, DEFAULT_TARGETS } from './targetRoutes'
 
 const router = Router()
 
@@ -51,6 +52,7 @@ async function aggregateMetrics(startDate: Date, endDate: Date, channelFilter?: 
     clicks: totalClicks,
     ctr: totalImpressions > 0 ? Number((totalClicks / totalImpressions).toFixed(4)) : 0,
     roi: totalCost > 0 ? Number(((totalAccounts * 3100) / totalCost).toFixed(4)) : 0,
+    cpa: totalActivations > 0 ? Number((totalCost / totalActivations).toFixed(2)) : 0,
   }
 }
 
@@ -94,6 +96,7 @@ router.get('/daily', async (req, res, next) => {
         activationsChange: calcChange(yesterdayMetrics.activations, dayBeforeMetrics.activations),
         accountsChange: calcChange(yesterdayMetrics.accounts, dayBeforeMetrics.accounts),
         roiChange: calcChange(yesterdayMetrics.roi, dayBeforeMetrics.roi),
+        cpa: yesterdayMetrics.cpa,
       },
     })
   } catch (err) {
@@ -107,7 +110,12 @@ router.get('/weekly', async (req, res, next) => {
     const now = dayjs()
     const { startOfWeek, endOfWeek } = getWeekRange(now)
 
-    const metrics = await aggregateMetrics(startOfWeek.toDate(), endOfWeek.toDate())
+    const [metrics, target] = await Promise.all([
+      aggregateMetrics(startOfWeek.toDate(), endOfWeek.toDate()),
+      getCurrentTarget('weekly'),
+    ])
+
+    const t = target || DEFAULT_TARGETS.weekly
 
     res.json({
       success: true,
@@ -119,12 +127,16 @@ router.get('/weekly', async (req, res, next) => {
         accounts: metrics.accounts,
         formalActivations: metrics.formalActivations,
         leads: metrics.leads,
+        impressions: metrics.impressions,
+        clicks: metrics.clicks,
+        downloads: metrics.downloads,
         ctr: metrics.ctr,
         roi: metrics.roi,
-        targetCost: 1000000,
-        targetActivations: 8000,
-        targetAccounts: 5000,
-        targetRoi: 1.5,
+        cpa: metrics.cpa,
+        targetCost: t.targetCost,
+        targetActivations: t.targetActivations,
+        targetAccounts: t.targetAccounts,
+        targetRoi: t.targetRoi,
       },
     })
   } catch (err) {
@@ -139,7 +151,12 @@ router.get('/monthly', async (req, res, next) => {
     const startOfMonth = now.startOf('month')
     const endOfMonth = now.endOf('month')
 
-    const metrics = await aggregateMetrics(startOfMonth.toDate(), endOfMonth.toDate())
+    const [metrics, target] = await Promise.all([
+      aggregateMetrics(startOfMonth.toDate(), endOfMonth.toDate()),
+      getCurrentTarget('monthly'),
+    ])
+
+    const t = target || DEFAULT_TARGETS.monthly
 
     res.json({
       success: true,
@@ -150,12 +167,16 @@ router.get('/monthly', async (req, res, next) => {
         accounts: metrics.accounts,
         formalActivations: metrics.formalActivations,
         leads: metrics.leads,
+        impressions: metrics.impressions,
+        clicks: metrics.clicks,
+        downloads: metrics.downloads,
         ctr: metrics.ctr,
         roi: metrics.roi,
-        targetCost: 5000000,
-        targetActivations: 40000,
-        targetAccounts: 25000,
-        targetRoi: 1.5,
+        cpa: metrics.cpa,
+        targetCost: t.targetCost,
+        targetActivations: t.targetActivations,
+        targetAccounts: t.targetAccounts,
+        targetRoi: t.targetRoi,
       },
     })
   } catch (err) {
