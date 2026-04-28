@@ -8,7 +8,7 @@ const router = Router()
 /**
  * 聚合指标，ROI 按业务公式计算：合计开户 * 3100 / 合计花费
  */
-async function aggregateMetrics(startDate: Date, endDate: Date, channelFilter?: string[]) {
+function buildWhere(startDate: Date, endDate: Date, channelFilter?: string[]) {
   const where: any = {
     recordDate: {
       gte: startDate,
@@ -18,31 +18,34 @@ async function aggregateMetrics(startDate: Date, endDate: Date, channelFilter?: 
   if (channelFilter && channelFilter.length > 0) {
     where.channel = { in: channelFilter }
   }
+  return where
+}
 
-  const rows = await prisma.rawData.findMany({
+async function aggregateMetrics(startDate: Date, endDate: Date, channelFilter?: string[]) {
+  const where = buildWhere(startDate, endDate, channelFilter)
+
+  const agg = await prisma.rawData.aggregate({
     where,
-    select: { cost: true, activations: true, accounts: true, formalActivations: true, leads: true, impressions: true, clicks: true, downloads: true },
+    _sum: {
+      cost: true,
+      activations: true,
+      accounts: true,
+      formalActivations: true,
+      leads: true,
+      impressions: true,
+      clicks: true,
+      downloads: true,
+    },
   })
 
-  let totalCost = 0
-  let totalActivations = 0
-  let totalAccounts = 0
-  let totalFormal = 0
-  let totalLeads = 0
-  let totalImpressions = 0
-  let totalClicks = 0
-  let totalDownloads = 0
-
-  for (const row of rows) {
-    totalCost += row.cost
-    totalActivations += row.activations
-    totalAccounts += row.accounts
-    totalFormal += row.formalActivations
-    totalLeads += row.leads
-    totalImpressions += row.impressions
-    totalClicks += row.clicks
-    totalDownloads += row.downloads
-  }
+  const totalCost = agg._sum.cost ?? 0
+  const totalActivations = agg._sum.activations ?? 0
+  const totalAccounts = agg._sum.accounts ?? 0
+  const totalFormal = agg._sum.formalActivations ?? 0
+  const totalLeads = agg._sum.leads ?? 0
+  const totalImpressions = agg._sum.impressions ?? 0
+  const totalClicks = agg._sum.clicks ?? 0
+  const totalDownloads = agg._sum.downloads ?? 0
 
   return {
     cost: totalCost,
@@ -57,6 +60,45 @@ async function aggregateMetrics(startDate: Date, endDate: Date, channelFilter?: 
     roi: totalCost > 0 ? Number(((totalAccounts * 3100) / totalCost).toFixed(4)) : 0,
     cpa: totalActivations > 0 ? Number((totalCost / totalActivations).toFixed(2)) : 0,
   }
+}
+
+/** 按日期聚合指标（用于趋势图） */
+async function getDailyTrends(startDate: Date, endDate: Date, channelFilter?: string[]) {
+  const where = buildWhere(startDate, endDate, channelFilter)
+
+  const dailyRaw = await prisma.rawData.groupBy({
+    by: ['recordDate'],
+    where,
+    _sum: {
+      cost: true,
+      activations: true,
+      accounts: true,
+      formalActivations: true,
+      leads: true,
+      impressions: true,
+      clicks: true,
+      downloads: true,
+    },
+    orderBy: { recordDate: 'asc' },
+  })
+
+  return dailyRaw.map((r) => ({
+    date: dayjs(r.recordDate).format('YYYY-MM-DD'),
+    cost: r._sum.cost ?? 0,
+    activations: r._sum.activations ?? 0,
+    accounts: r._sum.accounts ?? 0,
+    formalActivations: r._sum.formalActivations ?? 0,
+    leads: r._sum.leads ?? 0,
+    impressions: r._sum.impressions ?? 0,
+    clicks: r._sum.clicks ?? 0,
+    downloads: r._sum.downloads ?? 0,
+    ctr: (r._sum.impressions ?? 0) > 0
+      ? Number(((r._sum.clicks ?? 0) / (r._sum.impressions ?? 0)).toFixed(4))
+      : 0,
+    roi: (r._sum.cost ?? 0) > 0
+      ? Number((((r._sum.accounts ?? 0) * 3100) / (r._sum.cost ?? 0)).toFixed(4))
+      : 0,
+  }))
 }
 
 function calcChange(current: number, previous: number): number {
@@ -113,9 +155,10 @@ router.get('/weekly', async (req, res, next) => {
     const now = dayjs()
     const { startOfWeek, endOfWeek } = getWeekRange(now)
 
-    const [metrics, target] = await Promise.all([
+    const [metrics, target, dailyTrends] = await Promise.all([
       aggregateMetrics(startOfWeek.toDate(), endOfWeek.toDate()),
       getCurrentTarget('weekly'),
+      getDailyTrends(startOfWeek.toDate(), endOfWeek.toDate()),
     ])
 
     const t = target || DEFAULT_TARGETS.weekly
@@ -140,6 +183,7 @@ router.get('/weekly', async (req, res, next) => {
         targetActivations: t.targetActivations,
         targetAccounts: t.targetAccounts,
         targetRoi: t.targetRoi,
+        dailyTrends,
       },
     })
   } catch (err) {
@@ -154,9 +198,10 @@ router.get('/monthly', async (req, res, next) => {
     const startOfMonth = now.startOf('month')
     const endOfMonth = now.endOf('month')
 
-    const [metrics, target] = await Promise.all([
+    const [metrics, target, dailyTrends] = await Promise.all([
       aggregateMetrics(startOfMonth.toDate(), endOfMonth.toDate()),
       getCurrentTarget('monthly'),
+      getDailyTrends(startOfMonth.toDate(), endOfMonth.toDate()),
     ])
 
     const t = target || DEFAULT_TARGETS.monthly
@@ -180,6 +225,7 @@ router.get('/monthly', async (req, res, next) => {
         targetActivations: t.targetActivations,
         targetAccounts: t.targetAccounts,
         targetRoi: t.targetRoi,
+        dailyTrends,
       },
     })
   } catch (err) {
@@ -194,36 +240,28 @@ router.get('/rankings', async (req, res, next) => {
     const startOfMonth = now.startOf('month').toDate()
     const endOfMonth = now.endOf('month').toDate()
 
-    const rows = await prisma.rawData.findMany({
+    const channelGroups = await prisma.rawData.groupBy({
+      by: ['channel'],
       where: {
         recordDate: { gte: startOfMonth, lte: endOfMonth },
       },
-      select: { channel: true, cost: true, activations: true, accounts: true },
+      _sum: {
+        cost: true,
+        activations: true,
+        accounts: true,
+      },
     })
 
-    const channelMap = new Map<string, { cost: number; activations: number; accounts: number }>()
-
-    for (const row of rows) {
-      const existing = channelMap.get(row.channel)
-      if (existing) {
-        existing.cost += row.cost
-        existing.activations += row.activations
-        existing.accounts += row.accounts
-      } else {
-        channelMap.set(row.channel, {
-          cost: row.cost,
-          activations: row.activations,
-          accounts: row.accounts,
-        })
-      }
-    }
-
-    const channelData = Array.from(channelMap.entries()).map(([channel, data]) => ({
-      channel,
-      cost: data.cost,
-      roi: data.cost > 0 ? Number(((data.accounts * 3100) / data.cost).toFixed(4)) : 0,
-      cpa: data.activations > 0 ? Number((data.cost / data.activations).toFixed(2)) : 0,
-      activations: data.activations,
+    const channelData = channelGroups.map((g) => ({
+      channel: g.channel,
+      cost: g._sum.cost ?? 0,
+      roi: (g._sum.cost ?? 0) > 0
+        ? Number((((g._sum.accounts ?? 0) * 3100) / (g._sum.cost ?? 0)).toFixed(4))
+        : 0,
+      cpa: (g._sum.activations ?? 0) > 0
+        ? Number(((g._sum.cost ?? 0) / (g._sum.activations ?? 0)).toFixed(2))
+        : 0,
+      activations: g._sum.activations ?? 0,
     }))
 
     const costRanking = channelData

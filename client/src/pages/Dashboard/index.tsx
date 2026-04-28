@@ -498,6 +498,60 @@ const Dashboard: React.FC = () => {
           </Col>
         </Row>
 
+        {/* 本周趋势 Sparkline */}
+        {weekly?.dailyTrends && weekly.dailyTrends.length > 0 && (
+          <Row gutter={[16, 16]} style={{ marginBottom: 'var(--margin-super-loose)' }}>
+            <Col xs={24} lg={12}>
+              <Card
+                title="本周花费趋势"
+                style={{ borderRadius: 'var(--radius-extra-large)', boxShadow: 'var(--shadow-elevation-small)' }}
+              >
+                <ReactECharts
+                  option={{
+                    tooltip: { trigger: 'axis', formatter: (p: any) => `${p[0].axisValue}<br/>花费: ¥${Number(p[0].value).toLocaleString()}` },
+                    grid: { top: 8, bottom: 8, left: 8, right: 8 },
+                    xAxis: { type: 'category', data: weekly.dailyTrends.map((d) => d.date.slice(5)), show: false },
+                    yAxis: { type: 'value', show: false },
+                    series: [{
+                      type: 'line',
+                      data: weekly.dailyTrends.map((d) => Number(d.cost.toFixed(2))),
+                      smooth: true,
+                      symbol: 'none',
+                      lineStyle: { width: 2, color: 'var(--color-brand-primary)' },
+                      areaStyle: { color: 'rgba(107, 141, 214, 0.15)' },
+                    }],
+                  }}
+                  style={{ height: 80 }}
+                />
+              </Card>
+            </Col>
+            <Col xs={24} lg={12}>
+              <Card
+                title="本周激活趋势"
+                style={{ borderRadius: 'var(--radius-extra-large)', boxShadow: 'var(--shadow-elevation-small)' }}
+              >
+                <ReactECharts
+                  option={{
+                    tooltip: { trigger: 'axis', formatter: (p: any) => `${p[0].axisValue}<br/>激活: ${p[0].value}` },
+                    grid: { top: 8, bottom: 8, left: 8, right: 8 },
+                    xAxis: { type: 'category', data: weekly.dailyTrends.map((d) => d.date.slice(5)), show: false },
+                    yAxis: { type: 'value', show: false },
+                    series: [{
+                      type: 'line',
+                      data: weekly.dailyTrends.map((d) => d.activations),
+                      smooth: true,
+                      symbol: 'none',
+                      lineStyle: { width: 2, color: 'var(--color-data-red)' },
+                      areaStyle: { color: 'rgba(255, 36, 54, 0.1)' },
+                    }],
+                  }}
+                  style={{ height: 80 }}
+                />
+              </Card>
+            </Col>
+          </Row>
+        )}
+
         {/* 本月数据 */}
         <h2 style={cardTitleStyle}>本月数据</h2>
         <Row gutter={[16, 16]} style={{ marginBottom: 'var(--margin-base)' }}>
@@ -571,6 +625,60 @@ const Dashboard: React.FC = () => {
             />
           </Col>
         </Row>
+
+        {/* 本月趋势 Sparkline */}
+        {monthly?.dailyTrends && monthly.dailyTrends.length > 0 && (
+          <Row gutter={[16, 16]} style={{ marginBottom: 'var(--margin-super-loose)' }}>
+            <Col xs={24} lg={12}>
+              <Card
+                title="本月花费趋势"
+                style={{ borderRadius: 'var(--radius-extra-large)', boxShadow: 'var(--shadow-elevation-small)' }}
+              >
+                <ReactECharts
+                  option={{
+                    tooltip: { trigger: 'axis', formatter: (p: any) => `${p[0].axisValue}<br/>花费: ¥${Number(p[0].value).toLocaleString()}` },
+                    grid: { top: 8, bottom: 8, left: 8, right: 8 },
+                    xAxis: { type: 'category', data: monthly.dailyTrends.map((d) => d.date.slice(5)), show: false },
+                    yAxis: { type: 'value', show: false },
+                    series: [{
+                      type: 'line',
+                      data: monthly.dailyTrends.map((d) => Number(d.cost.toFixed(2))),
+                      smooth: true,
+                      symbol: 'none',
+                      lineStyle: { width: 2, color: 'var(--color-brand-primary)' },
+                      areaStyle: { color: 'rgba(107, 141, 214, 0.15)' },
+                    }],
+                  }}
+                  style={{ height: 80 }}
+                />
+              </Card>
+            </Col>
+            <Col xs={24} lg={12}>
+              <Card
+                title="本月激活趋势"
+                style={{ borderRadius: 'var(--radius-extra-large)', boxShadow: 'var(--shadow-elevation-small)' }}
+              >
+                <ReactECharts
+                  option={{
+                    tooltip: { trigger: 'axis', formatter: (p: any) => `${p[0].axisValue}<br/>激活: ${p[0].value}` },
+                    grid: { top: 8, bottom: 8, left: 8, right: 8 },
+                    xAxis: { type: 'category', data: monthly.dailyTrends.map((d) => d.date.slice(5)), show: false },
+                    yAxis: { type: 'value', show: false },
+                    series: [{
+                      type: 'line',
+                      data: monthly.dailyTrends.map((d) => d.activations),
+                      smooth: true,
+                      symbol: 'none',
+                      lineStyle: { width: 2, color: 'var(--color-data-red)' },
+                      areaStyle: { color: 'rgba(255, 36, 54, 0.1)' },
+                    }],
+                  }}
+                  style={{ height: 80 }}
+                />
+              </Card>
+            </Col>
+          </Row>
+        )}
 
         {/* 转化漏斗 */}
         <h2 style={{ ...cardTitleStyle, marginTop: 'var(--margin-super-loose)' }}>本月转化漏斗</h2>

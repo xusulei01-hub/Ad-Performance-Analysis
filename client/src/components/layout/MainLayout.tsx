@@ -15,9 +15,19 @@ import { Link, useLocation } from 'react-router-dom'
 const { Header, Sider, Content } = Layout
 const { Title } = Typography
 
-const CURRENT_VERSION = '1.3'
+const CURRENT_VERSION = '1.4'
 
 const CHANGELOG = [
+  {
+    version: '1.4',
+    date: '2026-04-27',
+    changes: [
+      '数据总览新增 Mini Sparkline 趋势图：本周/本月花费与激活趋势一目了然',
+      '渠道分析新增渠道对比表格：多选渠道时自动展示各渠道核心指标对比',
+      '后端大数据查询优化：聚合查询改用 Prisma aggregate/groupBy，减少内存占用',
+      '修复 WeeklyOverview/MonthlyOverview 类型定义缺失 dailyTrends 字段的问题',
+    ],
+  },
   {
     version: '1.3',
     date: '2026-04-27',

@@ -52,6 +52,20 @@ export interface DailyOverview {
   roiChange: number
 }
 
+export interface DailyTrend {
+  date: string
+  cost: number
+  activations: number
+  accounts: number
+  formalActivations: number
+  leads: number
+  impressions: number
+  clicks: number
+  downloads: number
+  ctr: number
+  roi: number
+}
+
 export interface WeeklyOverview {
   startDate: string
   endDate: string
@@ -70,6 +84,7 @@ export interface WeeklyOverview {
   targetActivations: number
   targetAccounts: number
   targetRoi: number
+  dailyTrends: DailyTrend[]
 }
 
 export interface MonthlyOverview {
@@ -89,6 +104,7 @@ export interface MonthlyOverview {
   targetActivations: number
   targetAccounts: number
   targetRoi: number
+  dailyTrends: DailyTrend[]
 }
 
 export interface RankingItem {
@@ -102,6 +118,21 @@ export interface RankingItem {
 export interface RankingsData {
   costRanking: RankingItem[]
   performanceRanking: RankingItem[]
+}
+
+export interface ChannelBreakdownItem {
+  channel: string
+  cost: number
+  activations: number
+  accounts: number
+  formalActivations: number
+  leads: number
+  impressions: number
+  clicks: number
+  downloads: number
+  ctr: number
+  roi: number
+  cpa: number
 }
 
 export interface ChannelMetrics {
@@ -125,19 +156,8 @@ export interface ChannelMetrics {
     accounts: Array<{ campaignId: string; campaignName: string | null; accounts: number }>
     roi: Array<{ campaignId: string; campaignName: string | null; roi: number }>
   }
-  dailyTrends: Array<{
-    date: string
-    cost: number
-    activations: number
-    accounts: number
-    formalActivations: number
-    leads: number
-    impressions: number
-    clicks: number
-    downloads: number
-    ctr: number
-    roi: number
-  }>
+  dailyTrends: DailyTrend[]
+  channelBreakdown: ChannelBreakdownItem[]
 }
 
 export interface UploadLog {

@@ -11,6 +11,7 @@ import {
   Space,
   Modal,
   message,
+  Table,
 } from 'antd'
 import {
   DollarOutlined,
@@ -508,6 +509,75 @@ const ChannelAnalysis: React.FC = () => {
             />
           </Col>
         </Row>
+
+        {/* 渠道对比 */}
+        {selectedChannels.length > 1 && metrics?.channelBreakdown && metrics.channelBreakdown.length > 0 && (
+          <>
+            <h2 style={cardTitleStyle}>渠道对比</h2>
+            <Row gutter={[16, 16]} style={{ marginBottom: 'var(--margin-super-loose)' }}>
+              <Col xs={24}>
+                <Card
+                  style={{
+                    borderRadius: 'var(--radius-extra-large)',
+                    boxShadow: 'var(--shadow-elevation-small)',
+                  }}
+                >
+                  <Table
+                    dataSource={metrics.channelBreakdown}
+                    rowKey="channel"
+                    pagination={false}
+                    size="middle"
+                    columns={[
+                      { title: '渠道名称', dataIndex: 'channel', key: 'channel' },
+                      {
+                        title: '花费',
+                        dataIndex: 'cost',
+                        key: 'cost',
+                        align: 'right',
+                        render: (v: number) => `¥${v.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+                      },
+                      {
+                        title: '激活',
+                        dataIndex: 'activations',
+                        key: 'activations',
+                        align: 'right',
+                        render: (v: number) => v.toLocaleString(),
+                      },
+                      {
+                        title: '开户',
+                        dataIndex: 'accounts',
+                        key: 'accounts',
+                        align: 'right',
+                        render: (v: number) => v.toLocaleString(),
+                      },
+                      {
+                        title: 'CTR',
+                        dataIndex: 'ctr',
+                        key: 'ctr',
+                        align: 'right',
+                        render: (v: number) => `${(v * 100).toFixed(2)}%`,
+                      },
+                      {
+                        title: 'CPA',
+                        dataIndex: 'cpa',
+                        key: 'cpa',
+                        align: 'right',
+                        render: (v: number) => `¥${v.toFixed(2)}`,
+                      },
+                      {
+                        title: 'ROI',
+                        dataIndex: 'roi',
+                        key: 'roi',
+                        align: 'right',
+                        render: (v: number) => v.toFixed(2),
+                      },
+                    ]}
+                  />
+                </Card>
+              </Col>
+            </Row>
+          </>
+        )}
 
         {/* 分计划分析 */}
         <h2 style={cardTitleStyle}>分计划分析（Top 5）</h2>

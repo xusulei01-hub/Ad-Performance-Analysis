@@ -25,31 +25,29 @@ router.get('/:channel/metrics', async (req, res, next) => {
       where.channel = { in: channels }
     }
 
-    // 总指标 — 手动聚合，ROI 按业务公式计算
-    const totalRows = await prisma.rawData.findMany({
+    // 总指标 — 数据库原生聚合，ROI 按业务公式计算
+    const totalAgg = await prisma.rawData.aggregate({
       where,
-      select: { cost: true, activations: true, accounts: true, formalActivations: true, leads: true, impressions: true, clicks: true, downloads: true },
+      _sum: {
+        cost: true,
+        activations: true,
+        accounts: true,
+        formalActivations: true,
+        leads: true,
+        impressions: true,
+        clicks: true,
+        downloads: true,
+      },
     })
 
-    let totalCost = 0
-    let totalActivations = 0
-    let totalAccounts = 0
-    let totalFormal = 0
-    let totalLeads = 0
-    let totalImpressions = 0
-    let totalClicks = 0
-    let totalDownloads = 0
-
-    for (const row of totalRows) {
-      totalCost += row.cost
-      totalActivations += row.activations
-      totalAccounts += row.accounts
-      totalFormal += row.formalActivations
-      totalLeads += row.leads
-      totalImpressions += row.impressions
-      totalClicks += row.clicks
-      totalDownloads += row.downloads
-    }
+    const totalCost = totalAgg._sum.cost ?? 0
+    const totalActivations = totalAgg._sum.activations ?? 0
+    const totalAccounts = totalAgg._sum.accounts ?? 0
+    const totalFormal = totalAgg._sum.formalActivations ?? 0
+    const totalLeads = totalAgg._sum.leads ?? 0
+    const totalImpressions = totalAgg._sum.impressions ?? 0
+    const totalClicks = totalAgg._sum.clicks ?? 0
+    const totalDownloads = totalAgg._sum.downloads ?? 0
 
     const totalMetrics = {
       cost: totalCost,
@@ -160,6 +158,46 @@ router.get('/:channel/metrics', async (req, res, next) => {
         : 0,
     }))
 
+    // 渠道拆分指标（用于多选对比）
+    const channelBreakdownRaw = await prisma.rawData.groupBy({
+      by: ['channel'],
+      where,
+      _sum: {
+        cost: true,
+        activations: true,
+        accounts: true,
+        formalActivations: true,
+        leads: true,
+        impressions: true,
+        clicks: true,
+        downloads: true,
+      },
+    })
+
+    const channelBreakdown = channelBreakdownRaw.map((r) => {
+      const c = r._sum.cost ?? 0
+      const a = r._sum.activations ?? 0
+      const acc = r._sum.accounts ?? 0
+      const imp = r._sum.impressions ?? 0
+      const clk = r._sum.clicks ?? 0
+      const dl = r._sum.downloads ?? 0
+      const leads = r._sum.leads ?? 0
+      return {
+        channel: r.channel,
+        cost: c,
+        activations: a,
+        accounts: acc,
+        formalActivations: r._sum.formalActivations ?? 0,
+        leads,
+        impressions: imp,
+        clicks: clk,
+        downloads: dl,
+        ctr: imp > 0 ? Number((clk / imp).toFixed(4)) : 0,
+        roi: c > 0 ? Number(((acc * 3100) / c).toFixed(4)) : 0,
+        cpa: a > 0 ? Number((c / a).toFixed(2)) : 0,
+      }
+    })
+
     res.json({
       success: true,
       data: {
@@ -168,6 +206,7 @@ router.get('/:channel/metrics', async (req, res, next) => {
         totalMetrics,
         campaignMetrics,
         dailyTrends,
+        channelBreakdown,
       },
     })
   } catch (err) {
