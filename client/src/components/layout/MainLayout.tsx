@@ -15,9 +15,21 @@ import { Link, useLocation } from 'react-router-dom'
 const { Header, Sider, Content } = Layout
 const { Title } = Typography
 
-const CURRENT_VERSION = '1.4'
+const CURRENT_VERSION = '2.0'
 
 const CHANGELOG = [
+  {
+    version: '2.0',
+    date: '2026-04-28',
+    changes: [
+      'Dashboard v2.0 UI 重构：Tab 切换布局（昨日/本周/本月），核心 KPI 大卡片 + 效率指标小卡片',
+      '所有页面 UI 统一升级：严格复用 Dashboard 卡片阴影、留白比例、视觉层级规范',
+      '渠道分析、数据管理、期商分析、期商数据、日程表全面适配 v2.0 风格',
+      '侧边栏菜单重组：新增「投放管理」「期商买断」可展开子菜单集合',
+      'Ant Design Tabs 升级为 items 模式，解决 Tab 切换白屏问题',
+      'ECharts 图表统一坐标轴/网格线视觉风格',
+    ],
+  },
   {
     version: '1.4',
     date: '2026-04-27',
@@ -109,29 +121,38 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
       label: <Link to="/schedule">日程表</Link>,
     },
     {
-      key: '/dashboard',
+      key: 'ad-management',
       icon: <DashboardOutlined />,
-      label: <Link to="/dashboard">数据总览</Link>,
+      label: '投放管理',
+      children: [
+        {
+          key: '/dashboard',
+          label: <Link to="/dashboard">数据总览</Link>,
+        },
+        {
+          key: '/channel-analysis',
+          label: <Link to="/channel-analysis">渠道分析</Link>,
+        },
+        {
+          key: '/data-management',
+          label: <Link to="/data-management">数据管理</Link>,
+        },
+      ],
     },
     {
-      key: '/channel-analysis',
-      icon: <BarChartOutlined />,
-      label: <Link to="/channel-analysis">渠道分析</Link>,
-    },
-    {
-      key: '/data-management',
-      icon: <CloudUploadOutlined />,
-      label: <Link to="/data-management">数据管理</Link>,
-    },
-    {
-      key: '/merchant-data',
+      key: 'merchant-buyout',
       icon: <ShopOutlined />,
-      label: <Link to="/merchant-data">期商数据</Link>,
-    },
-    {
-      key: '/merchant-analysis',
-      icon: <TeamOutlined />,
-      label: <Link to="/merchant-analysis">期商分析</Link>,
+      label: '期商买断',
+      children: [
+        {
+          key: '/merchant-analysis',
+          label: <Link to="/merchant-analysis">期商分析</Link>,
+        },
+        {
+          key: '/merchant-data',
+          label: <Link to="/merchant-data">期商数据</Link>,
+        },
+      ],
     },
   ]
 

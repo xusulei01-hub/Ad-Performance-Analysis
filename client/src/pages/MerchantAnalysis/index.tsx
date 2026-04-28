@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useCallback } from 'react'
-import { Card, DatePicker, Table, Spin, Empty, Space, Button, Row, Col, Statistic, Select } from 'antd'
-import { ReloadOutlined } from '@ant-design/icons'
+import { Card, DatePicker, Table, Spin, Empty, Space, Button, Row, Col, Select } from 'antd'
+import { ReloadOutlined, DollarOutlined, FileTextOutlined, BankOutlined, PercentageOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import ReactECharts from 'echarts-for-react'
 import { merchantService } from '@services/merchantService'
@@ -8,10 +8,71 @@ import { MerchantReportItem, ChannelReportItem } from '@/types'
 
 const { RangePicker } = DatePicker
 
+/* ─── 现代化卡片基础样式（与 Dashboard 严格一致） ─── */
+const CARD_BASE: React.CSSProperties = {
+  borderRadius: 16,
+  boxShadow: '0 4px 24px rgba(0,0,0,0.05)',
+  border: 'none',
+}
+
 const SOFT_COLORS = [
   '#6B8DD6', '#E8917A', '#7BC4A6', '#D4A5A5', '#A8C6E0',
   '#D4B483', '#9DB0CE', '#B8D4B8', '#D9B8D4', '#C8C8A9',
 ]
+
+function MetricCard({
+  title,
+  value,
+  prefix,
+  suffix,
+  precision = 0,
+  icon,
+}: {
+  title: string
+  value: number
+  prefix?: string
+  suffix?: string
+  precision?: number
+  icon: React.ReactNode
+}) {
+  return (
+    <Card style={CARD_BASE} bodyStyle={{ padding: '28px 24px' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
+        <div
+          style={{
+            width: 44,
+            height: 44,
+            borderRadius: 12,
+            background: 'linear-gradient(135deg, var(--color-brand-primary)18, var(--color-brand-primary)0A)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            color: 'var(--color-brand-primary)',
+            fontSize: 20,
+          }}
+        >
+          {icon}
+        </div>
+        <span style={{ fontSize: 14, color: 'var(--color-text-secondary)', fontWeight: 500 }}>
+          {title}
+        </span>
+      </div>
+      <div
+        style={{
+          fontSize: 32,
+          fontFamily: 'var(--font-family-number)',
+          fontWeight: 700,
+          color: 'var(--color-text-primary)',
+          lineHeight: 1.2,
+        }}
+      >
+        {prefix}
+        {value.toLocaleString(undefined, { minimumFractionDigits: precision, maximumFractionDigits: precision })}
+        {suffix}
+      </div>
+    </Card>
+  )
+}
 
 const MerchantAnalysis: React.FC = () => {
   const [dateRange, setDateRange] = useState<[dayjs.Dayjs, dayjs.Dayjs]>([
@@ -79,16 +140,32 @@ const MerchantAnalysis: React.FC = () => {
   const merchantChartOption = merchantReport.length
     ? {
         tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
-        legend: { data: ['消耗', '开户数'], bottom: 0 },
-        grid: { left: '3%', right: '4%', bottom: '15%', containLabel: true },
+        legend: { data: ['消耗', '开户数'], bottom: 0, textStyle: { color: '#888' } },
+        grid: { left: '3%', right: '4%', bottom: '15%', top: '5%', containLabel: true },
         xAxis: {
           type: 'category',
           data: merchantReport.map((r) => r.merchantName || r.qsId),
-          axisLabel: { fontFamily: 'var(--font-family-cn)', rotate: 30 },
+          axisLine: { lineStyle: { color: '#E8E8E8' } },
+          axisTick: { show: false },
+          axisLabel: { fontFamily: 'var(--font-family-cn)', color: '#888', rotate: 30 },
         },
         yAxis: [
-          { type: 'value', name: '消耗', position: 'left', axisLabel: { formatter: (v: number) => '¥' + (v / 10000).toFixed(1) + '万' } },
-          { type: 'value', name: '开户数', position: 'right' },
+          {
+            type: 'value',
+            name: '消耗',
+            position: 'left',
+            splitLine: { lineStyle: { type: 'dashed', color: '#F0F0F0' } },
+            axisLabel: { formatter: (v: number) => '¥' + (v / 10000).toFixed(1) + '万', fontFamily: 'var(--font-family-number)', color: '#888' },
+            nameTextStyle: { color: '#888' },
+          },
+          {
+            type: 'value',
+            name: '开户数',
+            position: 'right',
+            splitLine: { show: false },
+            axisLabel: { fontFamily: 'var(--font-family-number)', color: '#888' },
+            nameTextStyle: { color: '#888' },
+          },
         ],
         series: [
           {
@@ -102,7 +179,7 @@ const MerchantAnalysis: React.FC = () => {
             type: 'line',
             yAxisIndex: 1,
             data: merchantReport.map((r) => r.accounts),
-            itemStyle: { color: 'var(--color-data-green)' },
+            itemStyle: { color: '#7BC4A6' },
             lineStyle: { width: 3 },
             symbol: 'circle',
             symbolSize: 8,
@@ -114,16 +191,32 @@ const MerchantAnalysis: React.FC = () => {
   const channelChartOption = channelReport.length
     ? {
         tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
-        legend: { data: ['留资数', '开户率'], bottom: 0 },
-        grid: { left: '3%', right: '4%', bottom: '15%', containLabel: true },
+        legend: { data: ['留资数', '开户率'], bottom: 0, textStyle: { color: '#888' } },
+        grid: { left: '3%', right: '4%', bottom: '15%', top: '5%', containLabel: true },
         xAxis: {
           type: 'category',
           data: channelReport.map((r) => r.channel),
-          axisLabel: { fontFamily: 'var(--font-family-cn)' },
+          axisLine: { lineStyle: { color: '#E8E8E8' } },
+          axisTick: { show: false },
+          axisLabel: { fontFamily: 'var(--font-family-cn)', color: '#888' },
         },
         yAxis: [
-          { type: 'value', name: '留资数', position: 'left' },
-          { type: 'value', name: '开户率', position: 'right', axisLabel: { formatter: (v: number) => (v * 100).toFixed(1) + '%' } },
+          {
+            type: 'value',
+            name: '留资数',
+            position: 'left',
+            splitLine: { lineStyle: { type: 'dashed', color: '#F0F0F0' } },
+            axisLabel: { fontFamily: 'var(--font-family-number)', color: '#888' },
+            nameTextStyle: { color: '#888' },
+          },
+          {
+            type: 'value',
+            name: '开户率',
+            position: 'right',
+            splitLine: { show: false },
+            axisLabel: { formatter: (v: number) => (v * 100).toFixed(1) + '%', fontFamily: 'var(--font-family-number)', color: '#888' },
+            nameTextStyle: { color: '#888' },
+          },
         ],
         series: [
           {
@@ -137,7 +230,7 @@ const MerchantAnalysis: React.FC = () => {
             type: 'line',
             yAxisIndex: 1,
             data: channelReport.map((r) => Number((r.accountRate * 100).toFixed(2))),
-            itemStyle: { color: 'var(--color-data-red)' },
+            itemStyle: { color: '#E8917A' },
             lineStyle: { width: 3 },
             symbol: 'circle',
             symbolSize: 8,
@@ -165,78 +258,120 @@ const MerchantAnalysis: React.FC = () => {
   return (
     <Spin spinning={loading} size="large">
       <div>
-        <h1 style={{ fontSize: 'var(--font-size-extra-large)', fontWeight: 'var(--font-weight-medium)', marginBottom: 'var(--margin-super-loose)' }}>
-          期商数据分析
-        </h1>
+        {/* 顶部标题区 */}
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            marginBottom: 'var(--margin-loose)',
+          }}
+        >
+          <h1
+            style={{
+              fontSize: 'var(--font-size-extra-large)',
+              fontWeight: 'var(--font-weight-medium)',
+              margin: 0,
+            }}
+          >
+            期商数据分析
+          </h1>
+        </div>
 
-        <Row gutter={[16, 16]} style={{ marginBottom: 'var(--margin-loose)' }}>
-          <Col xs={24} md={12} lg={6}>
-            <RangePicker
-              style={{ width: '100%' }}
-              value={dateRange as any}
-              onChange={(dates) => dates && setDateRange(dates as [dayjs.Dayjs, dayjs.Dayjs])}
+        {/* 筛选器 */}
+        <Card style={{ ...CARD_BASE, marginBottom: 'var(--margin-super-loose)' }} bodyStyle={{ padding: '24px' }}>
+          <Row gutter={[20, 20]} align="middle">
+            <Col xs={24} md={12} lg={6}>
+              <RangePicker
+                style={{ width: '100%' }}
+                value={dateRange as any}
+                onChange={(dates) => dates && setDateRange(dates as [dayjs.Dayjs, dayjs.Dayjs])}
+              />
+            </Col>
+            <Col xs={24} md={12} lg={6}>
+              <Select
+                mode="multiple"
+                style={{ width: '100%' }}
+                placeholder="选择期商"
+                allowClear
+                value={selectedMerchants}
+                onChange={setSelectedMerchants}
+                options={merchantOptions.map((m) => ({ label: m.merchantName, value: m.qsId }))}
+                maxTagCount={2}
+              />
+            </Col>
+            <Col xs={24} md={12} lg={6}>
+              <Select
+                mode="multiple"
+                style={{ width: '100%' }}
+                placeholder="选择渠道"
+                allowClear
+                value={selectedChannels}
+                onChange={setSelectedChannels}
+                options={channelOptions.map((c) => ({ label: c, value: c }))}
+                maxTagCount={2}
+              />
+            </Col>
+            <Col xs={24} md={12} lg={6} style={{ textAlign: 'right' }}>
+              <Button type="primary" icon={<ReloadOutlined />} onClick={fetchData}>
+                刷新
+              </Button>
+            </Col>
+          </Row>
+        </Card>
+
+        {/* 核心指标 */}
+        <Row gutter={[20, 20]} style={{ marginBottom: 'var(--margin-super-loose)' }}>
+          <Col xs={24} sm={12} lg={6}>
+            <MetricCard
+              title="总消耗"
+              value={totalCost}
+              prefix="¥"
+              precision={2}
+              icon={<DollarOutlined />}
             />
           </Col>
-          <Col xs={24} md={12} lg={6}>
-            <Select
-              mode="multiple"
-              style={{ width: '100%' }}
-              placeholder="选择期商"
-              allowClear
-              value={selectedMerchants}
-              onChange={setSelectedMerchants}
-              options={merchantOptions.map((m) => ({ label: m.merchantName, value: m.qsId }))}
-              maxTagCount={2}
+          <Col xs={24} sm={12} lg={6}>
+            <MetricCard
+              title="总留资"
+              value={totalLeads}
+              icon={<FileTextOutlined />}
             />
           </Col>
-          <Col xs={24} md={12} lg={6}>
-            <Select
-              mode="multiple"
-              style={{ width: '100%' }}
-              placeholder="选择渠道"
-              allowClear
-              value={selectedChannels}
-              onChange={setSelectedChannels}
-              options={channelOptions.map((c) => ({ label: c, value: c }))}
-              maxTagCount={2}
+          <Col xs={24} sm={12} lg={6}>
+            <MetricCard
+              title="总开户"
+              value={totalAccounts}
+              icon={<BankOutlined />}
             />
           </Col>
-          <Col xs={24} md={12} lg={6}>
-            <Space>
-              <Button type="primary" icon={<ReloadOutlined />} onClick={fetchData}>刷新</Button>
-            </Space>
+          <Col xs={24} sm={12} lg={6}>
+            <MetricCard
+              title="开户率"
+              value={overallAccountRate * 100}
+              suffix="%"
+              precision={2}
+              icon={<PercentageOutlined />}
+            />
           </Col>
         </Row>
 
-        <Row gutter={[16, 16]} style={{ marginBottom: 'var(--margin-super-loose)' }}>
-          <Col xs={24} sm={12} lg={6}>
-            <Card>
-              <Statistic title="总消耗" value={totalCost} prefix="¥" valueStyle={{ fontFamily: 'var(--font-family-number)' }} />
-            </Card>
-          </Col>
-          <Col xs={24} sm={12} lg={6}>
-            <Card>
-              <Statistic title="总留资" value={totalLeads} valueStyle={{ fontFamily: 'var(--font-family-number)' }} />
-            </Card>
-          </Col>
-          <Col xs={24} sm={12} lg={6}>
-            <Card>
-              <Statistic title="总开户" value={totalAccounts} valueStyle={{ fontFamily: 'var(--font-family-number)' }} />
-            </Card>
-          </Col>
-          <Col xs={24} sm={12} lg={6}>
-            <Card>
-              <Statistic title="开户率" value={overallAccountRate * 100} suffix="%" precision={2} valueStyle={{ fontFamily: 'var(--font-family-number)' }} />
-            </Card>
-          </Col>
-        </Row>
-
-        <h2 style={{ fontSize: 'var(--font-size-large)', fontWeight: 'var(--font-weight-medium)', marginBottom: 'var(--margin-loose)' }}>
+        {/* 期商报表 */}
+        <h2
+          style={{
+            fontSize: 'var(--font-size-large)',
+            fontWeight: 'var(--font-weight-medium)',
+            marginBottom: 'var(--margin-loose)',
+          }}
+        >
           期商报表
         </h2>
-        <Row gutter={[16, 16]} style={{ marginBottom: 'var(--margin-super-loose)' }}>
+        <Row gutter={[20, 20]} style={{ marginBottom: 'var(--margin-super-loose)' }}>
           <Col xs={24} lg={12}>
-            <Card title="期商消耗与开户" style={{ borderRadius: 'var(--radius-extra-large)', boxShadow: 'var(--shadow-elevation-small)' }}>
+            <Card style={CARD_BASE} bodyStyle={{ padding: '20px 24px' }}>
+              <div style={{ fontSize: 15, fontWeight: 500, color: 'var(--color-text-primary)', marginBottom: 16 }}>
+                期商消耗与开户
+              </div>
               {merchantChartOption ? (
                 <ReactECharts option={merchantChartOption} style={{ height: 320 }} />
               ) : (
@@ -245,7 +380,10 @@ const MerchantAnalysis: React.FC = () => {
             </Card>
           </Col>
           <Col xs={24} lg={12}>
-            <Card title="期商数据明细" style={{ borderRadius: 'var(--radius-extra-large)', boxShadow: 'var(--shadow-elevation-small)' }}>
+            <Card style={CARD_BASE} bodyStyle={{ padding: '20px 24px' }}>
+              <div style={{ fontSize: 15, fontWeight: 500, color: 'var(--color-text-primary)', marginBottom: 16 }}>
+                期商数据明细
+              </div>
               <Table
                 dataSource={merchantReport}
                 rowKey="qsId"
@@ -259,12 +397,22 @@ const MerchantAnalysis: React.FC = () => {
           </Col>
         </Row>
 
-        <h2 style={{ fontSize: 'var(--font-size-large)', fontWeight: 'var(--font-weight-medium)', marginBottom: 'var(--margin-loose)' }}>
+        {/* 渠道报表 */}
+        <h2
+          style={{
+            fontSize: 'var(--font-size-large)',
+            fontWeight: 'var(--font-weight-medium)',
+            marginBottom: 'var(--margin-loose)',
+          }}
+        >
           渠道报表
         </h2>
-        <Row gutter={[16, 16]}>
+        <Row gutter={[20, 20]}>
           <Col xs={24} lg={12}>
-            <Card title="渠道留资与开户率" style={{ borderRadius: 'var(--radius-extra-large)', boxShadow: 'var(--shadow-elevation-small)' }}>
+            <Card style={CARD_BASE} bodyStyle={{ padding: '20px 24px' }}>
+              <div style={{ fontSize: 15, fontWeight: 500, color: 'var(--color-text-primary)', marginBottom: 16 }}>
+                渠道留资与开户率
+              </div>
               {channelChartOption ? (
                 <ReactECharts option={channelChartOption} style={{ height: 320 }} />
               ) : (
@@ -273,7 +421,10 @@ const MerchantAnalysis: React.FC = () => {
             </Card>
           </Col>
           <Col xs={24} lg={12}>
-            <Card title="渠道数据明细" style={{ borderRadius: 'var(--radius-extra-large)', boxShadow: 'var(--shadow-elevation-small)' }}>
+            <Card style={CARD_BASE} bodyStyle={{ padding: '20px 24px' }}>
+              <div style={{ fontSize: 15, fontWeight: 500, color: 'var(--color-text-primary)', marginBottom: 16 }}>
+                渠道数据明细
+              </div>
               <Table
                 dataSource={channelReport}
                 rowKey="channel"

@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react'
+import React, { useEffect, useState, useCallback, useMemo } from 'react'
 import {
   Card,
   Upload,
@@ -32,7 +32,13 @@ import { MerchantData, MerchantMapping } from '@/types'
 
 const { Dragger } = Upload
 const { RangePicker } = DatePicker
-const { TabPane } = Tabs
+
+/* ─── 现代化卡片基础样式（与 Dashboard 严格一致） ─── */
+const CARD_BASE: React.CSSProperties = {
+  borderRadius: 16,
+  boxShadow: '0 4px 24px rgba(0,0,0,0.05)',
+  border: 'none',
+}
 
 const MerchantDataManagement: React.FC = () => {
   const [file, setFile] = useState<File | null>(null)
@@ -192,115 +198,133 @@ const MerchantDataManagement: React.FC = () => {
     { title: '状态', key: 'status', width: 100, render: (_: any, record: MerchantData) => record.accountDate ? <Tag color="green">已开户</Tag> : <Tag color="orange">已留资</Tag> },
   ]
 
-  return (
-    <div>
-      <h1 style={{ fontSize: 'var(--font-size-extra-large)', fontWeight: 'var(--font-weight-medium)', marginBottom: 'var(--margin-super-loose)' }}>
-        期商数据管理
-      </h1>
-
-      <Tabs defaultActiveKey="upload">
-        <TabPane tab={<Space><FileExcelOutlined />数据上传</Space>} key="upload">
-          <Spin spinning={uploading} tip="正在解析并入库...">
-            <Card title="期商买断数据表" style={{ borderRadius: 'var(--radius-extra-large)', boxShadow: 'var(--shadow-elevation-small)' }}>
-              <Dragger
-                beforeUpload={(f) => { setFile(f); return false }}
-                accept=".xlsx,.xls,.csv"
-                showUploadList={false}
-              >
-                <p className="ant-upload-drag-icon"><FileExcelOutlined style={{ fontSize: 48, color: 'var(--color-brand-primary)' }} /></p>
-                <p style={{ color: 'var(--color-text-primary)' }}>
-                  {file ? file.name : '点击或拖拽上传期商买断数据表'}
-                </p>
-                <p style={{ fontSize: 'var(--font-size-small)', color: 'var(--color-text-tertiary)' }}>
-                  支持 .xlsx / .xls / .csv
-                </p>
-                <p style={{ fontSize: 'var(--font-size-small)', color: 'var(--color-text-tertiary)', marginTop: 8 }}>
-                  必需列：user_id, qs_id, 渠道, 留资日期 / 可选列：开户日期
-                </p>
-              </Dragger>
-            </Card>
-
-            <div style={{ marginTop: 'var(--margin-loose)', textAlign: 'center' }}>
-              <Button type="primary" size="large" onClick={handleUpload} disabled={!file}>
-                开始导入
-              </Button>
+  const tabItems = useMemo(() => [
+    {
+      key: 'upload',
+      label: (
+        <Space>
+          <FileExcelOutlined />
+          数据上传
+        </Space>
+      ),
+      children: (
+        <Spin spinning={uploading} tip="正在解析并入库...">
+          <Card style={CARD_BASE} bodyStyle={{ padding: '20px 24px' }}>
+            <div style={{ fontSize: 15, fontWeight: 500, color: 'var(--color-text-primary)', marginBottom: 16 }}>
+              期商买断数据表
             </div>
+            <Dragger
+              beforeUpload={(f) => { setFile(f); return false }}
+              accept=".xlsx,.xls,.csv"
+              showUploadList={false}
+            >
+              <p className="ant-upload-drag-icon"><FileExcelOutlined style={{ fontSize: 48, color: 'var(--color-brand-primary)' }} /></p>
+              <p style={{ color: 'var(--color-text-primary)' }}>
+                {file ? file.name : '点击或拖拽上传期商买断数据表'}
+              </p>
+              <p style={{ fontSize: 'var(--font-size-small)', color: 'var(--color-text-tertiary)' }}>
+                支持 .xlsx / .xls / .csv
+              </p>
+              <p style={{ fontSize: 'var(--font-size-small)', color: 'var(--color-text-tertiary)', marginTop: 8 }}>
+                必需列：user_id, qs_id, 渠道, 留资日期 / 可选列：开户日期
+              </p>
+            </Dragger>
+          </Card>
 
-            {uploadResult && (
-              <Card style={{ marginTop: 'var(--margin-loose)', borderRadius: 'var(--radius-large)', backgroundColor: 'var(--color-background-secondary)' }}>
-                <Row gutter={[16, 16]}>
-                  <Col xs={24} sm={8}>
-                    <div style={{ textAlign: 'center' }}>
-                      <div style={{ fontSize: 28, fontFamily: 'var(--font-family-number)', fontWeight: 'bold', color: 'var(--color-brand-primary)' }}>
-                        {uploadResult.totalRecords}
-                      </div>
-                      <div style={{ fontSize: 'var(--font-size-small)', color: 'var(--color-text-secondary)' }}>总记录</div>
-                    </div>
-                  </Col>
-                  <Col xs={24} sm={8}>
-                    <div style={{ textAlign: 'center' }}>
-                      <div style={{ fontSize: 28, fontFamily: 'var(--font-family-number)', fontWeight: 'bold', color: 'var(--color-data-green)' }}>
-                        +{uploadResult.insertedCount}
-                      </div>
-                      <div style={{ fontSize: 'var(--font-size-small)', color: 'var(--color-text-secondary)' }}>新增</div>
-                    </div>
-                  </Col>
-                  <Col xs={24} sm={8}>
-                    <div style={{ textAlign: 'center' }}>
-                      <div style={{ fontSize: 28, fontFamily: 'var(--font-family-number)', fontWeight: 'bold', color: 'var(--color-data-blue)' }}>
-                        {uploadResult.updatedCount}
-                      </div>
-                      <div style={{ fontSize: 'var(--font-size-small)', color: 'var(--color-text-secondary)' }}>更新</div>
-                    </div>
-                  </Col>
-                </Row>
-              </Card>
-            )}
-          </Spin>
-        </TabPane>
+          <div style={{ marginTop: 'var(--margin-loose)', textAlign: 'center' }}>
+            <Button type="primary" size="large" onClick={handleUpload} disabled={!file}>
+              开始导入
+            </Button>
+          </div>
 
-        <TabPane tab={<Space><SettingOutlined />期商映射</Space>} key="mapping">
-          <Spin spinning={mappingImporting} tip="正在导入...">
-            <Card title="批量导入期商映射" style={{ marginBottom: 'var(--margin-loose)', borderRadius: 'var(--radius-extra-large)', boxShadow: 'var(--shadow-elevation-small)' }}>
-              <Row gutter={[16, 16]} align="middle">
-                <Col xs={24} sm={18}>
-                  <Dragger
-                    beforeUpload={(f) => { setMappingImportFile(f); return false }}
-                    accept=".xlsx,.xls,.csv"
-                    showUploadList={false}
-                    style={{ padding: 'var(--padding-base)' }}
-                  >
-                    <p className="ant-upload-drag-icon"><FileExcelOutlined style={{ fontSize: 32, color: 'var(--color-brand-primary)' }} /></p>
-                    <p style={{ color: 'var(--color-text-primary)' }}>
-                      {mappingImportFile ? mappingImportFile.name : '点击或拖拽上传期商映射表'}
-                    </p>
-                    <p style={{ fontSize: 'var(--font-size-small)', color: 'var(--color-text-tertiary)' }}>
-                      支持 .xlsx / .xls / .csv，需包含「期商id」和「期商名称」两列
-                    </p>
-                  </Dragger>
+          {uploadResult && (
+            <Card style={{ ...CARD_BASE, marginTop: 'var(--margin-loose)', backgroundColor: 'var(--color-background-secondary)' }} bodyStyle={{ padding: '24px' }}>
+              <Row gutter={[16, 16]}>
+                <Col xs={24} sm={8}>
+                  <div style={{ textAlign: 'center' }}>
+                    <div style={{ fontSize: 28, fontFamily: 'var(--font-family-number)', fontWeight: 'bold', color: 'var(--color-brand-primary)' }}>
+                      {uploadResult.totalRecords}
+                    </div>
+                    <div style={{ fontSize: 'var(--font-size-small)', color: 'var(--color-text-secondary)' }}>总记录</div>
+                  </div>
                 </Col>
-                <Col xs={24} sm={6}>
-                  <Button
-                    type="primary"
-                    block
-                    onClick={handleImportMappings}
-                    disabled={!mappingImportFile}
-                  >
-                    确认导入
-                  </Button>
-                  {mappingImportResult && (
-                    <div style={{ marginTop: 'var(--margin-base)', fontSize: 'var(--font-size-small)', color: 'var(--color-text-secondary)' }}>
-                      <div>共 {mappingImportResult.total} 条</div>
-                      <div>新增 {mappingImportResult.createdCount} 条</div>
-                      <div>更新 {mappingImportResult.updatedCount} 条</div>
+                <Col xs={24} sm={8}>
+                  <div style={{ textAlign: 'center' }}>
+                    <div style={{ fontSize: 28, fontFamily: 'var(--font-family-number)', fontWeight: 'bold', color: 'var(--color-data-green)' }}>
+                      +{uploadResult.insertedCount}
                     </div>
-                  )}
+                    <div style={{ fontSize: 'var(--font-size-small)', color: 'var(--color-text-secondary)' }}>新增</div>
+                  </div>
+                </Col>
+                <Col xs={24} sm={8}>
+                  <div style={{ textAlign: 'center' }}>
+                    <div style={{ fontSize: 28, fontFamily: 'var(--font-family-number)', fontWeight: 'bold', color: 'var(--color-data-blue)' }}>
+                      {uploadResult.updatedCount}
+                    </div>
+                    <div style={{ fontSize: 'var(--font-size-small)', color: 'var(--color-text-secondary)' }}>更新</div>
+                  </div>
                 </Col>
               </Row>
             </Card>
-          </Spin>
+          )}
+        </Spin>
+      ),
+    },
+    {
+      key: 'mapping',
+      label: (
+        <Space>
+          <SettingOutlined />
+          期商映射
+        </Space>
+      ),
+      children: (
+        <Spin spinning={mappingImporting} tip="正在导入...">
+          <Card style={{ ...CARD_BASE, marginBottom: 'var(--margin-loose)' }} bodyStyle={{ padding: '20px 24px' }}>
+            <div style={{ fontSize: 15, fontWeight: 500, color: 'var(--color-text-primary)', marginBottom: 16 }}>
+              批量导入期商映射
+            </div>
+            <Row gutter={[16, 16]} align="middle">
+              <Col xs={24} sm={18}>
+                <Dragger
+                  beforeUpload={(f) => { setMappingImportFile(f); return false }}
+                  accept=".xlsx,.xls,.csv"
+                  showUploadList={false}
+                  style={{ padding: 'var(--padding-base)' }}
+                >
+                  <p className="ant-upload-drag-icon"><FileExcelOutlined style={{ fontSize: 32, color: 'var(--color-brand-primary)' }} /></p>
+                  <p style={{ color: 'var(--color-text-primary)' }}>
+                    {mappingImportFile ? mappingImportFile.name : '点击或拖拽上传期商映射表'}
+                  </p>
+                  <p style={{ fontSize: 'var(--font-size-small)', color: 'var(--color-text-tertiary)' }}>
+                    支持 .xlsx / .xls / .csv，需包含「期商id」和「期商名称」两列
+                  </p>
+                </Dragger>
+              </Col>
+              <Col xs={24} sm={6}>
+                <Button
+                  type="primary"
+                  block
+                  onClick={handleImportMappings}
+                  disabled={!mappingImportFile}
+                >
+                  确认导入
+                </Button>
+                {mappingImportResult && (
+                  <div style={{ marginTop: 'var(--margin-base)', fontSize: 'var(--font-size-small)', color: 'var(--color-text-secondary)' }}>
+                    <div>共 {mappingImportResult.total} 条</div>
+                    <div>新增 {mappingImportResult.createdCount} 条</div>
+                    <div>更新 {mappingImportResult.updatedCount} 条</div>
+                  </div>
+                )}
+              </Col>
+            </Row>
+          </Card>
 
-          <Card title="手动添加期商名称映射" style={{ marginBottom: 'var(--margin-loose)', borderRadius: 'var(--radius-extra-large)', boxShadow: 'var(--shadow-elevation-small)' }}>
+          <Card style={{ ...CARD_BASE, marginBottom: 'var(--margin-loose)' }} bodyStyle={{ padding: '20px 24px' }}>
+            <div style={{ fontSize: 15, fontWeight: 500, color: 'var(--color-text-primary)', marginBottom: 16 }}>
+              手动添加期商名称映射
+            </div>
             <Form form={mappingForm} layout="vertical" onFinish={handleAddMapping}>
               <Row gutter={[16, 16]}>
                 <Col xs={24} sm={8}>
@@ -325,7 +349,10 @@ const MerchantDataManagement: React.FC = () => {
             </div>
           </Card>
 
-          <Card title="现有映射规则" style={{ borderRadius: 'var(--radius-extra-large)', boxShadow: 'var(--shadow-elevation-small)' }}>
+          <Card style={CARD_BASE} bodyStyle={{ padding: '20px 24px' }}>
+            <div style={{ fontSize: 15, fontWeight: 500, color: 'var(--color-text-primary)', marginBottom: 16 }}>
+              现有映射规则
+            </div>
             <Table
               dataSource={mappings}
               rowKey="id"
@@ -347,56 +374,80 @@ const MerchantDataManagement: React.FC = () => {
               locale={{ emptyText: <Empty description="暂无映射规则" /> }}
             />
           </Card>
-        </TabPane>
+        </Spin>
+      ),
+    },
+    {
+      key: 'records',
+      label: (
+        <Space>
+          <SearchOutlined />
+          数据列表
+        </Space>
+      ),
+      children: (
+        <Card style={CARD_BASE} bodyStyle={{ padding: '20px 24px' }}>
+          <Row gutter={[16, 16]} style={{ marginBottom: 'var(--margin-loose)' }}>
+            <Col xs={24} sm={8} md={6}>
+              <Select style={{ width: '100%' }} placeholder="选择期商" allowClear value={filterQsId} onChange={setFilterQsId}>
+                {merchants.map((m) => <Select.Option key={m.qsId} value={m.qsId}>{m.merchantName}</Select.Option>)}
+              </Select>
+            </Col>
+            <Col xs={24} sm={8} md={6}>
+              <Select style={{ width: '100%' }} placeholder="选择渠道" allowClear value={filterChannel} onChange={setFilterChannel}>
+                {channels.map((c) => <Select.Option key={c} value={c}>{c}</Select.Option>)}
+              </Select>
+            </Col>
+            <Col xs={24} sm={8} md={6}>
+              <RangePicker style={{ width: '100%' }} value={filterDateRange as any} onChange={(dates) => setFilterDateRange(dates as any)} />
+            </Col>
+            <Col xs={24} sm={8} md={6}>
+              <Space>
+                <Button type="primary" icon={<SearchOutlined />} onClick={() => setRecordsPage(1)}>查询</Button>
+                <Button icon={<ReloadOutlined />} onClick={() => { setFilterQsId(undefined); setFilterChannel(undefined); setFilterDateRange(null); setRecordsPage(1) }}>重置</Button>
+              </Space>
+            </Col>
+          </Row>
 
-        <TabPane tab={<Space><SearchOutlined />数据列表</Space>} key="records">
-          <Card style={{ borderRadius: 'var(--radius-extra-large)', boxShadow: 'var(--shadow-elevation-small)' }}>
-            <Row gutter={[16, 16]} style={{ marginBottom: 'var(--margin-loose)' }}>
-              <Col xs={24} sm={8} md={6}>
-                <Select style={{ width: '100%' }} placeholder="选择期商" allowClear value={filterQsId} onChange={setFilterQsId}>
-                  {merchants.map((m) => <Select.Option key={m.qsId} value={m.qsId}>{m.merchantName}</Select.Option>)}
-                </Select>
-              </Col>
-              <Col xs={24} sm={8} md={6}>
-                <Select style={{ width: '100%' }} placeholder="选择渠道" allowClear value={filterChannel} onChange={setFilterChannel}>
-                  {channels.map((c) => <Select.Option key={c} value={c}>{c}</Select.Option>)}
-                </Select>
-              </Col>
-              <Col xs={24} sm={8} md={6}>
-                <RangePicker style={{ width: '100%' }} value={filterDateRange as any} onChange={(dates) => setFilterDateRange(dates as any)} />
-              </Col>
-              <Col xs={24} sm={8} md={6}>
-                <Space>
-                  <Button type="primary" icon={<SearchOutlined />} onClick={() => setRecordsPage(1)}>查询</Button>
-                  <Button icon={<ReloadOutlined />} onClick={() => { setFilterQsId(undefined); setFilterChannel(undefined); setFilterDateRange(null); setRecordsPage(1) }}>重置</Button>
-                </Space>
-              </Col>
-            </Row>
-
-            <Spin spinning={recordsLoading}>
-              <Table
-                columns={recordColumns}
-                dataSource={records}
-                rowKey="userId"
-                pagination={false}
-                scroll={{ x: 900 }}
-                locale={{ emptyText: <Empty description="暂无数据，请先上传文件" /> }}
+          <Spin spinning={recordsLoading}>
+            <Table
+              columns={recordColumns}
+              dataSource={records}
+              rowKey="userId"
+              pagination={false}
+              scroll={{ x: 900 }}
+              locale={{ emptyText: <Empty description="暂无数据，请先上传文件" /> }}
+            />
+            <div style={{ marginTop: 16, display: 'flex', justifyContent: 'flex-end' }}>
+              <Pagination
+                current={recordsPage}
+                pageSize={recordsPageSize}
+                total={recordsTotal}
+                showSizeChanger
+                pageSizeOptions={[50, 100, 200]}
+                onChange={(page, size) => { setRecordsPage(page); if (size) setRecordsPageSize(size) }}
+                showTotal={(total) => `共 ${total} 条`}
               />
-              <div style={{ marginTop: 16, display: 'flex', justifyContent: 'flex-end' }}>
-                <Pagination
-                  current={recordsPage}
-                  pageSize={recordsPageSize}
-                  total={recordsTotal}
-                  showSizeChanger
-                  pageSizeOptions={[50, 100, 200]}
-                  onChange={(page, size) => { setRecordsPage(page); if (size) setRecordsPageSize(size) }}
-                  showTotal={(total) => `共 ${total} 条`}
-                />
-              </div>
-            </Spin>
-          </Card>
-        </TabPane>
-      </Tabs>
+            </div>
+          </Spin>
+        </Card>
+      ),
+    },
+  ], [uploading, file, uploadResult, mappingImporting, mappingImportFile, mappingImportResult, mappings, merchants, channels, filterQsId, filterChannel, filterDateRange, recordsLoading, records, recordsPage, recordsPageSize, recordsTotal])
+
+  return (
+    <div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--margin-loose)' }}>
+        <h1 style={{ fontSize: 'var(--font-size-extra-large)', fontWeight: 'var(--font-weight-medium)', margin: 0 }}>
+          期商数据管理
+        </h1>
+      </div>
+
+      <Tabs
+        defaultActiveKey="upload"
+        items={tabItems}
+        destroyInactiveTabPane={false}
+      />
     </div>
   )
 }

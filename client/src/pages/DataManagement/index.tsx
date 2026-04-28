@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react'
+import React, { useEffect, useState, useCallback, useMemo } from 'react'
 import {
   Card,
   Upload,
@@ -35,7 +35,13 @@ import { RawData, UploadLog, ChannelMapping } from '@/types'
 
 const { Dragger } = Upload
 const { RangePicker } = DatePicker
-const { TabPane } = Tabs
+
+/* ─── 现代化卡片基础样式（与 Dashboard 严格一致） ─── */
+const CARD_BASE: React.CSSProperties = {
+  borderRadius: 16,
+  boxShadow: '0 4px 24px rgba(0,0,0,0.05)',
+  border: 'none',
+}
 
 const DataManagement: React.FC = () => {
   const [mediaFile, setMediaFile] = useState<File | null>(null)
@@ -246,103 +252,118 @@ const DataManagement: React.FC = () => {
     },
   ]
 
-  return (
-    <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--margin-super-loose)' }}>
-        <h1 style={{ fontSize: 'var(--font-size-extra-large)', fontWeight: 'var(--font-weight-medium)', margin: 0 }}>
-          数据管理
-        </h1>
-        <Button icon={<HistoryOutlined />} onClick={() => setLogsVisible(true)}>
-          上传历史
-        </Button>
-      </div>
-
-      <Tabs defaultActiveKey="upload">
-        <TabPane tab={<Space><FileExcelOutlined />数据上传</Space>} key="upload">
-          <Spin spinning={uploading} tip="正在解析匹配并入库...">
-            <Row gutter={[24, 24]}>
-              <Col xs={24} md={12}>
-                <Card title="媒体数据表" style={{ borderRadius: 'var(--radius-extra-large)', boxShadow: 'var(--shadow-elevation-small)' }}>
-                  <Dragger
-                    beforeUpload={(file) => { setMediaFile(file); return false }}
-                    accept=".xlsx,.xls,.csv"
-                    showUploadList={false}
-                  >
-                    <p className="ant-upload-drag-icon"><FileExcelOutlined style={{ fontSize: 48, color: 'var(--color-brand-primary)' }} /></p>
-                    <p style={{ color: 'var(--color-text-primary)' }}>
-                      {mediaFile ? mediaFile.name : '点击或拖拽上传媒体数据表'}
-                    </p>
-                    <p style={{ fontSize: 'var(--font-size-small)', color: 'var(--color-text-tertiary)' }}>
-                      支持 .xlsx / .xls / .csv
-                    </p>
-                  </Dragger>
-                </Card>
-              </Col>
-              <Col xs={24} md={12}>
-                <Card title="转化数据表" style={{ borderRadius: 'var(--radius-extra-large)', boxShadow: 'var(--shadow-elevation-small)' }}>
-                  <Dragger
-                    beforeUpload={(file) => { setConvFile(file); return false }}
-                    accept=".xlsx,.xls,.csv"
-                    showUploadList={false}
-                  >
-                    <p className="ant-upload-drag-icon"><FileTextOutlined style={{ fontSize: 48, color: 'var(--color-brand-primary)' }} /></p>
-                    <p style={{ color: 'var(--color-text-primary)' }}>
-                      {convFile ? convFile.name : '点击或拖拽上传转化数据表'}
-                    </p>
-                    <p style={{ fontSize: 'var(--font-size-small)', color: 'var(--color-text-tertiary)' }}>
-                      支持 .xlsx / .xls / .csv
-                    </p>
-                  </Dragger>
-                </Card>
-              </Col>
-            </Row>
-
-            <div style={{ marginTop: 'var(--margin-loose)', textAlign: 'center' }}>
-              <Button type="primary" size="large" onClick={handleUpload} disabled={!mediaFile || !convFile}>
-                开始匹配并入库
-              </Button>
-            </div>
-
-            {uploadResult && (
-              <Card style={{ marginTop: 'var(--margin-loose)', borderRadius: 'var(--radius-large)', backgroundColor: 'var(--color-background-secondary)' }}>
-                <Row gutter={[16, 16]}>
-                  <Col xs={24} sm={8}>
-                    <div style={{ textAlign: 'center' }}>
-                      <div style={{ fontSize: 28, fontFamily: 'var(--font-family-number)', fontWeight: 'bold', color: 'var(--color-brand-primary)' }}>
-                        {uploadResult.totalRecords}
-                      </div>
-                      <div style={{ fontSize: 'var(--font-size-small)', color: 'var(--color-text-secondary)' }}>匹配成功</div>
-                    </div>
-                  </Col>
-                  <Col xs={24} sm={8}>
-                    <div style={{ textAlign: 'center' }}>
-                      <div style={{ fontSize: 28, fontFamily: 'var(--font-family-number)', fontWeight: 'bold', color: 'var(--color-data-green)' }}>
-                        +{uploadResult.insertedCount}
-                      </div>
-                      <div style={{ fontSize: 'var(--font-size-small)', color: 'var(--color-text-secondary)' }}>新增</div>
-                    </div>
-                  </Col>
-                  <Col xs={24} sm={8}>
-                    <div style={{ textAlign: 'center' }}>
-                      <div style={{ fontSize: 28, fontFamily: 'var(--font-family-number)', fontWeight: 'bold', color: 'var(--color-data-blue)' }}>
-                        {uploadResult.updatedCount}
-                      </div>
-                      <div style={{ fontSize: 'var(--font-size-small)', color: 'var(--color-text-secondary)' }}>更新</div>
-                    </div>
-                  </Col>
-                </Row>
-                <div style={{ marginTop: 'var(--margin-base)', textAlign: 'center', fontSize: 'var(--font-size-small)', color: 'var(--color-text-tertiary)' }}>
-                  媒体表 {uploadResult.mediaRows} 条 · 转化表 {uploadResult.convRows} 条
-                  {uploadResult.unmatchedMediaCount > 0 && ` · 媒体表未匹配 ${uploadResult.unmatchedMediaCount} 条`}
-                  {uploadResult.unmatchedConvCount > 0 && ` · 转化表未匹配 ${uploadResult.unmatchedConvCount} 条`}
+  const tabItems = useMemo(() => [
+    {
+      key: 'upload',
+      label: (
+        <Space>
+          <FileExcelOutlined />
+          数据上传
+        </Space>
+      ),
+      children: (
+        <Spin spinning={uploading} tip="正在解析匹配并入库...">
+          <Row gutter={[24, 24]}>
+            <Col xs={24} md={12}>
+              <Card style={CARD_BASE} bodyStyle={{ padding: '20px 24px' }}>
+                <div style={{ fontSize: 15, fontWeight: 500, color: 'var(--color-text-primary)', marginBottom: 16 }}>
+                  媒体数据表
                 </div>
+                <Dragger
+                  beforeUpload={(file) => { setMediaFile(file); return false }}
+                  accept=".xlsx,.xls,.csv"
+                  showUploadList={false}
+                >
+                  <p className="ant-upload-drag-icon"><FileExcelOutlined style={{ fontSize: 48, color: 'var(--color-brand-primary)' }} /></p>
+                  <p style={{ color: 'var(--color-text-primary)' }}>
+                    {mediaFile ? mediaFile.name : '点击或拖拽上传媒体数据表'}
+                  </p>
+                  <p style={{ fontSize: 'var(--font-size-small)', color: 'var(--color-text-tertiary)' }}>
+                    支持 .xlsx / .xls / .csv
+                  </p>
+                </Dragger>
               </Card>
-            )}
-          </Spin>
-        </TabPane>
+            </Col>
+            <Col xs={24} md={12}>
+              <Card style={CARD_BASE} bodyStyle={{ padding: '20px 24px' }}>
+                <div style={{ fontSize: 15, fontWeight: 500, color: 'var(--color-text-primary)', marginBottom: 16 }}>
+                  转化数据表
+                </div>
+                <Dragger
+                  beforeUpload={(file) => { setConvFile(file); return false }}
+                  accept=".xlsx,.xls,.csv"
+                  showUploadList={false}
+                >
+                  <p className="ant-upload-drag-icon"><FileTextOutlined style={{ fontSize: 48, color: 'var(--color-brand-primary)' }} /></p>
+                  <p style={{ color: 'var(--color-text-primary)' }}>
+                    {convFile ? convFile.name : '点击或拖拽上传转化数据表'}
+                  </p>
+                  <p style={{ fontSize: 'var(--font-size-small)', color: 'var(--color-text-tertiary)' }}>
+                    支持 .xlsx / .xls / .csv
+                  </p>
+                </Dragger>
+              </Card>
+            </Col>
+          </Row>
 
-        <TabPane tab={<Space><SettingOutlined />渠道映射</Space>} key="mapping">
-          <Card title="添加渠道名称映射规则" style={{ marginBottom: 'var(--margin-loose)', borderRadius: 'var(--radius-extra-large)', boxShadow: 'var(--shadow-elevation-small)' }}>
+          <div style={{ marginTop: 'var(--margin-loose)', textAlign: 'center' }}>
+            <Button type="primary" size="large" onClick={handleUpload} disabled={!mediaFile || !convFile}>
+              开始匹配并入库
+            </Button>
+          </div>
+
+          {uploadResult && (
+            <Card style={{ ...CARD_BASE, marginTop: 'var(--margin-loose)', backgroundColor: 'var(--color-background-secondary)' }} bodyStyle={{ padding: '24px' }}>
+              <Row gutter={[16, 16]}>
+                <Col xs={24} sm={8}>
+                  <div style={{ textAlign: 'center' }}>
+                    <div style={{ fontSize: 28, fontFamily: 'var(--font-family-number)', fontWeight: 'bold', color: 'var(--color-brand-primary)' }}>
+                      {uploadResult.totalRecords}
+                    </div>
+                    <div style={{ fontSize: 'var(--font-size-small)', color: 'var(--color-text-secondary)' }}>匹配成功</div>
+                  </div>
+                </Col>
+                <Col xs={24} sm={8}>
+                  <div style={{ textAlign: 'center' }}>
+                    <div style={{ fontSize: 28, fontFamily: 'var(--font-family-number)', fontWeight: 'bold', color: 'var(--color-data-green)' }}>
+                      +{uploadResult.insertedCount}
+                    </div>
+                    <div style={{ fontSize: 'var(--font-size-small)', color: 'var(--color-text-secondary)' }}>新增</div>
+                  </div>
+                </Col>
+                <Col xs={24} sm={8}>
+                  <div style={{ textAlign: 'center' }}>
+                    <div style={{ fontSize: 28, fontFamily: 'var(--font-family-number)', fontWeight: 'bold', color: 'var(--color-data-blue)' }}>
+                      {uploadResult.updatedCount}
+                    </div>
+                    <div style={{ fontSize: 'var(--font-size-small)', color: 'var(--color-text-secondary)' }}>更新</div>
+                  </div>
+                </Col>
+              </Row>
+              <div style={{ marginTop: 'var(--margin-base)', textAlign: 'center', fontSize: 'var(--font-size-small)', color: 'var(--color-text-tertiary)' }}>
+                媒体表 {uploadResult.mediaRows} 条 · 转化表 {uploadResult.convRows} 条
+                {uploadResult.unmatchedMediaCount > 0 && ` · 媒体表未匹配 ${uploadResult.unmatchedMediaCount} 条`}
+                {uploadResult.unmatchedConvCount > 0 && ` · 转化表未匹配 ${uploadResult.unmatchedConvCount} 条`}
+              </div>
+            </Card>
+          )}
+        </Spin>
+      ),
+    },
+    {
+      key: 'mapping',
+      label: (
+        <Space>
+          <SettingOutlined />
+          渠道映射
+        </Space>
+      ),
+      children: (
+        <>
+          <Card style={{ ...CARD_BASE, marginBottom: 'var(--margin-loose)' }} bodyStyle={{ padding: '20px 24px' }}>
+            <div style={{ fontSize: 15, fontWeight: 500, color: 'var(--color-text-primary)', marginBottom: 16 }}>
+              添加渠道名称映射规则
+            </div>
             <Form form={mappingForm} layout="vertical" onFinish={handleAddMapping}>
               <Row gutter={[16, 16]}>
                 <Col xs={24} sm={8}>
@@ -367,7 +388,10 @@ const DataManagement: React.FC = () => {
             </div>
           </Card>
 
-          <Card title="现有映射规则" style={{ borderRadius: 'var(--radius-extra-large)', boxShadow: 'var(--shadow-elevation-small)' }}>
+          <Card style={CARD_BASE} bodyStyle={{ padding: '20px 24px' }}>
+            <div style={{ fontSize: 15, fontWeight: 500, color: 'var(--color-text-primary)', marginBottom: 16 }}>
+              现有映射规则
+            </div>
             <Table
               dataSource={mappings}
               rowKey="id"
@@ -389,54 +413,81 @@ const DataManagement: React.FC = () => {
               locale={{ emptyText: <Empty description="暂无映射规则" /> }}
             />
           </Card>
-        </TabPane>
+        </>
+      ),
+    },
+    {
+      key: 'records',
+      label: (
+        <Space>
+          <SearchOutlined />
+          数据列表
+        </Space>
+      ),
+      children: (
+        <Card style={CARD_BASE} bodyStyle={{ padding: '20px 24px' }}>
+          <Row gutter={[16, 16]} style={{ marginBottom: 'var(--margin-loose)' }}>
+            <Col xs={24} sm={8} md={6}>
+              <Select style={{ width: '100%' }} placeholder="选择渠道" allowClear value={filterChannel} onChange={setFilterChannel}>
+                {channels.map((c) => <Select.Option key={c} value={c}>{c}</Select.Option>)}
+              </Select>
+            </Col>
+            <Col xs={24} sm={8} md={6}>
+              <RangePicker style={{ width: '100%' }} value={filterDateRange as any} onChange={(dates) => setFilterDateRange(dates as any)} />
+            </Col>
+            <Col xs={24} sm={8} md={6}>
+              <Input placeholder="计划ID" value={filterCampaignId} onChange={(e) => setFilterCampaignId(e.target.value)} prefix={<SearchOutlined />} allowClear />
+            </Col>
+            <Col xs={24} sm={8} md={6}>
+              <Space>
+                <Button type="primary" icon={<SearchOutlined />} onClick={() => setRecordsPage(1)}>查询</Button>
+                <Button icon={<ReloadOutlined />} onClick={() => { setFilterChannel(undefined); setFilterDateRange(null); setFilterCampaignId(''); setRecordsPage(1) }}>重置</Button>
+              </Space>
+            </Col>
+          </Row>
 
-        <TabPane tab={<Space><SearchOutlined />数据列表</Space>} key="records">
-          <Card style={{ borderRadius: 'var(--radius-extra-large)', boxShadow: 'var(--shadow-elevation-small)' }}>
-            <Row gutter={[16, 16]} style={{ marginBottom: 'var(--margin-loose)' }}>
-              <Col xs={24} sm={8} md={6}>
-                <Select style={{ width: '100%' }} placeholder="选择渠道" allowClear value={filterChannel} onChange={setFilterChannel}>
-                  {channels.map((c) => <Select.Option key={c} value={c}>{c}</Select.Option>)}
-                </Select>
-              </Col>
-              <Col xs={24} sm={8} md={6}>
-                <RangePicker style={{ width: '100%' }} value={filterDateRange as any} onChange={(dates) => setFilterDateRange(dates as any)} />
-              </Col>
-              <Col xs={24} sm={8} md={6}>
-                <Input placeholder="计划ID" value={filterCampaignId} onChange={(e) => setFilterCampaignId(e.target.value)} prefix={<SearchOutlined />} allowClear />
-              </Col>
-              <Col xs={24} sm={8} md={6}>
-                <Space>
-                  <Button type="primary" icon={<SearchOutlined />} onClick={() => setRecordsPage(1)}>查询</Button>
-                  <Button icon={<ReloadOutlined />} onClick={() => { setFilterChannel(undefined); setFilterDateRange(null); setFilterCampaignId(''); setRecordsPage(1) }}>重置</Button>
-                </Space>
-              </Col>
-            </Row>
-
-            <Spin spinning={recordsLoading}>
-              <Table
-                columns={recordColumns}
-                dataSource={records}
-                rowKey={(r) => `${r.channel}-${r.recordDate}-${r.campaignId}`}
-                pagination={false}
-                scroll={{ x: 1600 }}
-                locale={{ emptyText: <Empty description="暂无数据，请先上传 Excel 文件" /> }}
+          <Spin spinning={recordsLoading}>
+            <Table
+              columns={recordColumns}
+              dataSource={records}
+              rowKey={(r) => `${r.channel}-${r.recordDate}-${r.campaignId}`}
+              pagination={false}
+              scroll={{ x: 1600 }}
+              locale={{ emptyText: <Empty description="暂无数据，请先上传 Excel 文件" /> }}
+            />
+            <div style={{ marginTop: 16, display: 'flex', justifyContent: 'flex-end' }}>
+              <Pagination
+                current={recordsPage}
+                pageSize={recordsPageSize}
+                total={recordsTotal}
+                showSizeChanger
+                pageSizeOptions={[50, 100, 200]}
+                onChange={(page, size) => { setRecordsPage(page); if (size) setRecordsPageSize(size) }}
+                showTotal={(total) => `共 ${total} 条`}
               />
-              <div style={{ marginTop: 16, display: 'flex', justifyContent: 'flex-end' }}>
-                <Pagination
-                  current={recordsPage}
-                  pageSize={recordsPageSize}
-                  total={recordsTotal}
-                  showSizeChanger
-                  pageSizeOptions={[50, 100, 200]}
-                  onChange={(page, size) => { setRecordsPage(page); if (size) setRecordsPageSize(size) }}
-                  showTotal={(total) => `共 ${total} 条`}
-                />
-              </div>
-            </Spin>
-          </Card>
-        </TabPane>
-      </Tabs>
+            </div>
+          </Spin>
+        </Card>
+      ),
+    },
+  ], [uploading, mediaFile, convFile, uploadResult, mappings, channels, filterChannel, filterDateRange, filterCampaignId, recordsLoading, records, recordsPage, recordsPageSize, recordsTotal, logsLoading, logs, logsPage, logsPageSize, logsTotal])
+
+  return (
+    <div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--margin-loose)' }}>
+        <h1 style={{ fontSize: 'var(--font-size-extra-large)', fontWeight: 'var(--font-weight-medium)', margin: 0 }}>
+          数据管理
+        </h1>
+        <Button icon={<HistoryOutlined />} onClick={() => setLogsVisible(true)}>
+          上传历史
+        </Button>
+      </div>
+
+      <Tabs
+        defaultActiveKey="upload"
+        items={tabItems}
+        destroyInactiveTabPane={false}
+      />
 
       <Modal title="上传历史" open={logsVisible} onCancel={() => setLogsVisible(false)} footer={null} width={800}>
         <Spin spinning={logsLoading}>

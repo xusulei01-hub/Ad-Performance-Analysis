@@ -30,16 +30,25 @@ import { ChannelMetrics } from '@/types'
 
 const { RangePicker } = DatePicker
 
-const cardTitleStyle: React.CSSProperties = {
-  fontSize: 'var(--font-size-large)',
-  fontWeight: 'var(--font-weight-medium)',
-  marginBottom: 'var(--margin-loose)',
+/* ─── 现代化卡片基础样式（与 Dashboard 严格一致） ─── */
+const CARD_BASE: React.CSSProperties = {
+  borderRadius: 16,
+  boxShadow: '0 4px 24px rgba(0,0,0,0.05)',
+  border: 'none',
 }
 
-const metricCardStyle: React.CSSProperties = {
-  borderRadius: 'var(--radius-extra-large)',
-  boxShadow: 'var(--shadow-elevation-small)',
-}
+const SOFT_COLORS = [
+  '#6B8DD6',
+  '#E8917A',
+  '#7BC4A6',
+  '#D4A5A5',
+  '#A8C6E0',
+  '#D4B483',
+  '#9DB0CE',
+  '#B8D4B8',
+  '#D9B8D4',
+  '#C8C8A9',
+]
 
 function MetricCard({
   title,
@@ -57,14 +66,14 @@ function MetricCard({
   icon: React.ReactNode
 }) {
   return (
-    <Card style={metricCardStyle} bodyStyle={{ padding: 'var(--padding-loose)' }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
+    <Card style={CARD_BASE} bodyStyle={{ padding: '28px 24px' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
         <div
           style={{
-            width: 40,
-            height: 40,
-            borderRadius: 'var(--radius-large)',
-            backgroundColor: 'var(--color-brand-primary-bg)',
+            width: 44,
+            height: 44,
+            borderRadius: 12,
+            background: 'linear-gradient(135deg, var(--color-brand-primary)18, var(--color-brand-primary)0A)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
@@ -74,16 +83,17 @@ function MetricCard({
         >
           {icon}
         </div>
-        <span style={{ fontSize: 'var(--font-size-small)', color: 'var(--color-text-secondary)' }}>
+        <span style={{ fontSize: 14, color: 'var(--color-text-secondary)', fontWeight: 500 }}>
           {title}
         </span>
       </div>
       <div
         style={{
-          fontSize: 28,
+          fontSize: 32,
           fontFamily: 'var(--font-family-number)',
-          fontWeight: 'var(--font-weight-bold)',
+          fontWeight: 700,
           color: 'var(--color-text-primary)',
+          lineHeight: 1.2,
         }}
       >
         {prefix}
@@ -123,16 +133,22 @@ function CampaignChart({
   const option = data.length
     ? {
         tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
-        grid: { left: '3%', right: '8%', bottom: '3%', containLabel: true },
+        grid: { left: '3%', right: '8%', bottom: '3%', top: '5%', containLabel: true },
         xAxis: {
           type: 'value',
-          axisLabel: { fontFamily: 'var(--font-family-number)' },
+          splitLine: { lineStyle: { type: 'dashed', color: '#F0F0F0' } },
+          axisLine: { show: false },
+          axisTick: { show: false },
+          axisLabel: { fontFamily: 'var(--font-family-number)', color: '#888' },
         },
         yAxis: {
           type: 'category',
           data: data.map((d) => d.campaignName || d.campaignId).reverse(),
+          axisLine: { lineStyle: { color: '#E8E8E8' } },
+          axisTick: { show: false },
           axisLabel: {
             fontFamily: 'var(--font-family-cn)',
+            color: '#888',
             formatter: (v: string) => (v.length > 12 ? v.slice(0, 12) + '...' : v),
           },
         },
@@ -155,6 +171,7 @@ function CampaignChart({
               position: 'right',
               fontFamily: 'var(--font-family-number)',
               fontSize: 11,
+              color: '#666',
             },
           },
         ],
@@ -172,10 +189,17 @@ function CampaignChart({
     : undefined
 
   return (
-    <Card
-      title={title}
-      style={{ borderRadius: 'var(--radius-extra-large)', boxShadow: 'var(--shadow-elevation-small)', cursor: onBarClick ? 'pointer' : 'default' }}
-    >
+    <Card style={{ ...CARD_BASE, cursor: onBarClick ? 'pointer' : 'default' }} bodyStyle={{ padding: '20px 24px' }}>
+      <div
+        style={{
+          fontSize: 15,
+          fontWeight: 500,
+          color: 'var(--color-text-primary)',
+          marginBottom: 16,
+        }}
+      >
+        {title}
+      </div>
       {option ? (
         <ReactECharts option={option} style={{ height: 250 }} onEvents={handleEvents} />
       ) : (
@@ -266,25 +290,31 @@ const ChannelAnalysis: React.FC = () => {
   const trendOption = metrics?.dailyTrends.length
     ? {
         tooltip: { trigger: 'axis' },
-        legend: { data: ['花费', '激活', '开户', '转正', '留资', 'ROI', 'CTR'], bottom: 0 },
-        grid: { left: '3%', right: '4%', bottom: '15%', containLabel: true },
+        legend: { data: ['花费', '激活', '开户', '转正', '留资', 'ROI', 'CTR'], bottom: 0, textStyle: { color: '#888' } },
+        grid: { left: '3%', right: '4%', bottom: '15%', top: '5%', containLabel: true },
         xAxis: {
           type: 'category',
           data: metrics.dailyTrends.map((d) => d.date),
-          axisLabel: { fontFamily: 'var(--font-family-cn)' },
+          axisLine: { lineStyle: { color: '#E8E8E8' } },
+          axisTick: { show: false },
+          axisLabel: { fontFamily: 'var(--font-family-cn)', color: '#888' },
         },
         yAxis: [
           {
             type: 'value',
             name: '数量',
             position: 'left',
-            axisLabel: { fontFamily: 'var(--font-family-number)' },
+            splitLine: { lineStyle: { type: 'dashed', color: '#F0F0F0' } },
+            axisLabel: { fontFamily: 'var(--font-family-number)', color: '#888' },
+            nameTextStyle: { color: '#888' },
           },
           {
             type: 'value',
             name: '比率',
             position: 'right',
-            axisLabel: { fontFamily: 'var(--font-family-number)' },
+            splitLine: { show: false },
+            axisLabel: { fontFamily: 'var(--font-family-number)', color: '#888' },
+            nameTextStyle: { color: '#888' },
           },
         ],
         series: [
@@ -292,7 +322,7 @@ const ChannelAnalysis: React.FC = () => {
             name: '花费',
             type: 'line',
             data: metrics.dailyTrends.map((d) => Number(d.cost.toFixed(2))),
-            itemStyle: { color: 'var(--color-brand-primary)' },
+            itemStyle: { color: '#6B8DD6' },
             smooth: true,
             symbol: 'circle',
             symbolSize: 6,
@@ -301,7 +331,7 @@ const ChannelAnalysis: React.FC = () => {
             name: '激活',
             type: 'line',
             data: metrics.dailyTrends.map((d) => d.activations),
-            itemStyle: { color: 'var(--color-data-red)' },
+            itemStyle: { color: '#E8917A' },
             smooth: true,
             symbol: 'circle',
             symbolSize: 6,
@@ -310,7 +340,7 @@ const ChannelAnalysis: React.FC = () => {
             name: '开户',
             type: 'line',
             data: metrics.dailyTrends.map((d) => d.accounts),
-            itemStyle: { color: 'var(--color-data-green)' },
+            itemStyle: { color: '#7BC4A6' },
             smooth: true,
             symbol: 'circle',
             symbolSize: 6,
@@ -319,7 +349,7 @@ const ChannelAnalysis: React.FC = () => {
             name: '转正',
             type: 'line',
             data: metrics.dailyTrends.map((d) => d.formalActivations),
-            itemStyle: { color: '#7BC4A6' },
+            itemStyle: { color: '#D4A5A5' },
             smooth: true,
             symbol: 'circle',
             symbolSize: 6,
@@ -328,7 +358,7 @@ const ChannelAnalysis: React.FC = () => {
             name: '留资',
             type: 'line',
             data: metrics.dailyTrends.map((d) => d.leads),
-            itemStyle: { color: '#D4A5A5' },
+            itemStyle: { color: '#A8C6E0' },
             smooth: true,
             symbol: 'circle',
             symbolSize: 6,
@@ -338,7 +368,7 @@ const ChannelAnalysis: React.FC = () => {
             type: 'line',
             yAxisIndex: 1,
             data: metrics.dailyTrends.map((d) => Number(d.roi.toFixed(2))),
-            itemStyle: { color: 'var(--color-data-orange)' },
+            itemStyle: { color: '#D4B483' },
             smooth: true,
             symbol: 'circle',
             symbolSize: 6,
@@ -348,7 +378,7 @@ const ChannelAnalysis: React.FC = () => {
             type: 'line',
             yAxisIndex: 1,
             data: metrics.dailyTrends.map((d) => Number((d.ctr * 100).toFixed(2))),
-            itemStyle: { color: '#6B8DD6' },
+            itemStyle: { color: '#9DB0CE' },
             smooth: true,
             symbol: 'circle',
             symbolSize: 6,
@@ -360,33 +390,37 @@ const ChannelAnalysis: React.FC = () => {
   return (
     <Spin spinning={loading} size="large">
       <div>
-        <h1
+        {/* 顶部标题区 */}
+        <div
           style={{
-            fontSize: 'var(--font-size-extra-large)',
-            fontWeight: 'var(--font-weight-medium)',
-            marginBottom: 'var(--margin-super-loose)',
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            marginBottom: 'var(--margin-loose)',
           }}
         >
-          渠道分析
-        </h1>
+          <h1
+            style={{
+              fontSize: 'var(--font-size-extra-large)',
+              fontWeight: 'var(--font-weight-medium)',
+              margin: 0,
+            }}
+          >
+            渠道分析
+          </h1>
+        </div>
 
         {/* 筛选器 */}
-        <Card
-          style={{
-            marginBottom: 'var(--margin-super-loose)',
-            borderRadius: 'var(--radius-extra-large)',
-            boxShadow: 'var(--shadow-elevation-small)',
-          }}
-        >
-          <Row gutter={[16, 16]} align="middle">
+        <Card style={{ ...CARD_BASE, marginBottom: 'var(--margin-super-loose)' }} bodyStyle={{ padding: '24px' }}>
+          <Row gutter={[20, 20]} align="middle">
             <Col xs={24} md={10}>
-              <div style={{ marginBottom: 'var(--margin-tight)', fontWeight: 'var(--font-weight-medium)', fontSize: 'var(--font-size-medium)' }}>
+              <div style={{ marginBottom: 'var(--margin-tight)', fontWeight: 500, fontSize: 14, color: 'var(--color-text-secondary)' }}>
                 选择渠道
               </div>
               <Space wrap>
                 <Select
                   mode="multiple"
-                  style={{ width: '100%', maxWidth: 400 }}
+                  style={{ width: '100%', minWidth: 280 }}
                   placeholder="请选择渠道"
                   value={selectedChannels}
                   onChange={setSelectedChannels}
@@ -415,7 +449,7 @@ const ChannelAnalysis: React.FC = () => {
               )}
             </Col>
             <Col xs={24} md={10}>
-              <div style={{ marginBottom: 'var(--margin-tight)', fontWeight: 'var(--font-weight-medium)', fontSize: 'var(--font-size-medium)' }}>
+              <div style={{ marginBottom: 'var(--margin-tight)', fontWeight: 500, fontSize: 14, color: 'var(--color-text-secondary)' }}>
                 选择时间范围
               </div>
               <RangePicker
@@ -450,8 +484,16 @@ const ChannelAnalysis: React.FC = () => {
         </Card>
 
         {/* 渠道总览 */}
-        <h2 style={cardTitleStyle}>渠道总览</h2>
-        <Row gutter={[16, 16]} style={{ marginBottom: 'var(--margin-base)' }}>
+        <h2
+          style={{
+            fontSize: 'var(--font-size-large)',
+            fontWeight: 'var(--font-weight-medium)',
+            marginBottom: 'var(--margin-loose)',
+          }}
+        >
+          渠道总览
+        </h2>
+        <Row gutter={[20, 20]} style={{ marginBottom: 'var(--margin-base)' }}>
           <Col xs={24} sm={12} lg={6}>
             <MetricCard
               title="总花费"
@@ -484,7 +526,7 @@ const ChannelAnalysis: React.FC = () => {
             />
           </Col>
         </Row>
-        <Row gutter={[16, 16]} style={{ marginBottom: 'var(--margin-super-loose)' }}>
+        <Row gutter={[20, 20]} style={{ marginBottom: 'var(--margin-super-loose)' }}>
           <Col xs={24} sm={12} lg={8}>
             <MetricCard
               title="总转正"
@@ -513,15 +555,18 @@ const ChannelAnalysis: React.FC = () => {
         {/* 渠道对比 */}
         {selectedChannels.length > 1 && metrics?.channelBreakdown && metrics.channelBreakdown.length > 0 && (
           <>
-            <h2 style={cardTitleStyle}>渠道对比</h2>
-            <Row gutter={[16, 16]} style={{ marginBottom: 'var(--margin-super-loose)' }}>
+            <h2
+              style={{
+                fontSize: 'var(--font-size-large)',
+                fontWeight: 'var(--font-weight-medium)',
+                marginBottom: 'var(--margin-loose)',
+              }}
+            >
+              渠道对比
+            </h2>
+            <Row gutter={[20, 20]} style={{ marginBottom: 'var(--margin-super-loose)' }}>
               <Col xs={24}>
-                <Card
-                  style={{
-                    borderRadius: 'var(--radius-extra-large)',
-                    boxShadow: 'var(--shadow-elevation-small)',
-                  }}
-                >
+                <Card style={CARD_BASE} bodyStyle={{ padding: '20px 24px' }}>
                   <Table
                     dataSource={metrics.channelBreakdown}
                     rowKey="channel"
@@ -580,8 +625,16 @@ const ChannelAnalysis: React.FC = () => {
         )}
 
         {/* 分计划分析 */}
-        <h2 style={cardTitleStyle}>分计划分析（Top 5）</h2>
-        <Row gutter={[16, 16]} style={{ marginBottom: 'var(--margin-super-loose)' }}>
+        <h2
+          style={{
+            fontSize: 'var(--font-size-large)',
+            fontWeight: 'var(--font-weight-medium)',
+            marginBottom: 'var(--margin-loose)',
+          }}
+        >
+          分计划分析（Top 5）
+        </h2>
+        <Row gutter={[20, 20]} style={{ marginBottom: 'var(--margin-super-loose)' }}>
           <Col xs={24} lg={12}>
             <CampaignChart
               title="分计划花费"
@@ -617,16 +670,28 @@ const ChannelAnalysis: React.FC = () => {
         </Row>
 
         {/* 每日趋势 */}
-        <h2 style={cardTitleStyle}>每日趋势</h2>
-        <Row gutter={[16, 16]}>
+        <h2
+          style={{
+            fontSize: 'var(--font-size-large)',
+            fontWeight: 'var(--font-weight-medium)',
+            marginBottom: 'var(--margin-loose)',
+          }}
+        >
+          每日趋势
+        </h2>
+        <Row gutter={[20, 20]}>
           <Col xs={24}>
-            <Card
-              title="每日数据变化折线图"
-              style={{
-                borderRadius: 'var(--radius-extra-large)',
-                boxShadow: 'var(--shadow-elevation-small)',
-              }}
-            >
+            <Card style={CARD_BASE} bodyStyle={{ padding: '20px 24px' }}>
+              <div
+                style={{
+                  fontSize: 15,
+                  fontWeight: 500,
+                  color: 'var(--color-text-primary)',
+                  marginBottom: 16,
+                }}
+              >
+                每日数据变化折线图
+              </div>
               {trendOption ? (
                 <ReactECharts option={trendOption} style={{ height: 400 }} />
               ) : (
@@ -637,13 +702,29 @@ const ChannelAnalysis: React.FC = () => {
         </Row>
 
         {/* 转化漏斗 */}
-        <h2 style={{ ...cardTitleStyle, marginTop: 'var(--margin-super-loose)' }}>转化漏斗</h2>
-        <Row gutter={[16, 16]} style={{ marginBottom: 'var(--margin-super-loose)' }}>
+        <h2
+          style={{
+            fontSize: 'var(--font-size-large)',
+            fontWeight: 'var(--font-weight-medium)',
+            marginBottom: 'var(--margin-loose)',
+            marginTop: 'var(--margin-super-loose)',
+          }}
+        >
+          转化漏斗
+        </h2>
+        <Row gutter={[20, 20]} style={{ marginBottom: 'var(--margin-super-loose)' }}>
           <Col xs={24} lg={12}>
-            <Card
-              title="各环节转化率"
-              style={{ borderRadius: 'var(--radius-extra-large)', boxShadow: 'var(--shadow-elevation-small)' }}
-            >
+            <Card style={CARD_BASE} bodyStyle={{ padding: '20px 24px' }}>
+              <div
+                style={{
+                  fontSize: 15,
+                  fontWeight: 500,
+                  color: 'var(--color-text-primary)',
+                  marginBottom: 16,
+                }}
+              >
+                各环节转化率
+              </div>
               {metrics?.totalMetrics.impressions ?? 0 > 0 ? (
                 <ReactECharts
                   option={{
@@ -666,6 +747,7 @@ const ChannelAnalysis: React.FC = () => {
                           position: 'inside',
                           formatter: '{b}\n{d}%',
                           fontSize: 12,
+                          color: '#fff',
                         },
                         data: [
                           { value: 100, name: '曝光', itemStyle: { color: '#6B8DD6' } },
@@ -714,24 +796,36 @@ const ChannelAnalysis: React.FC = () => {
             </Card>
           </Col>
           <Col xs={24} lg={12}>
-            <Card
-              title="转化效率指标"
-              style={{ borderRadius: 'var(--radius-extra-large)', boxShadow: 'var(--shadow-elevation-small)' }}
-            >
+            <Card style={CARD_BASE} bodyStyle={{ padding: '20px 24px' }}>
+              <div
+                style={{
+                  fontSize: 15,
+                  fontWeight: 500,
+                  color: 'var(--color-text-primary)',
+                  marginBottom: 16,
+                }}
+              >
+                转化效率指标
+              </div>
               {metrics?.totalMetrics.impressions ?? 0 > 0 ? (
                 <ReactECharts
                   option={{
                     tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
-                    grid: { left: '3%', right: '8%', bottom: '3%', containLabel: true },
+                    grid: { left: '3%', right: '8%', bottom: '3%', top: '5%', containLabel: true },
                     xAxis: {
                       type: 'value',
                       max: 100,
-                      axisLabel: { formatter: '{value}%', fontFamily: 'var(--font-family-number)' },
+                      splitLine: { lineStyle: { type: 'dashed', color: '#F0F0F0' } },
+                      axisLabel: { formatter: '{value}%', fontFamily: 'var(--font-family-number)', color: '#888' },
+                      axisLine: { show: false },
+                      axisTick: { show: false },
                     },
                     yAxis: {
                       type: 'category',
                       data: ['开户率', '留资率', '转正率', '激活率', '下载率', '点击率'],
-                      axisLabel: { fontFamily: 'var(--font-family-cn)' },
+                      axisLabel: { fontFamily: 'var(--font-family-cn)', color: '#888' },
+                      axisLine: { lineStyle: { color: '#E8E8E8' } },
+                      axisTick: { show: false },
                     },
                     series: [
                       {
@@ -762,8 +856,9 @@ const ChannelAnalysis: React.FC = () => {
                             itemStyle: { color: '#E8917A' },
                           },
                         ],
-                        label: { show: true, position: 'right', formatter: '{c}%', fontFamily: 'var(--font-family-number)' },
-                        barWidth: '50%',
+                        label: { show: true, position: 'right', formatter: '{c}%', fontFamily: 'var(--font-family-number)', color: '#666' },
+                        barWidth: '45%',
+                        itemStyle: { borderRadius: [0, 4, 4, 0] },
                       },
                     ],
                   }}
@@ -790,25 +885,31 @@ const ChannelAnalysis: React.FC = () => {
               <ReactECharts
                 option={{
                   tooltip: { trigger: 'axis' },
-                  legend: { data: ['花费', '激活', '开户', 'ROI'], bottom: 0 },
-                  grid: { left: '3%', right: '4%', bottom: '15%', containLabel: true },
+                  legend: { data: ['花费', '激活', '开户', 'ROI'], bottom: 0, textStyle: { color: '#888' } },
+                  grid: { left: '3%', right: '4%', bottom: '15%', top: '5%', containLabel: true },
                   xAxis: {
                     type: 'category',
                     data: drillTrends.map((d: any) => d.date),
-                    axisLabel: { fontFamily: 'var(--font-family-cn)' },
+                    axisLine: { lineStyle: { color: '#E8E8E8' } },
+                    axisTick: { show: false },
+                    axisLabel: { fontFamily: 'var(--font-family-cn)', color: '#888' },
                   },
                   yAxis: [
                     {
                       type: 'value',
                       name: '数量',
                       position: 'left',
-                      axisLabel: { fontFamily: 'var(--font-family-number)' },
+                      splitLine: { lineStyle: { type: 'dashed', color: '#F0F0F0' } },
+                      axisLabel: { fontFamily: 'var(--font-family-number)', color: '#888' },
+                      nameTextStyle: { color: '#888' },
                     },
                     {
                       type: 'value',
                       name: 'ROI',
                       position: 'right',
-                      axisLabel: { fontFamily: 'var(--font-family-number)' },
+                      splitLine: { show: false },
+                      axisLabel: { fontFamily: 'var(--font-family-number)', color: '#888' },
+                      nameTextStyle: { color: '#888' },
                     },
                   ],
                   series: [
@@ -816,7 +917,7 @@ const ChannelAnalysis: React.FC = () => {
                       name: '花费',
                       type: 'line',
                       data: drillTrends.map((d: any) => Number(d.cost.toFixed(2))),
-                      itemStyle: { color: 'var(--color-brand-primary)' },
+                      itemStyle: { color: '#6B8DD6' },
                       smooth: true,
                       symbol: 'circle',
                       symbolSize: 6,
@@ -825,7 +926,7 @@ const ChannelAnalysis: React.FC = () => {
                       name: '激活',
                       type: 'line',
                       data: drillTrends.map((d: any) => d.activations),
-                      itemStyle: { color: 'var(--color-data-red)' },
+                      itemStyle: { color: '#E8917A' },
                       smooth: true,
                       symbol: 'circle',
                       symbolSize: 6,
@@ -834,7 +935,7 @@ const ChannelAnalysis: React.FC = () => {
                       name: '开户',
                       type: 'line',
                       data: drillTrends.map((d: any) => d.accounts),
-                      itemStyle: { color: 'var(--color-data-green)' },
+                      itemStyle: { color: '#7BC4A6' },
                       smooth: true,
                       symbol: 'circle',
                       symbolSize: 6,
@@ -844,7 +945,7 @@ const ChannelAnalysis: React.FC = () => {
                       type: 'line',
                       yAxisIndex: 1,
                       data: drillTrends.map((d: any) => Number(d.roi.toFixed(2))),
-                      itemStyle: { color: 'var(--color-data-orange)' },
+                      itemStyle: { color: '#D4B483' },
                       smooth: true,
                       symbol: 'circle',
                       symbolSize: 6,

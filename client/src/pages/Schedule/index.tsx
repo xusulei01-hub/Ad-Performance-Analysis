@@ -35,6 +35,13 @@ import { Plan, Milestone } from '@/types'
 const { RangePicker } = DatePicker
 const { TextArea } = Input
 
+/* ─── 现代化卡片基础样式（与 Dashboard 严格一致） ─── */
+const CARD_BASE: React.CSSProperties = {
+  borderRadius: 16,
+  boxShadow: '0 4px 24px rgba(0,0,0,0.05)',
+  border: 'none',
+}
+
 const PRIORITY_OPTIONS = [
   { label: 'P1 - 最高', value: 1, color: '#FF2436' },
   { label: 'P2 - 高', value: 2, color: '#FF661A' },
@@ -222,15 +229,41 @@ const Schedule: React.FC = () => {
 
   return (
     <div>
-      <h1 style={{ fontSize: 'var(--font-size-extra-large)', fontWeight: 'var(--font-weight-medium)', marginBottom: 'var(--margin-super-loose)' }}>
-        日程表
-      </h1>
+      {/* 顶部标题区 */}
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          marginBottom: 'var(--margin-loose)',
+        }}
+      >
+        <h1
+          style={{
+            fontSize: 'var(--font-size-extra-large)',
+            fontWeight: 'var(--font-weight-medium)',
+            margin: 0,
+          }}
+        >
+          日程表
+        </h1>
+      </div>
 
       {/* Top 5 关键事项 */}
-      <Card
-        title={<span><FlagOutlined /> 本月关键事项（Top 5）</span>}
-        style={{ marginBottom: 'var(--margin-super-loose)', borderRadius: 'var(--radius-extra-large)', boxShadow: 'var(--shadow-elevation-small)' }}
-      >
+      <Card style={{ ...CARD_BASE, marginBottom: 'var(--margin-super-loose)' }} bodyStyle={{ padding: '20px 24px' }}>
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            marginBottom: 16,
+          }}
+        >
+          <div style={{ fontSize: 15, fontWeight: 500, color: 'var(--color-text-primary)' }}>
+            <FlagOutlined style={{ marginRight: 8 }} />
+            本月关键事项（Top 5）
+          </div>
+        </div>
         {top5Plans.length > 0 ? (
           <List
             dataSource={top5Plans}
@@ -267,15 +300,23 @@ const Schedule: React.FC = () => {
       </Card>
 
       {/* 日历 */}
-      <Card
-        title={<span><ClockCircleOutlined /> {currentDate.format('YYYY年M月')} 日历</span>}
-        extra={
+      <Card style={{ ...CARD_BASE, marginBottom: 'var(--margin-super-loose)' }} bodyStyle={{ padding: '20px 24px' }}>
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            marginBottom: 16,
+          }}
+        >
+          <div style={{ fontSize: 15, fontWeight: 500, color: 'var(--color-text-primary)' }}>
+            <ClockCircleOutlined style={{ marginRight: 8 }} />
+            {currentDate.format('YYYY年M月')} 日历
+          </div>
           <Button type="primary" icon={<PlusOutlined />} onClick={() => handleSelectDate(dayjs())}>
             新增计划
           </Button>
-        }
-        style={{ marginBottom: 'var(--margin-super-loose)', borderRadius: 'var(--radius-extra-large)', boxShadow: 'var(--shadow-elevation-small)' }}
-      >
+        </div>
         <Calendar
           value={currentDate}
           onChange={setCurrentDate}
@@ -285,25 +326,27 @@ const Schedule: React.FC = () => {
       </Card>
 
       {/* 里程碑进度 */}
-      <Card
-        title={<span><ExclamationCircleOutlined /> 所有计划里程碑进度</span>}
-        style={{ borderRadius: 'var(--radius-extra-large)', boxShadow: 'var(--shadow-elevation-small)' }}
-      >
+      <Card style={CARD_BASE} bodyStyle={{ padding: '20px 24px' }}>
+        <div style={{ fontSize: 15, fontWeight: 500, color: 'var(--color-text-primary)', marginBottom: 16 }}>
+          <ExclamationCircleOutlined style={{ marginRight: 8 }} />
+          所有计划里程碑进度
+        </div>
         {plans.length > 0 ? (
-          <Row gutter={[16, 16]}>
+          <Row gutter={[20, 20]}>
             {plans.map((plan) => (
               <Col xs={24} md={12} lg={8} key={plan.id}>
                 <Card
                   size="small"
-                  title={
+                  style={{ borderRadius: 12, boxShadow: '0 2px 8px rgba(0,0,0,0.04)' }}
+                  bodyStyle={{ padding: '16px' }}
+                >
+                  <div style={{ marginBottom: 8, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <span>
                       <Tag color={getPriorityColor(plan.priority)}>{getPriorityLabel(plan.priority)}</Tag>
-                      <span style={{ marginLeft: 4 }}>{plan.tagIcon} {plan.title}</span>
+                      <span style={{ marginLeft: 4, fontWeight: 500 }}>{plan.tagIcon} {plan.title}</span>
                     </span>
-                  }
-                  extra={getStatusTag(plan.status)}
-                  style={{ borderRadius: 'var(--radius-large)' }}
-                >
+                    {getStatusTag(plan.status)}
+                  </div>
                   <div style={{ marginBottom: 12 }}>
                     <Progress percent={plan.progress} size="small" status={plan.progress === 100 ? 'success' : 'active'} />
                   </div>
