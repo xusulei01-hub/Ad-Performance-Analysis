@@ -1,6 +1,7 @@
 import express from 'express'
 import cors from 'cors'
 import dotenv from 'dotenv'
+import { errorHandler } from './middleware/errorHandler'
 import dataRoutes from './routes/dataRoutes'
 import overviewRoutes from './routes/overviewRoutes'
 import channelRoutes from './routes/channelRoutes'
@@ -34,14 +35,7 @@ app.use('/api/v1/plans', planRoutes)
 app.use('/api/v1/targets', targetRoutes)
 
 // 错误处理中间件
-app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
-  console.error('Error:', err)
-  res.status(err.status || 500).json({
-    success: false,
-    message: err.message || 'Internal Server Error',
-    timestamp: new Date().toISOString(),
-  })
-})
+app.use(errorHandler)
 
 app.listen(PORT, () => {
   console.log(`Server running on http://localhost:${PORT}`)

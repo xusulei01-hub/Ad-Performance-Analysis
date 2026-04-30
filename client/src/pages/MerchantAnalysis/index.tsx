@@ -1,24 +1,15 @@
 import React, { useEffect, useState, useCallback } from 'react'
 import { Card, DatePicker, Table, Spin, Empty, Space, Button, Row, Col, Select } from 'antd'
-import { ReloadOutlined, DollarOutlined, FileTextOutlined, BankOutlined, PercentageOutlined } from '@ant-design/icons'
+import { ReloadOutlined, DollarOutlined, FileTextOutlined, BankOutlined, PercentageOutlined, DownloadOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import ReactECharts from 'echarts-for-react'
 import { merchantService } from '@services/merchantService'
+import { useRefresh } from '@components/layout/RefreshContext'
+import { METRIC_COLORS, SOFT_COLORS, CARD_BASE } from '@utils/constants'
+import { exportToExcel } from '@utils/export'
 import { MerchantReportItem, ChannelReportItem } from '@/types'
 
 const { RangePicker } = DatePicker
-
-/* ─── 现代化卡片基础样式（与 Dashboard 严格一致） ─── */
-const CARD_BASE: React.CSSProperties = {
-  borderRadius: 16,
-  boxShadow: '0 4px 24px rgba(0,0,0,0.05)',
-  border: 'none',
-}
-
-const SOFT_COLORS = [
-  '#6B8DD6', '#E8917A', '#7BC4A6', '#D4A5A5', '#A8C6E0',
-  '#D4B483', '#9DB0CE', '#B8D4B8', '#D9B8D4', '#C8C8A9',
-]
 
 function MetricCard({
   title,
@@ -27,6 +18,7 @@ function MetricCard({
   suffix,
   precision = 0,
   icon,
+  color = METRIC_COLORS.cost,
 }: {
   title: string
   value: number
@@ -34,6 +26,7 @@ function MetricCard({
   suffix?: string
   precision?: number
   icon: React.ReactNode
+  color?: string
 }) {
   return (
     <Card style={CARD_BASE} bodyStyle={{ padding: '28px 24px' }}>
@@ -43,11 +36,11 @@ function MetricCard({
             width: 44,
             height: 44,
             borderRadius: 12,
-            background: 'linear-gradient(135deg, var(--color-brand-primary)18, var(--color-brand-primary)0A)',
+            background: `linear-gradient(135deg, ${color}18, ${color}0A)`,
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            color: 'var(--color-brand-primary)',
+            color,
             fontSize: 20,
           }}
         >
@@ -81,6 +74,7 @@ const MerchantAnalysis: React.FC = () => {
   ])
   const [selectedMerchants, setSelectedMerchants] = useState<string[]>([])
   const [selectedChannels, setSelectedChannels] = useState<string[]>([])
+  const { refreshKey } = useRefresh()
   const [merchantOptions, setMerchantOptions] = useState<{ qsId: string; merchantName: string }[]>([])
   const [channelOptions, setChannelOptions] = useState<string[]>([])
 
@@ -105,6 +99,15 @@ const MerchantAnalysis: React.FC = () => {
     fetchFilterOptions()
   }, [fetchFilterOptions])
 
+  useEffect(() => {
+    fetchData()
+  }, [refreshKey])
+
+  useEffect(() => {
+    fetchData()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
   const fetchData = useCallback(async () => {
     setLoading(true)
     try {
@@ -127,10 +130,6 @@ const MerchantAnalysis: React.FC = () => {
       setLoading(false)
     }
   }, [dateRange, selectedMerchants, selectedChannels])
-
-  useEffect(() => {
-    fetchData()
-  }, [fetchData])
 
   const totalLeads = merchantReport.reduce((sum, r) => sum + r.leads, 0)
   const totalAccounts = merchantReport.reduce((sum, r) => sum + r.accounts, 0)
@@ -314,7 +313,7 @@ const MerchantAnalysis: React.FC = () => {
             </Col>
             <Col xs={24} md={12} lg={6} style={{ textAlign: 'right' }}>
               <Button type="primary" icon={<ReloadOutlined />} onClick={fetchData}>
-                刷新
+                应用筛选
               </Button>
             </Col>
           </Row>
@@ -329,6 +328,7 @@ const MerchantAnalysis: React.FC = () => {
               prefix="¥"
               precision={2}
               icon={<DollarOutlined />}
+              color={METRIC_COLORS.cost}
             />
           </Col>
           <Col xs={24} sm={12} lg={6}>
@@ -336,6 +336,7 @@ const MerchantAnalysis: React.FC = () => {
               title="总留资"
               value={totalLeads}
               icon={<FileTextOutlined />}
+              color={METRIC_COLORS.leads}
             />
           </Col>
           <Col xs={24} sm={12} lg={6}>
@@ -343,6 +344,7 @@ const MerchantAnalysis: React.FC = () => {
               title="总开户"
               value={totalAccounts}
               icon={<BankOutlined />}
+              color={METRIC_COLORS.accounts}
             />
           </Col>
           <Col xs={24} sm={12} lg={6}>
@@ -352,20 +354,27 @@ const MerchantAnalysis: React.FC = () => {
               suffix="%"
               precision={2}
               icon={<PercentageOutlined />}
+              color={METRIC_COLORS.roi}
             />
           </Col>
         </Row>
 
         {/* 期商报表 */}
-        <h2
-          style={{
-            fontSize: 'var(--font-size-large)',
-            fontWeight: 'var(--font-weight-medium)',
-            marginBottom: 'var(--margin-loose)',
-          }}
-        >
-          期商报表
-        </h2>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--margin-loose)' }}>
+          <h2
+            style={{
+              fontSize: 'var(--font-size-large)',
+              fontWeight: 'var(--font-weight-medium)',
+              margin: 0,
+            }}
+          >
+            期商报表
+          </h2>
+          <Space>
+            <Button icon={<DownloadOutlined />} size="small" onClick={() => exportToExcel(merchantReport, merchantColumns, `期商报表_${dayjs().format('YYYY-MM-DD')}`)} disabled={merchantReport.length === 0}>导出期商</Button>
+            <Button icon={<DownloadOutlined />} size="small" onClick={() => exportToExcel(channelReport, channelColumns, `渠道报表_${dayjs().format('YYYY-MM-DD')}`)} disabled={channelReport.length === 0}>导出渠道</Button>
+          </Space>
+        </div>
         <Row gutter={[20, 20]} style={{ marginBottom: 'var(--margin-super-loose)' }}>
           <Col xs={24} lg={12}>
             <Card style={CARD_BASE} bodyStyle={{ padding: '20px 24px' }}>

@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback, useMemo } from 'react'
+import React, { useEffect, useState, useCallback } from 'react'
 import {
   Card,
   Upload,
@@ -25,20 +25,16 @@ import {
   FileExcelOutlined,
   SettingOutlined,
   DeleteOutlined,
+  DownloadOutlined,
 } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import { merchantService } from '@services/merchantService'
+import { CARD_BASE } from '@utils/constants'
+import { exportToExcel } from '@utils/export'
 import { MerchantData, MerchantMapping } from '@/types'
 
 const { Dragger } = Upload
 const { RangePicker } = DatePicker
-
-/* ─── 现代化卡片基础样式（与 Dashboard 严格一致） ─── */
-const CARD_BASE: React.CSSProperties = {
-  borderRadius: 16,
-  boxShadow: '0 4px 24px rgba(0,0,0,0.05)',
-  border: 'none',
-}
 
 const MerchantDataManagement: React.FC = () => {
   const [file, setFile] = useState<File | null>(null)
@@ -86,6 +82,8 @@ const MerchantDataManagement: React.FC = () => {
     }
   }, [])
 
+  const [queryTrigger, setQueryTrigger] = useState(0)
+
   const fetchRecords = useCallback(async () => {
     setRecordsLoading(true)
     try {
@@ -104,7 +102,7 @@ const MerchantDataManagement: React.FC = () => {
     } finally {
       setRecordsLoading(false)
     }
-  }, [recordsPage, recordsPageSize, filterQsId, filterChannel, filterDateRange])
+  }, [recordsPage, recordsPageSize, filterQsId, filterChannel, filterDateRange, queryTrigger])
 
   const fetchMappings = useCallback(async () => {
     try {
@@ -198,7 +196,7 @@ const MerchantDataManagement: React.FC = () => {
     { title: '状态', key: 'status', width: 100, render: (_: any, record: MerchantData) => record.accountDate ? <Tag color="green">已开户</Tag> : <Tag color="orange">已留资</Tag> },
   ]
 
-  const tabItems = useMemo(() => [
+  const tabItems = [
     {
       key: 'upload',
       label: (
@@ -365,7 +363,7 @@ const MerchantDataManagement: React.FC = () => {
                   title: '操作',
                   key: 'action',
                   render: (_: any, record: MerchantMapping) => (
-                    <Popconfirm title="确定删除这条映射规则？" onConfirm={() => handleDeleteMapping(record.id)}>
+                    <Popconfirm title="确定删除这条映射规则？" onConfirm={() => handleDeleteMapping(record.id)} okButtonProps={{ danger: true }}>
                       <Button type="link" danger icon={<DeleteOutlined />}>删除</Button>
                     </Popconfirm>
                   ),
@@ -403,8 +401,9 @@ const MerchantDataManagement: React.FC = () => {
             </Col>
             <Col xs={24} sm={8} md={6}>
               <Space>
-                <Button type="primary" icon={<SearchOutlined />} onClick={() => setRecordsPage(1)}>查询</Button>
-                <Button icon={<ReloadOutlined />} onClick={() => { setFilterQsId(undefined); setFilterChannel(undefined); setFilterDateRange(null); setRecordsPage(1) }}>重置</Button>
+                <Button type="primary" icon={<SearchOutlined />} onClick={() => { setRecordsPage(1); setQueryTrigger(c => c + 1) }}>查询</Button>
+                <Button icon={<ReloadOutlined />} onClick={() => { setFilterQsId(undefined); setFilterChannel(undefined); setFilterDateRange(null); setRecordsPage(1); setQueryTrigger(c => c + 1) }}>重置</Button>
+                <Button icon={<DownloadOutlined />} onClick={() => exportToExcel(records, recordColumns, `期商数据_${dayjs().format('YYYY-MM-DD')}`)} disabled={records.length === 0}>导出</Button>
               </Space>
             </Col>
           </Row>
@@ -415,7 +414,7 @@ const MerchantDataManagement: React.FC = () => {
               dataSource={records}
               rowKey="userId"
               pagination={false}
-              scroll={{ x: 900 }}
+              scroll={{ x: 900, y: 480 }}
               locale={{ emptyText: <Empty description="暂无数据，请先上传文件" /> }}
             />
             <div style={{ marginTop: 16, display: 'flex', justifyContent: 'flex-end' }}>
@@ -433,7 +432,7 @@ const MerchantDataManagement: React.FC = () => {
         </Card>
       ),
     },
-  ], [uploading, file, uploadResult, mappingImporting, mappingImportFile, mappingImportResult, mappings, merchants, channels, filterQsId, filterChannel, filterDateRange, recordsLoading, records, recordsPage, recordsPageSize, recordsTotal])
+  ]
 
   return (
     <div>

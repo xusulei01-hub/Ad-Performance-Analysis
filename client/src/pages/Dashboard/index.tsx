@@ -17,44 +17,11 @@ import dayjs from 'dayjs'
 import ReactECharts from 'echarts-for-react'
 import { dashboardService } from '@services/dashboardService'
 import { targetService } from '@services/targetService'
+import { useRefresh } from '@components/layout/RefreshContext'
+import { METRIC_COLORS, SOFT_COLORS, CARD_BASE } from '@utils/constants'
+import { getWeekRange } from '@utils/dates'
+import { formatNumber } from '@utils/format'
 import { DailyOverview, WeeklyOverview, MonthlyOverview, RankingsData } from '@/types'
-
-const SOFT_COLORS = [
-  '#6B8DD6',
-  '#E8917A',
-  '#7BC4A6',
-  '#D4A5A5',
-  '#A8C6E0',
-  '#D4B483',
-  '#9DB0CE',
-  '#B8D4B8',
-  '#D9B8D4',
-  '#C8C8A9',
-]
-
-const COLOR_MAP: Record<string, string> = {
-  cost: 'var(--color-brand-primary)',
-  activations: 'var(--color-brand-primary)',
-  accounts: 'var(--color-brand-primary)',
-  roi: 'var(--color-brand-primary)',
-  cpa: 'var(--color-brand-primary)',
-  formalActivations: 'var(--color-brand-primary)',
-  leads: 'var(--color-brand-primary)',
-  ctr: 'var(--color-brand-primary)',
-}
-
-/* ─── 现代化卡片基础样式 ─── */
-const CARD_BASE: React.CSSProperties = {
-  borderRadius: 16,
-  boxShadow: '0 4px 24px rgba(0,0,0,0.05)',
-  border: 'none',
-}
-
-function formatNumber(val: number): string {
-  if (val >= 10000) return (val / 10000).toFixed(1) + '万'
-  if (val >= 1000) return val.toLocaleString()
-  return String(val)
-}
 
 /** 异常阈值 */
 const ALERT_THRESHOLD = 0.3
@@ -307,7 +274,7 @@ function OverviewTab({
       prefix: '¥',
       precision: 2,
       icon: <DollarOutlined />,
-      color: COLOR_MAP.cost,
+      color: METRIC_COLORS.cost,
       change: isDaily ? daily?.costChange : undefined,
       target: !isDaily
         ? type === 'weekly'
@@ -320,7 +287,7 @@ function OverviewTab({
       title: `${labelPrefix}激活`,
       key: 'activations',
       icon: <UserAddOutlined />,
-      color: COLOR_MAP.activations,
+      color: METRIC_COLORS.activations,
       change: isDaily ? daily?.activationsChange : undefined,
       target: !isDaily
         ? type === 'weekly'
@@ -333,7 +300,7 @@ function OverviewTab({
       title: `${labelPrefix}开户`,
       key: 'accounts',
       icon: <BankOutlined />,
-      color: COLOR_MAP.accounts,
+      color: METRIC_COLORS.accounts,
       change: isDaily ? daily?.accountsChange : undefined,
       target: !isDaily
         ? type === 'weekly'
@@ -347,7 +314,7 @@ function OverviewTab({
       key: 'roi',
       precision: 2,
       icon: <PercentageOutlined />,
-      color: COLOR_MAP.roi,
+      color: METRIC_COLORS.roi,
       change: isDaily ? daily?.roiChange : undefined,
       target: !isDaily
         ? type === 'weekly'
@@ -366,19 +333,19 @@ function OverviewTab({
       prefix: '¥',
       precision: 2,
       icon: <DollarOutlined />,
-      color: COLOR_MAP.cpa,
+      color: METRIC_COLORS.cpa,
     },
     {
       title: `${labelPrefix}转正`,
       key: 'formalActivations',
       icon: <CheckCircleOutlined />,
-      color: COLOR_MAP.formalActivations,
+      color: METRIC_COLORS.formalActivations,
     },
     {
       title: `${labelPrefix}留资`,
       key: 'leads',
       icon: <FileTextOutlined />,
-      color: COLOR_MAP.leads,
+      color: METRIC_COLORS.leads,
     },
     {
       title: `${labelPrefix}CTR`,
@@ -386,7 +353,7 @@ function OverviewTab({
       precision: 2,
       suffix: '%',
       icon: <BarChartOutlined />,
-      color: COLOR_MAP.ctr,
+      color: METRIC_COLORS.ctr,
       transform: (v: number) => v * 100,
     },
   ]
@@ -398,7 +365,7 @@ function OverviewTab({
       {/* 核心 KPI 区 */}
       <Row gutter={[20, 20]}>
         {coreKpis.map((kpi) => (
-          <Col xs={24} sm={12} lg={6} key={kpi.key}>
+          <Col xs={12} sm={12} lg={6} key={kpi.key}>
             <KpiCard
               title={kpi.title}
               value={(data as any)[kpi.key] ?? 0}
@@ -421,7 +388,7 @@ function OverviewTab({
           const raw = (data as any)[eff.key] ?? 0
           const val = eff.transform ? eff.transform(raw) : raw
           return (
-            <Col xs={24} sm={12} lg={6} key={eff.key}>
+            <Col xs={12} sm={12} lg={6} key={eff.key}>
               <EfficiencyCard
                 title={eff.title}
                 value={val}
@@ -462,7 +429,7 @@ function OverviewTab({
               </div>
               <MiniSparkline
                 data={trends.map((d) => ({ date: d.date, value: Number(d.cost.toFixed(2)) }))}
-                color={COLOR_MAP.cost}
+                color={METRIC_COLORS.cost}
                 formatter={(v) => `¥${v.toLocaleString()}`}
               />
             </Card>
@@ -490,7 +457,7 @@ function OverviewTab({
               </div>
               <MiniSparkline
                 data={trends.map((d) => ({ date: d.date, value: d.activations }))}
-                color={COLOR_MAP.activations}
+                color={METRIC_COLORS.activations}
                 formatter={(v) => `${v.toLocaleString()}`}
               />
             </Card>
@@ -499,14 +466,6 @@ function OverviewTab({
       )}
     </div>
   )
-}
-
-function getWeekRange(now: dayjs.Dayjs) {
-  const dayOfWeek = now.day()
-  const daysSinceMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1
-  const startOfWeek = now.subtract(daysSinceMonday, 'day').startOf('day')
-  const endOfWeek = startOfWeek.add(6, 'day').endOf('day')
-  return { startOfWeek, endOfWeek }
 }
 
 /* ─── 主组件 ─── */
@@ -518,6 +477,7 @@ const Dashboard: React.FC = () => {
   const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState('daily')
 
+  const { refreshKey } = useRefresh()
   const [targetModalVisible, setTargetModalVisible] = useState(false)
   const [targetForm] = Form.useForm()
 
@@ -564,7 +524,7 @@ const Dashboard: React.FC = () => {
 
   useEffect(() => {
     fetchData()
-  }, [fetchData])
+  }, [fetchData, refreshKey])
 
   const handleOpenTargetModal = () => {
     const now = dayjs()

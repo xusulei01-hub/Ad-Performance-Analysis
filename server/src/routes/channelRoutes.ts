@@ -1,6 +1,6 @@
 import { Router } from 'express'
 import dayjs from 'dayjs'
-import { prisma } from '../lib/prisma'
+import * as channelService from '../services/channelService'
 
 const router = Router()
 
@@ -11,210 +11,14 @@ router.get('/:channel/metrics', async (req, res, next) => {
     const startDate = req.query.start_date ? String(req.query.start_date) : dayjs().subtract(6, 'day').format('YYYY-MM-DD')
     const endDate = req.query.end_date ? String(req.query.end_date) : dayjs().format('YYYY-MM-DD')
 
-    const sDate = new Date(startDate)
-    const eDate = new Date(endDate)
-    eDate.setHours(23, 59, 59, 999)
-
-    const where: any = {
-      recordDate: {
-        gte: sDate,
-        lte: eDate,
-      },
-    }
-    if (channels.length > 0) {
-      where.channel = { in: channels }
-    }
-
-    // 总指标 — 数据库原生聚合，ROI 按业务公式计算
-    const totalAgg = await prisma.rawData.aggregate({
-      where,
-      _sum: {
-        cost: true,
-        activations: true,
-        accounts: true,
-        formalActivations: true,
-        leads: true,
-        impressions: true,
-        clicks: true,
-        downloads: true,
-      },
-    })
-
-    const totalCost = totalAgg._sum.cost ?? 0
-    const totalActivations = totalAgg._sum.activations ?? 0
-    const totalAccounts = totalAgg._sum.accounts ?? 0
-    const totalFormal = totalAgg._sum.formalActivations ?? 0
-    const totalLeads = totalAgg._sum.leads ?? 0
-    const totalImpressions = totalAgg._sum.impressions ?? 0
-    const totalClicks = totalAgg._sum.clicks ?? 0
-    const totalDownloads = totalAgg._sum.downloads ?? 0
-
-    const totalMetrics = {
-      cost: totalCost,
-      activations: totalActivations,
-      accounts: totalAccounts,
-      formalActivations: totalFormal,
-      leads: totalLeads,
-      impressions: totalImpressions,
-      clicks: totalClicks,
-      downloads: totalDownloads,
-      ctr: totalImpressions > 0 ? Number((totalClicks / totalImpressions).toFixed(4)) : 0,
-      roi: totalCost > 0 ? Number(((totalAccounts * 3100) / totalCost).toFixed(4)) : 0,
-    }
-
-    // 分计划指标（Top 5）
-    const [costTop, activationsTop, accountsTop, roiRaw] = await Promise.all([
-      prisma.rawData.groupBy({
-        by: ['campaignId', 'campaignName'],
-        where,
-        _sum: { cost: true },
-        orderBy: { _sum: { cost: 'desc' } },
-        take: 5,
-      }),
-      prisma.rawData.groupBy({
-        by: ['campaignId', 'campaignName'],
-        where,
-        _sum: { activations: true },
-        orderBy: { _sum: { activations: 'desc' } },
-        take: 5,
-      }),
-      prisma.rawData.groupBy({
-        by: ['campaignId', 'campaignName'],
-        where,
-        _sum: { accounts: true },
-        orderBy: { _sum: { accounts: 'desc' } },
-        take: 5,
-      }),
-      prisma.rawData.groupBy({
-        by: ['campaignId', 'campaignName'],
-        where,
-        _sum: { cost: true, accounts: true },
-      }),
-    ])
-
-    // ROI 按计算值排序（Prisma groupBy 不支持按表达式排序）
-    const roiTop = roiRaw
-      .map((r) => ({
-        campaignId: r.campaignId,
-        campaignName: r.campaignName,
-        roi: (r._sum.cost ?? 0) > 0
-          ? Number((((r._sum.accounts ?? 0) * 3100) / (r._sum.cost ?? 0)).toFixed(4))
-          : 0,
-      }))
-      .sort((a, b) => b.roi - a.roi)
-      .slice(0, 5)
-
-    const campaignMetrics = {
-      cost: costTop.map((r) => ({
-        campaignId: r.campaignId,
-        campaignName: r.campaignName,
-        cost: r._sum.cost ?? 0,
-      })),
-      activations: activationsTop.map((r) => ({
-        campaignId: r.campaignId,
-        campaignName: r.campaignName,
-        activations: r._sum.activations ?? 0,
-      })),
-      accounts: accountsTop.map((r) => ({
-        campaignId: r.campaignId,
-        campaignName: r.campaignName,
-        accounts: r._sum.accounts ?? 0,
-      })),
-      roi: roiTop,
-    }
-
-    // 每日趋势
-    const dailyRaw = await prisma.rawData.groupBy({
-      by: ['recordDate'],
-      where,
-      _sum: {
-        cost: true,
-        activations: true,
-        accounts: true,
-        formalActivations: true,
-        leads: true,
-        impressions: true,
-        clicks: true,
-        downloads: true,
-      },
-      orderBy: { recordDate: 'asc' },
-    })
-
-    const dailyTrends = dailyRaw.map((r) => ({
-      date: dayjs(r.recordDate).format('YYYY-MM-DD'),
-      cost: r._sum.cost ?? 0,
-      activations: r._sum.activations ?? 0,
-      accounts: r._sum.accounts ?? 0,
-      formalActivations: r._sum.formalActivations ?? 0,
-      leads: r._sum.leads ?? 0,
-      impressions: r._sum.impressions ?? 0,
-      clicks: r._sum.clicks ?? 0,
-      downloads: r._sum.downloads ?? 0,
-      ctr: (r._sum.impressions ?? 0) > 0
-        ? Number(((r._sum.clicks ?? 0) / (r._sum.impressions ?? 0)).toFixed(4))
-        : 0,
-      roi: (r._sum.cost ?? 0) > 0
-        ? Number((((r._sum.accounts ?? 0) * 3100) / (r._sum.cost ?? 0)).toFixed(4))
-        : 0,
-    }))
-
-    // 渠道拆分指标（用于多选对比）
-    const channelBreakdownRaw = await prisma.rawData.groupBy({
-      by: ['channel'],
-      where,
-      _sum: {
-        cost: true,
-        activations: true,
-        accounts: true,
-        formalActivations: true,
-        leads: true,
-        impressions: true,
-        clicks: true,
-        downloads: true,
-      },
-    })
-
-    const channelBreakdown = channelBreakdownRaw.map((r) => {
-      const c = r._sum.cost ?? 0
-      const a = r._sum.activations ?? 0
-      const acc = r._sum.accounts ?? 0
-      const imp = r._sum.impressions ?? 0
-      const clk = r._sum.clicks ?? 0
-      const dl = r._sum.downloads ?? 0
-      const leads = r._sum.leads ?? 0
-      return {
-        channel: r.channel,
-        cost: c,
-        activations: a,
-        accounts: acc,
-        formalActivations: r._sum.formalActivations ?? 0,
-        leads,
-        impressions: imp,
-        clicks: clk,
-        downloads: dl,
-        ctr: imp > 0 ? Number((clk / imp).toFixed(4)) : 0,
-        roi: c > 0 ? Number(((acc * 3100) / c).toFixed(4)) : 0,
-        cpa: a > 0 ? Number((c / a).toFixed(2)) : 0,
-      }
-    })
-
-    res.json({
-      success: true,
-      data: {
-        channels,
-        dateRange: { startDate, endDate },
-        totalMetrics,
-        campaignMetrics,
-        dailyTrends,
-        channelBreakdown,
-      },
-    })
+    const data = await channelService.getChannelMetrics(channels, startDate, endDate)
+    res.json({ success: true, data })
   } catch (err) {
     next(err)
   }
 })
 
-// GET /api/v1/channels/:channel/campaigns/:campaignId/trends?start_date=...&end_date=...
+// GET /api/v1/channels/:channel/campaigns/:campaignId/trends
 router.get('/:channel/campaigns/:campaignId/trends', async (req, res, next) => {
   try {
     const channel = req.params.channel
@@ -222,51 +26,8 @@ router.get('/:channel/campaigns/:campaignId/trends', async (req, res, next) => {
     const startDate = req.query.start_date ? String(req.query.start_date) : dayjs().subtract(6, 'day').format('YYYY-MM-DD')
     const endDate = req.query.end_date ? String(req.query.end_date) : dayjs().format('YYYY-MM-DD')
 
-    const sDate = new Date(startDate)
-    const eDate = new Date(endDate)
-    eDate.setHours(23, 59, 59, 999)
-
-    const rows = await prisma.rawData.findMany({
-      where: {
-        channel,
-        campaignId,
-        recordDate: { gte: sDate, lte: eDate },
-      },
-      orderBy: { recordDate: 'asc' },
-      select: {
-        recordDate: true,
-        cost: true,
-        activations: true,
-        accounts: true,
-        formalActivations: true,
-        leads: true,
-        impressions: true,
-        clicks: true,
-      },
-    })
-
-    const trends = rows.map((r) => ({
-      date: dayjs(r.recordDate).format('YYYY-MM-DD'),
-      cost: r.cost,
-      activations: r.activations,
-      accounts: r.accounts,
-      formalActivations: r.formalActivations,
-      leads: r.leads,
-      impressions: r.impressions,
-      clicks: r.clicks,
-      ctr: r.impressions > 0 ? Number((r.clicks / r.impressions).toFixed(4)) : 0,
-      roi: r.cost > 0 ? Number(((r.accounts * 3100) / r.cost).toFixed(4)) : 0,
-    }))
-
-    res.json({
-      success: true,
-      data: {
-        channel,
-        campaignId,
-        dateRange: { startDate, endDate },
-        trends,
-      },
-    })
+    const data = await channelService.getCampaignTrends(channel, campaignId, startDate, endDate)
+    res.json({ success: true, data })
   } catch (err) {
     next(err)
   }

@@ -1,4 +1,5 @@
 import axios, { AxiosInstance, AxiosRequestConfig } from 'axios'
+import { message } from 'antd'
 
 const apiClient: AxiosInstance = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL || '/api',
@@ -22,9 +23,13 @@ apiClient.interceptors.request.use(
 apiClient.interceptors.response.use(
   (response) => response.data?.data ?? response.data,
   (error) => {
-    const message = error.response?.data?.message || error.message || '请求失败'
-    const err = new Error(message) as any
+    const errMsg = error.response?.data?.message || error.message || '请求失败'
+    const err = new Error(errMsg) as any
     err.responseData = error.response?.data
+    // 全局错误提示（跳过静默场景：GET 请求，避免页面初始化时弹出）
+    if (error.config?.method !== 'get' || error.response?.status >= 500) {
+      message.error(errMsg)
+    }
     return Promise.reject(err)
   }
 )

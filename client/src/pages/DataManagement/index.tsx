@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback, useMemo } from 'react'
+import React, { useEffect, useState, useCallback } from 'react'
 import {
   Card,
   Upload,
@@ -28,20 +28,16 @@ import {
   SettingOutlined,
   DeleteOutlined,
   HistoryOutlined,
+  DownloadOutlined,
 } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import { dataManageService } from '@services/dataManageService'
+import { CARD_BASE } from '@utils/constants'
+import { exportToExcel } from '@utils/export'
 import { RawData, UploadLog, ChannelMapping } from '@/types'
 
 const { Dragger } = Upload
 const { RangePicker } = DatePicker
-
-/* ─── 现代化卡片基础样式（与 Dashboard 严格一致） ─── */
-const CARD_BASE: React.CSSProperties = {
-  borderRadius: 16,
-  boxShadow: '0 4px 24px rgba(0,0,0,0.05)',
-  border: 'none',
-}
 
 const DataManagement: React.FC = () => {
   const [mediaFile, setMediaFile] = useState<File | null>(null)
@@ -91,6 +87,8 @@ const DataManagement: React.FC = () => {
     }
   }, [])
 
+  const [queryTrigger, setQueryTrigger] = useState(0)
+
   const fetchRecords = useCallback(async () => {
     setRecordsLoading(true)
     try {
@@ -109,7 +107,7 @@ const DataManagement: React.FC = () => {
     } finally {
       setRecordsLoading(false)
     }
-  }, [recordsPage, recordsPageSize, filterChannel, filterDateRange, filterCampaignId])
+  }, [recordsPage, recordsPageSize, filterChannel, filterDateRange, filterCampaignId, queryTrigger])
 
   const fetchMappings = useCallback(async () => {
     try {
@@ -241,10 +239,10 @@ const DataManagement: React.FC = () => {
           : <Popconfirm
               title="确定撤销本次上传？"
               description="这将删除本次上传首次创建的所有数据，不可恢复。"
+              okButtonProps={{ danger: true }}
               onConfirm={() => handleRollback(record.id)}
               okText="撤销"
               cancelText="取消"
-              okButtonProps={{ danger: true }}
             >
               <Button type="link" danger size="small">撤销</Button>
             </Popconfirm>
@@ -252,7 +250,7 @@ const DataManagement: React.FC = () => {
     },
   ]
 
-  const tabItems = useMemo(() => [
+  const tabItems = [
     {
       key: 'upload',
       label: (
@@ -404,7 +402,7 @@ const DataManagement: React.FC = () => {
                   title: '操作',
                   key: 'action',
                   render: (_: any, record: ChannelMapping) => (
-                    <Popconfirm title="确定删除这条映射规则？" onConfirm={() => handleDeleteMapping(record.id)}>
+                    <Popconfirm title="确定删除这条映射规则？" onConfirm={() => handleDeleteMapping(record.id)} okButtonProps={{ danger: true }}>
                       <Button type="link" danger icon={<DeleteOutlined />}>删除</Button>
                     </Popconfirm>
                   ),
@@ -440,8 +438,9 @@ const DataManagement: React.FC = () => {
             </Col>
             <Col xs={24} sm={8} md={6}>
               <Space>
-                <Button type="primary" icon={<SearchOutlined />} onClick={() => setRecordsPage(1)}>查询</Button>
-                <Button icon={<ReloadOutlined />} onClick={() => { setFilterChannel(undefined); setFilterDateRange(null); setFilterCampaignId(''); setRecordsPage(1) }}>重置</Button>
+                <Button type="primary" icon={<SearchOutlined />} onClick={() => { setRecordsPage(1); setQueryTrigger(c => c + 1) }}>查询</Button>
+                <Button icon={<ReloadOutlined />} onClick={() => { setFilterChannel(undefined); setFilterDateRange(null); setFilterCampaignId(''); setRecordsPage(1); setQueryTrigger(c => c + 1) }}>重置</Button>
+                <Button icon={<DownloadOutlined />} onClick={() => exportToExcel(records, recordColumns, `数据列表_${dayjs().format('YYYY-MM-DD')}`)} disabled={records.length === 0}>导出</Button>
               </Space>
             </Col>
           </Row>
@@ -452,7 +451,7 @@ const DataManagement: React.FC = () => {
               dataSource={records}
               rowKey={(r) => `${r.channel}-${r.recordDate}-${r.campaignId}`}
               pagination={false}
-              scroll={{ x: 1600 }}
+              scroll={{ x: 1600, y: 480 }}
               locale={{ emptyText: <Empty description="暂无数据，请先上传 Excel 文件" /> }}
             />
             <div style={{ marginTop: 16, display: 'flex', justifyContent: 'flex-end' }}>
@@ -470,7 +469,7 @@ const DataManagement: React.FC = () => {
         </Card>
       ),
     },
-  ], [uploading, mediaFile, convFile, uploadResult, mappings, channels, filterChannel, filterDateRange, filterCampaignId, recordsLoading, records, recordsPage, recordsPageSize, recordsTotal, logsLoading, logs, logsPage, logsPageSize, logsTotal])
+  ]
 
   return (
     <div>
@@ -489,7 +488,7 @@ const DataManagement: React.FC = () => {
         destroyInactiveTabPane={false}
       />
 
-      <Modal title="上传历史" open={logsVisible} onCancel={() => setLogsVisible(false)} footer={null} width={800}>
+      <Modal title="上传历史" open={logsVisible} onCancel={() => setLogsVisible(false)} footer={null} width="min(800px, 92vw)">
         <Spin spinning={logsLoading}>
           <Table
             columns={logColumns}

@@ -1,6 +1,7 @@
 import { Router } from 'express'
 import { prisma } from '../lib/prisma'
 import dayjs from 'dayjs'
+import { requireFields } from '../middleware/validate'
 
 const router = Router()
 
@@ -57,13 +58,9 @@ router.get('/top5', async (req, res, next) => {
 })
 
 // POST /api/v1/plans
-router.post('/', async (req, res, next) => {
+router.post('/', requireFields('title', 'startDate', 'endDate'), async (req, res, next) => {
   try {
     const { title, content, priority, status, startDate, endDate, progress, tag, tagIcon, milestones } = req.body
-    if (!title || !startDate || !endDate) {
-      res.status(400).json({ success: false, message: '名称、开始日期和截止日期必填' })
-      return
-    }
 
     const plan = await prisma.plan.create({
       data: {

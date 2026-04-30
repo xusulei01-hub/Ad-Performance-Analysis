@@ -33,6 +33,14 @@
   --color-price-down: #07AB4B;
   --color-price-even: rgba(0,0,0,0.84);
 
+  /* ---------- Color: Data Display ---------- */
+  --color-data-red: #FF2436;
+  --color-data-green: #07AB4B;
+  --color-data-blue: #3366FF;
+  --color-data-orange: #FF9500;
+  --color-data-purple: #B341D9;
+  --color-data-cyan: #14CCBD;
+
   /* ---------- Color: Status ---------- */
   --color-status-success: #07AB4B;
   --color-status-error: #FF2436;
@@ -83,7 +91,7 @@
   --color-grey-05: #858585;
 
   /* ---------- Color: Auxiliary ---------- */
-  --color-red: #2E58FF;
+  --color-red: #FF2436;
   --color-orange: #FF661A;
   --color-yellow: #FF9500;
   --color-green: #07AB4B;

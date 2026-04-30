@@ -1,5 +1,5 @@
-import React, { ReactNode, useState } from 'react'
-import { Layout, Menu, Typography, Button, Modal, Tag, Timeline } from 'antd'
+import React, { ReactNode, useState, useEffect } from 'react'
+import { Layout, Menu, Typography, Button, Modal, Tag, Timeline, Breadcrumb } from 'antd'
 import {
   DashboardOutlined,
   BarChartOutlined,
@@ -11,90 +11,90 @@ import {
   CalendarOutlined,
 } from '@ant-design/icons'
 import { Link, useLocation } from 'react-router-dom'
+import { useRefresh } from '@components/layout/RefreshContext'
 
-const { Header, Sider, Content } = Layout
+const { Header, Sider, Content, Footer } = Layout
 const { Title } = Typography
 
 const CURRENT_VERSION = '2.0'
 
 const CHANGELOG = [
   {
+    version: '2.1',
+    date: '2026-04-29',
+    changes: [
+      '体验优化：筛选器改为手动查询，避免切换筛选项时自动刷新',
+      '体验优化：表格新增表头固定 + 列排序，浏览长列表更方便',
+      '视觉升级：各指标卡片使用独立配色（花费蓝/激活橙/开户绿/ROI紫等），一眼识别',
+      '视觉升级：每日趋势图默认显示核心指标（花费/激活/开户），按需开启其他',
+      '新增功能：数据列表支持一键导出为 Excel（CSV 格式）',
+      '新增功能：页面顶部面包屑导航 + 全局刷新改为局部数据刷新',
+      '移动端优化：手机查看时卡片改为两列布局，弹窗宽度自适应',
+    ],
+  },
+  {
     version: '2.0',
     date: '2026-04-28',
     changes: [
-      'Dashboard v2.0 UI 重构：Tab 切换布局（昨日/本周/本月），核心 KPI 大卡片 + 效率指标小卡片',
-      '所有页面 UI 统一升级：严格复用 Dashboard 卡片阴影、留白比例、视觉层级规范',
-      '渠道分析、数据管理、期商分析、期商数据、日程表全面适配 v2.0 风格',
-      '侧边栏菜单重组：新增「投放管理」「期商买断」可展开子菜单集合',
-      'Ant Design Tabs 升级为 items 模式，解决 Tab 切换白屏问题',
-      'ECharts 图表统一坐标轴/网格线视觉风格',
+      '页面全新改版：数据总览拆分为昨日/本周/本月三个标签页切换查看',
+      '视觉统一升级：所有页面卡片、阴影、间距保持一致风格',
+      '菜单优化：投放管理（数据总览/渠道分析/数据管理）和期商买断（期商分析/期商数据）分组展示，可展开收起',
+      '图表风格统一：坐标轴、网格线、字体等细节优化',
     ],
   },
   {
     version: '1.4',
     date: '2026-04-27',
     changes: [
-      '数据总览新增 Mini Sparkline 趋势图：本周/本月花费与激活趋势一目了然',
-      '渠道分析新增渠道对比表格：多选渠道时自动展示各渠道核心指标对比',
-      '后端大数据查询优化：聚合查询改用 Prisma aggregate/groupBy，减少内存占用',
-      '修复 WeeklyOverview/MonthlyOverview 类型定义缺失 dailyTrends 字段的问题',
+      '数据总览新增迷你趋势图：本周和本月卡片可看花费与激活每日走势',
+      '渠道分析新增渠道对比表：同时选多个渠道时，自动汇总各渠道指标对比',
+      '系统性能优化：大批量数据查询速度提升',
     ],
   },
   {
     version: '1.3',
     date: '2026-04-27',
     changes: [
-      '新增目标配置功能：支持按周/月设定花费、激活、开户、ROI目标',
-      '新增 CPA（激活成本）指标展示：昨日/本周/本月及渠道分析',
-      '新增转化漏斗图表：展示曝光→点击→下载→激活→开户完整链路',
-      '数据总览新增异常数据标记（红色高亮）',
-      '渠道分析新增计划下钻功能：点击柱状图查看单计划每日趋势',
-      '渠道分析新增快速日期筛选（昨日/近7天/近30天/本周/本月/上月）',
-      '渠道分析新增转化漏斗与转化效率指标',
-      '数据管理新增上传历史入口与上传回滚功能',
-      '修复上传历史列表不显示的 bug',
-      '修复 aggregateMetrics 缺失 downloads 统计的问题',
-      '修复分计划 ROI 图表排序错误（改为按 ROI 值排序）',
-      '花费卡片统一精确到小数点后两位',
-      '修复计划下钻使用 localhost 硬编码地址的问题',
+      '新增目标管理：可设定每周、每月的花费/激活/开户/ROI目标，卡片显示完成进度',
+      '新增 CPA（单个激活成本）指标：总览和渠道分析均可查看',
+      '新增转化漏斗图：曝光→点击→下载→激活→开户，一图看清转化流失',
+      '数据异常自动标记：指标波动超过 30% 时红色高亮提醒',
+      '渠道分析新功能：点击柱状图可查看单个计划的每日趋势',
+      '渠道分析新功能：快捷日期按钮（昨日/近7天/近30天/本周/本月/上月）',
+      '数据管理新功能：上传历史记录 + 误传撤销功能',
     ],
   },
   {
     version: '1.2',
     date: '2026-04-24',
     changes: [
-      '新增日程表模块：月度日历视图，点击日期添加计划',
-      '计划管理：名称、内容、优先级（P1-P5）、状态、进度、标签图标',
-      '里程碑系统：每个计划可设置多个里程碑（名称、截止日期、完成状态）',
-      '本月关键事项 Top 5：按优先级排序展示',
-      '所有计划里程碑进度可视化',
-      '移动端响应式适配',
+      '新增日程表：月度日历视图，点击任意日期即可添加当日计划',
+      '计划功能：支持设置名称、内容、优先级（P1-P5）、状态、完成进度',
+      '里程碑功能：每个计划可添加多个里程碑节点，跟踪关键节点完成情况',
+      '首页展示本月最优先的 5 个关键事项',
+      '所有计划的里程碑进度总览',
     ],
   },
   {
     version: '1.1',
     date: '2026-04-23',
     changes: [
-      '新增买断期商数据模块（数据与广告投放完全隔离）',
-      '期商数据上传：单文件上传，按 user_id 去重，支持增量更新',
-      '期商名称映射管理：qs_id ↔ 中文名称',
-      '期商数据分析：消耗、开户数、开户率、开户成本报表',
-      '渠道数据分析：各渠道留资数、开户率报表',
-      '支持按时间区间、期商、渠道筛选分析数据',
-      '修复大文件上传事务超时问题',
+      '新增期商买断数据模块（与广告投放数据独立管理）',
+      '期商数据上传：支持 Excel 拖拽上传，按用户 ID 自动去重，重复上传自动更新',
+      '期商名称映射：可为期商 ID 设置中文名称，报表中显示中文名',
+      '期商分析：按时间/期商/渠道查看消耗、开户数、开户率、开户成本',
+      '渠道分析：各渠道留资数和开户率对比',
     ],
   },
   {
     version: '1.0',
     date: '2026-04-22',
     changes: [
-      '完成端外买断工作台核心功能',
-      '支持媒体数据表 + 转化数据表双文件上传匹配入库',
-      '新增渠道名称映射表管理（如 mi → xiaomi）',
-      '数据总览：昨日/本周/本月数据卡片',
-      '渠道分析：分计划排名和每日趋势折线图',
-      '数据管理：上传、映射、列表查询',
-      '后端聚合新增 formalActivations、leads、CTR 指标',
+      '端外买断工作台正式上线',
+      '数据管理：支持媒体数据表 + 转化数据表双文件上传，自动匹配去重入库',
+      '渠道名称映射：自动将不同来源的渠道名统一（如 mi→xiaomi）',
+      '数据总览：昨日/本周/本月花费、激活、开户、ROI 一目了然',
+      '渠道分析：分计划排名 + 每日趋势折线图，支持多指标同时查看',
     ],
   },
 ]
@@ -105,13 +105,24 @@ interface MainLayoutProps {
 
 const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
   const location = useLocation()
+  const { triggerRefresh } = useRefresh()
   const [refreshing, setRefreshing] = useState(false)
   const [changelogVisible, setChangelogVisible] = useState(false)
   const [siderCollapsed, setSiderCollapsed] = useState(false)
+  const [openKeys, setOpenKeys] = useState<string[]>([])
+
+  useEffect(() => {
+    if (['/dashboard', '/channel-analysis', '/data-management'].includes(location.pathname)) {
+      setOpenKeys(['ad-management'])
+    } else if (['/merchant-analysis', '/merchant-data'].includes(location.pathname)) {
+      setOpenKeys(['merchant-buyout'])
+    }
+  }, [location.pathname])
 
   const handleRefresh = () => {
     setRefreshing(true)
-    window.location.reload()
+    triggerRefresh()
+    setTimeout(() => setRefreshing(false), 600)
   }
 
   const menuItems = [
@@ -157,7 +168,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
   ]
 
   return (
-    <Layout style={{ minHeight: '100vh' }}>
+    <Layout style={{ height: '100vh', display: 'flex', flexDirection: 'column' }}>
       <Header
         style={{
           backgroundColor: 'var(--color-background-nav)',
@@ -167,6 +178,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
           justifyContent: 'space-between',
           boxShadow: '0 1px 4px rgba(0,0,0,0.12)',
           zIndex: 10,
+          flexShrink: 0,
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--margin-loose)' }}>
@@ -201,13 +213,6 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
           >
             阿浪个人工作台
           </Title>
-          <Tag
-            color="blue"
-            style={{ cursor: 'pointer', fontSize: 'var(--font-size-small)' }}
-            onClick={() => setChangelogVisible(true)}
-          >
-            v{CURRENT_VERSION}
-          </Tag>
           <span
             className="header-subtitle"
             style={{
@@ -217,6 +222,13 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
           >
             广告投放数据分析
           </span>
+          <Tag
+            color="blue"
+            style={{ cursor: 'pointer', fontSize: 11, marginLeft: 4, lineHeight: '18px' }}
+            onClick={() => setChangelogVisible(true)}
+          >
+            v{CURRENT_VERSION}
+          </Tag>
         </div>
         <Button
           type="text"
@@ -256,7 +268,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
         />
       </Modal>
 
-      <Layout>
+      <Layout style={{ flex: 1, overflow: 'hidden' }}>
         <Sider
           width={200}
           breakpoint="lg"
@@ -268,11 +280,15 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
           style={{
             backgroundColor: 'var(--color-foreground-layer1)',
             boxShadow: 'var(--shadow-elevation-small)',
+            overflow: 'auto',
+            height: '100%',
           }}
         >
           <Menu
             mode="inline"
             selectedKeys={[location.pathname]}
+            openKeys={openKeys}
+            onOpenChange={setOpenKeys}
             style={{
               height: '100%',
               borderRight: 'none',
@@ -299,9 +315,40 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
             overflow: 'auto',
           }}
         >
+          <Breadcrumb
+            style={{ marginBottom: 'var(--margin-loose)' }}
+            items={(() => {
+              const pathMap: Record<string, { parent: string; label: string }> = {
+                '/dashboard': { parent: '投放管理', label: '数据总览' },
+                '/channel-analysis': { parent: '投放管理', label: '渠道分析' },
+                '/data-management': { parent: '投放管理', label: '数据管理' },
+                '/merchant-analysis': { parent: '期商买断', label: '期商分析' },
+                '/merchant-data': { parent: '期商买断', label: '期商数据' },
+                '/schedule': { parent: '', label: '日程表' },
+              }
+              const match = pathMap[location.pathname]
+              if (!match) return [{ title: '首页' }]
+              const items = [{ title: match.parent }, { title: match.label }]
+              if (!match.parent) return [{ title: match.label }]
+              return items
+            })()}
+          />
           {children}
         </Content>
       </Layout>
+      <Footer
+        style={{
+          textAlign: 'center',
+          fontSize: 'var(--font-size-small)',
+          color: 'var(--color-text-secondary)',
+          padding: 'var(--padding-loose) var(--padding-super-loose)',
+          backgroundColor: 'var(--color-background-secondary)',
+          borderTop: '1px solid var(--color-border-secondary)',
+          flexShrink: 0,
+        }}
+      >
+        阿浪个人工作台
+      </Footer>
     </Layout>
   )
 }

@@ -26,29 +26,12 @@ import {
 import dayjs from 'dayjs'
 import ReactECharts from 'echarts-for-react'
 import { channelService } from '@services/channelService'
+import { useRefresh } from '@components/layout/RefreshContext'
+import { METRIC_COLORS, SOFT_COLORS, CARD_BASE } from '@utils/constants'
+import { getWeekRange } from '@utils/dates'
 import { ChannelMetrics } from '@/types'
 
 const { RangePicker } = DatePicker
-
-/* ─── 现代化卡片基础样式（与 Dashboard 严格一致） ─── */
-const CARD_BASE: React.CSSProperties = {
-  borderRadius: 16,
-  boxShadow: '0 4px 24px rgba(0,0,0,0.05)',
-  border: 'none',
-}
-
-const SOFT_COLORS = [
-  '#6B8DD6',
-  '#E8917A',
-  '#7BC4A6',
-  '#D4A5A5',
-  '#A8C6E0',
-  '#D4B483',
-  '#9DB0CE',
-  '#B8D4B8',
-  '#D9B8D4',
-  '#C8C8A9',
-]
 
 function MetricCard({
   title,
@@ -57,6 +40,7 @@ function MetricCard({
   suffix,
   precision = 0,
   icon,
+  color = METRIC_COLORS.cost,
 }: {
   title: string
   value: number
@@ -64,6 +48,7 @@ function MetricCard({
   suffix?: string
   precision?: number
   icon: React.ReactNode
+  color?: string
 }) {
   return (
     <Card style={CARD_BASE} bodyStyle={{ padding: '28px 24px' }}>
@@ -73,11 +58,11 @@ function MetricCard({
             width: 44,
             height: 44,
             borderRadius: 12,
-            background: 'linear-gradient(135deg, var(--color-brand-primary)18, var(--color-brand-primary)0A)',
+            background: `linear-gradient(135deg, ${color}18, ${color}0A)`,
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            color: 'var(--color-brand-primary)',
+            color,
             fontSize: 20,
           }}
         >
@@ -104,21 +89,11 @@ function MetricCard({
   )
 }
 
-function getRankColor(index: number, total: number): string {
-  const ratio = index / (total - 1 || 1)
-  const hue = Math.round(120 * (1 - ratio))
-  return `hsl(${hue}, 75%, 50%)`
+function getRankColor(index: number): string {
+  return SOFT_COLORS[index % SOFT_COLORS.length]
 }
 
 /** 获取本周一和本周日（中国习惯，周一开始） */
-function getWeekRange(now: dayjs.Dayjs) {
-  const dayOfWeek = now.day() // 0=周日, 1=周一, ..., 6=周六
-  const daysSinceMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1
-  const startOfWeek = now.subtract(daysSinceMonday, 'day').startOf('day')
-  const endOfWeek = startOfWeek.add(6, 'day').endOf('day')
-  return { startOfWeek, endOfWeek }
-}
-
 function CampaignChart({
   title,
   data,
@@ -161,7 +136,7 @@ function CampaignChart({
               .map((d, i) => ({
                 value: d[valueKey],
                 itemStyle: {
-                  color: getRankColor(data.length - 1 - i, data.length),
+                  color: getRankColor(data.length - 1 - i),
                   borderRadius: [0, 4, 4, 0],
                 },
               })),
@@ -219,6 +194,7 @@ const ChannelAnalysis: React.FC = () => {
   const [metrics, setMetrics] = useState<ChannelMetrics | null>(null)
   const [loading, setLoading] = useState(false)
 
+  const { refreshKey } = useRefresh()
   const [drillModalVisible, setDrillModalVisible] = useState(false)
   const [drillCampaignId, setDrillCampaignId] = useState('')
   const [drillCampaignName, setDrillCampaignName] = useState<string | null>(null)
@@ -260,7 +236,12 @@ const ChannelAnalysis: React.FC = () => {
 
   useEffect(() => {
     fetchMetrics()
-  }, [fetchMetrics])
+  }, [refreshKey])
+
+  useEffect(() => {
+    fetchMetrics()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   const handleDrillDown = async (campaignId: string, campaignName: string | null) => {
     if (selectedChannels.length !== 1) {
@@ -290,7 +271,7 @@ const ChannelAnalysis: React.FC = () => {
   const trendOption = metrics?.dailyTrends.length
     ? {
         tooltip: { trigger: 'axis' },
-        legend: { data: ['花费', '激活', '开户', '转正', '留资', 'ROI', 'CTR'], bottom: 0, textStyle: { color: '#888' } },
+        legend: { data: ['花费', '激活', '开户', '转正', '留资', 'ROI', 'CTR'], bottom: 0, textStyle: { color: '#888' }, selected: { '花费': true, '激活': true, '开户': true, '转正': false, '留资': false, 'ROI': false, 'CTR': false } },
         grid: { left: '3%', right: '4%', bottom: '15%', top: '5%', containLabel: true },
         xAxis: {
           type: 'category',
@@ -322,7 +303,7 @@ const ChannelAnalysis: React.FC = () => {
             name: '花费',
             type: 'line',
             data: metrics.dailyTrends.map((d) => Number(d.cost.toFixed(2))),
-            itemStyle: { color: '#6B8DD6' },
+            itemStyle: { color: METRIC_COLORS.cost },
             smooth: true,
             symbol: 'circle',
             symbolSize: 6,
@@ -331,7 +312,7 @@ const ChannelAnalysis: React.FC = () => {
             name: '激活',
             type: 'line',
             data: metrics.dailyTrends.map((d) => d.activations),
-            itemStyle: { color: '#E8917A' },
+            itemStyle: { color: METRIC_COLORS.activations },
             smooth: true,
             symbol: 'circle',
             symbolSize: 6,
@@ -340,7 +321,7 @@ const ChannelAnalysis: React.FC = () => {
             name: '开户',
             type: 'line',
             data: metrics.dailyTrends.map((d) => d.accounts),
-            itemStyle: { color: '#7BC4A6' },
+            itemStyle: { color: METRIC_COLORS.accounts },
             smooth: true,
             symbol: 'circle',
             symbolSize: 6,
@@ -349,7 +330,7 @@ const ChannelAnalysis: React.FC = () => {
             name: '转正',
             type: 'line',
             data: metrics.dailyTrends.map((d) => d.formalActivations),
-            itemStyle: { color: '#D4A5A5' },
+            itemStyle: { color: METRIC_COLORS.formalActivations },
             smooth: true,
             symbol: 'circle',
             symbolSize: 6,
@@ -358,7 +339,7 @@ const ChannelAnalysis: React.FC = () => {
             name: '留资',
             type: 'line',
             data: metrics.dailyTrends.map((d) => d.leads),
-            itemStyle: { color: '#A8C6E0' },
+            itemStyle: { color: METRIC_COLORS.leads },
             smooth: true,
             symbol: 'circle',
             symbolSize: 6,
@@ -368,7 +349,7 @@ const ChannelAnalysis: React.FC = () => {
             type: 'line',
             yAxisIndex: 1,
             data: metrics.dailyTrends.map((d) => Number(d.roi.toFixed(2))),
-            itemStyle: { color: '#D4B483' },
+            itemStyle: { color: METRIC_COLORS.roi },
             smooth: true,
             symbol: 'circle',
             symbolSize: 6,
@@ -378,7 +359,7 @@ const ChannelAnalysis: React.FC = () => {
             type: 'line',
             yAxisIndex: 1,
             data: metrics.dailyTrends.map((d) => Number((d.ctr * 100).toFixed(2))),
-            itemStyle: { color: '#9DB0CE' },
+            itemStyle: { color: METRIC_COLORS.ctr },
             smooth: true,
             symbol: 'circle',
             symbolSize: 6,
@@ -477,7 +458,7 @@ const ChannelAnalysis: React.FC = () => {
                 onClick={fetchMetrics}
                 style={{ marginTop: 28 }}
               >
-                刷新
+                应用筛选
               </Button>
             </Col>
           </Row>
@@ -501,6 +482,7 @@ const ChannelAnalysis: React.FC = () => {
               prefix="¥"
               precision={2}
               icon={<DollarOutlined />}
+              color={METRIC_COLORS.cost}
             />
           </Col>
           <Col xs={24} sm={12} lg={6}>
@@ -508,6 +490,7 @@ const ChannelAnalysis: React.FC = () => {
               title="总激活"
               value={metrics?.totalMetrics.activations ?? 0}
               icon={<UserAddOutlined />}
+              color={METRIC_COLORS.activations}
             />
           </Col>
           <Col xs={24} sm={12} lg={6}>
@@ -515,6 +498,7 @@ const ChannelAnalysis: React.FC = () => {
               title="总开户"
               value={metrics?.totalMetrics.accounts ?? 0}
               icon={<BankOutlined />}
+              color={METRIC_COLORS.accounts}
             />
           </Col>
           <Col xs={24} sm={12} lg={6}>
@@ -523,6 +507,7 @@ const ChannelAnalysis: React.FC = () => {
               value={metrics?.totalMetrics.roi ?? 0}
               precision={2}
               icon={<PercentageOutlined />}
+              color={METRIC_COLORS.roi}
             />
           </Col>
         </Row>
@@ -532,6 +517,7 @@ const ChannelAnalysis: React.FC = () => {
               title="总转正"
               value={metrics?.totalMetrics.formalActivations ?? 0}
               icon={<CheckCircleOutlined />}
+              color={METRIC_COLORS.formalActivations}
             />
           </Col>
           <Col xs={24} sm={12} lg={8}>
@@ -539,6 +525,7 @@ const ChannelAnalysis: React.FC = () => {
               title="总留资"
               value={metrics?.totalMetrics.leads ?? 0}
               icon={<FileTextOutlined />}
+              color={METRIC_COLORS.leads}
             />
           </Col>
           <Col xs={24} sm={12} lg={8}>
@@ -548,6 +535,7 @@ const ChannelAnalysis: React.FC = () => {
               precision={2}
               suffix="%"
               icon={<BarChartOutlined />}
+              color={METRIC_COLORS.ctr}
             />
           </Col>
         </Row>
@@ -573,12 +561,13 @@ const ChannelAnalysis: React.FC = () => {
                     pagination={false}
                     size="middle"
                     columns={[
-                      { title: '渠道名称', dataIndex: 'channel', key: 'channel' },
+                      { title: '渠道名称', dataIndex: 'channel', key: 'channel', sorter: (a: any, b: any) => a.channel.localeCompare(b.channel) },
                       {
                         title: '花费',
                         dataIndex: 'cost',
                         key: 'cost',
                         align: 'right',
+                        sorter: (a: any, b: any) => a.cost - b.cost,
                         render: (v: number) => `¥${v.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
                       },
                       {
@@ -586,6 +575,7 @@ const ChannelAnalysis: React.FC = () => {
                         dataIndex: 'activations',
                         key: 'activations',
                         align: 'right',
+                        sorter: (a: any, b: any) => a.activations - b.activations,
                         render: (v: number) => v.toLocaleString(),
                       },
                       {
@@ -593,6 +583,7 @@ const ChannelAnalysis: React.FC = () => {
                         dataIndex: 'accounts',
                         key: 'accounts',
                         align: 'right',
+                        sorter: (a: any, b: any) => a.accounts - b.accounts,
                         render: (v: number) => v.toLocaleString(),
                       },
                       {
@@ -600,6 +591,7 @@ const ChannelAnalysis: React.FC = () => {
                         dataIndex: 'ctr',
                         key: 'ctr',
                         align: 'right',
+                        sorter: (a: any, b: any) => a.ctr - b.ctr,
                         render: (v: number) => `${(v * 100).toFixed(2)}%`,
                       },
                       {
@@ -607,6 +599,7 @@ const ChannelAnalysis: React.FC = () => {
                         dataIndex: 'cpa',
                         key: 'cpa',
                         align: 'right',
+                        sorter: (a: any, b: any) => a.cpa - b.cpa,
                         render: (v: number) => `¥${v.toFixed(2)}`,
                       },
                       {
@@ -614,6 +607,7 @@ const ChannelAnalysis: React.FC = () => {
                         dataIndex: 'roi',
                         key: 'roi',
                         align: 'right',
+                        sorter: (a: any, b: any) => a.roi - b.roi,
                         render: (v: number) => v.toFixed(2),
                       },
                     ]}

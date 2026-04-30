@@ -30,17 +30,11 @@ import {
 } from '@ant-design/icons'
 import dayjs, { Dayjs } from 'dayjs'
 import { planService } from '@services/planService'
+import { CARD_BASE } from '@utils/constants'
 import { Plan, Milestone } from '@/types'
 
 const { RangePicker } = DatePicker
 const { TextArea } = Input
-
-/* ─── 现代化卡片基础样式（与 Dashboard 严格一致） ─── */
-const CARD_BASE: React.CSSProperties = {
-  borderRadius: 16,
-  boxShadow: '0 4px 24px rgba(0,0,0,0.05)',
-  border: 'none',
-}
 
 const PRIORITY_OPTIONS = [
   { label: 'P1 - 最高', value: 1, color: '#FF2436' },
@@ -97,6 +91,7 @@ const Schedule: React.FC = () => {
   const [form] = Form.useForm()
 
   const [milestones, setMilestones] = useState<{ title: string; dueDate: string; completed: boolean }[]>([])
+  const [sliderValue, setSliderValue] = useState(0)
 
   const monthStr = currentDate.format('YYYY-MM')
 
@@ -124,22 +119,41 @@ const Schedule: React.FC = () => {
     return plans.filter((p) => {
       const start = dayjs(p.startDate)
       const end = dayjs(p.endDate)
-      return date.isSame(start, 'day') || date.isSame(end, 'day') || (date.isAfter(start, 'day') && date.isBefore(end, 'day'))
+      return date.isSame(start, 'day') || date.isSame(end, 'day')
     })
+  }
+
+  const isCrossDayPlan = (plan: Plan): boolean => {
+    return plan.startDate !== plan.endDate
   }
 
   const dateCellRender = (value: Dayjs) => {
     const list = getPlansForDate(value)
     return (
       <ul style={{ margin: 0, padding: 0, listStyle: 'none' }}>
-        {list.slice(0, 3).map((plan) => (
-          <li key={plan.id}>
-            <Badge
-              color={getPriorityColor(plan.priority)}
-              text={<span style={{ fontSize: 11 }}>{plan.tagIcon} {plan.title}</span>}
-            />
-          </li>
-        ))}
+        {list.slice(0, 3).map((plan) => {
+          const isStart = value.isSame(dayjs(plan.startDate), 'day')
+          return (
+            <li key={plan.id}>
+              <Badge
+                color={getPriorityColor(plan.priority)}
+                text={
+                  <span style={{ fontSize: 11 }}>
+                    {plan.tagIcon} {plan.title}
+                    {isCrossDayPlan(plan) && (
+                      <Tag
+                        color={isStart ? 'blue' : 'default'}
+                        style={{ fontSize: 9, lineHeight: '14px', padding: '0 2px', marginLeft: 2 }}
+                      >
+                        {isStart ? '起' : '止'}
+                      </Tag>
+                    )}
+                  </span>
+                }
+              />
+            </li>
+          )
+        })}
         {list.length > 3 && <li style={{ fontSize: 11, color: '#999' }}>+{list.length - 3} 更多</li>}
       </ul>
     )
@@ -156,6 +170,7 @@ const Schedule: React.FC = () => {
       progress: 0,
     })
     setMilestones([])
+    setSliderValue(0)
     setModalVisible(true)
   }
 
@@ -173,6 +188,7 @@ const Schedule: React.FC = () => {
       tagIcon: plan.tagIcon,
     })
     setMilestones(plan.milestones.map((m) => ({ title: m.title, dueDate: m.dueDate, completed: m.completed })))
+    setSliderValue(plan.progress)
     setModalVisible(true)
   }
 
@@ -430,8 +446,8 @@ const Schedule: React.FC = () => {
             </Col>
           </Row>
 
-          <Form.Item name="progress" label={`完成进度: ${form.getFieldValue('progress') || 0}%`}>
-            <Slider min={0} max={100} step={5} />
+          <Form.Item name="progress" label={`完成进度: ${sliderValue}%`}>
+            <Slider min={0} max={100} step={5} onChange={setSliderValue} />
           </Form.Item>
 
           <div style={{ marginBottom: 12, fontWeight: 'bold' }}>里程碑</div>
