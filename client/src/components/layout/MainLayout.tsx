@@ -16,9 +16,19 @@ import { useRefresh } from '@components/layout/RefreshContext'
 const { Header, Sider, Content, Footer } = Layout
 const { Title } = Typography
 
-const CURRENT_VERSION = '2.0'
+const CURRENT_VERSION = '2.2'
 
 const CHANGELOG = [
+  {
+    version: '2.2',
+    date: '2026-05-14',
+    changes: [
+      'AI 数据诊断：数据总览新增 AI 分析面板，点击即可自动分析当前数据并给出投放建议',
+      '后端重构：代码结构模块化（拆分超大路由文件、提取服务层/工具层/常量/类型），消除大量重复代码',
+      '新增验证中间件：关键接口自动校验必填字段和枚举值，错误处理更规范',
+      '性能优化：页面布局冻结导航栏和侧边栏，内容区独立滚动',
+    ],
+  },
   {
     version: '2.1',
     date: '2026-04-29',
