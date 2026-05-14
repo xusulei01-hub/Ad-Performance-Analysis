@@ -8,6 +8,7 @@ import channelRoutes from './routes/channelRoutes'
 import merchantRoutes from './routes/merchantRoutes'
 import planRoutes from './routes/planRoutes'
 import targetRoutes from './routes/targetRoutes'
+import aiRoutes from './routes/aiRoutes'
 
 dotenv.config()
 
@@ -33,6 +34,7 @@ app.use('/api/v1/channels', channelRoutes)
 app.use('/api/v1/merchants', merchantRoutes)
 app.use('/api/v1/plans', planRoutes)
 app.use('/api/v1/targets', targetRoutes)
+app.use('/api/v1/ai', aiRoutes)
 
 // 错误处理中间件
 app.use(errorHandler)

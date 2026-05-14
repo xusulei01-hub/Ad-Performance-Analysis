@@ -18,6 +18,7 @@ import ReactECharts from 'echarts-for-react'
 import { dashboardService } from '@services/dashboardService'
 import { targetService } from '@services/targetService'
 import { useRefresh } from '@components/layout/RefreshContext'
+import AIAnalysisPanel from '@components/ai/AIAnalysisPanel'
 import { METRIC_COLORS, SOFT_COLORS, CARD_BASE } from '@utils/constants'
 import { getWeekRange } from '@utils/dates'
 import { formatNumber } from '@utils/format'
@@ -714,6 +715,9 @@ const Dashboard: React.FC = () => {
             </Tag>
           </div>
         )}
+
+        {/* AI 分析面板 */}
+        <AIAnalysisPanel data={daily && weekly && monthly && rankings ? { daily, weekly, monthly, rankings } : null} />
 
         {/* Tabs 主区域 */}
         <Tabs
