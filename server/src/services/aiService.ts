@@ -98,7 +98,7 @@ async function deepseekChat(messages: { role: string; content: string }[]): Prom
     model: 'deepseek-v4-flash',
     messages,
     temperature: 0.3,
-    max_tokens: 1024,
+    max_tokens: 4096,
   })
 
   return new Promise((resolve, reject) => {
@@ -124,9 +124,15 @@ async function deepseekChat(messages: { role: string; content: string }[]): Prom
             }
             const json: any = JSON.parse(data)
             const text = json.choices?.[0]?.message?.content?.trim()
+            const finishReason = json.choices?.[0]?.finish_reason
+            const usage = json.usage
+            console.log('[AI] DeepSeek response finish_reason:', finishReason, 'usage:', JSON.stringify(usage))
             if (!text) {
               reject(new Error('DeepSeek 返回内容为空'))
               return
+            }
+            if (finishReason === 'length') {
+              console.warn('[AI] Warning: response truncated due to max_tokens limit')
             }
             resolve(text)
           } catch (err) {
