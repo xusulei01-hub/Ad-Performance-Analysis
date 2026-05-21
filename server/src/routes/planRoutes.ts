@@ -92,7 +92,7 @@ router.post('/', requireFields('title', 'startDate', 'endDate'), async (req, res
 })
 
 // PUT /api/v1/plans/:id
-router.put('/:id', async (req, res, next) => {
+router.put('/:id', requireFields('title', 'startDate', 'endDate'), async (req, res, next) => {
   try {
     const id = Number(req.params.id)
     const { title, content, priority, status, startDate, endDate, progress, tag, tagIcon, milestones } = req.body

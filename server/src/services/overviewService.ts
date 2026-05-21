@@ -1,7 +1,7 @@
 import dayjs from 'dayjs'
 import { prisma } from '../lib/prisma'
 import { getWeekRange } from '../utils/date'
-import { calcChange, calcRoi, calcCtr } from '../utils/formulas'
+import { calcChange, calcRoi, calcCtr, calcCpa } from '../utils/formulas'
 import { getCurrentTarget } from './targetService'
 import { DEFAULT_TARGETS } from '../constants'
 import type { DailyTrendItem } from '../types'
@@ -50,7 +50,7 @@ async function aggregateMetrics(startDate: Date, endDate: Date, channelFilter?: 
     downloads: agg._sum.downloads ?? 0,
     ctr: calcCtr(totalClicks, totalImpressions),
     roi: calcRoi(totalAccounts, totalCost),
-    cpa: totalActivations > 0 ? Number((totalCost / totalActivations).toFixed(2)) : 0,
+    cpa: calcCpa(totalCost, totalActivations),
   }
 }
 
@@ -177,9 +177,7 @@ export async function getRankings() {
     channel: g.channel,
     cost: g._sum.cost ?? 0,
     roi: calcRoi(g._sum.accounts ?? 0, g._sum.cost ?? 0),
-    cpa: (g._sum.activations ?? 0) > 0
-      ? Number(((g._sum.cost ?? 0) / (g._sum.activations ?? 0)).toFixed(2))
-      : 0,
+    cpa: calcCpa(g._sum.cost ?? 0, g._sum.activations ?? 0),
     activations: g._sum.activations ?? 0,
   }))
 

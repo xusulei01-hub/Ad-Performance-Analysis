@@ -30,6 +30,7 @@ import { useRefresh } from '@components/layout/RefreshContext'
 import { METRIC_COLORS, SOFT_COLORS, CARD_BASE } from '@utils/constants'
 import { getWeekRange } from '@utils/dates'
 import { ChannelMetrics } from '@/types'
+import AIAnalysisPanel from '@components/ai/AIAnalysisPanel'
 
 const { RangePicker } = DatePicker
 
@@ -463,6 +464,14 @@ const ChannelAnalysis: React.FC = () => {
             </Col>
           </Row>
         </Card>
+
+        {/* AI 渠道诊断 */}
+        {metrics && (
+          <AIAnalysisPanel
+            type="channel"
+            data={metrics}
+          />
+        )}
 
         {/* 渠道总览 */}
         <h2

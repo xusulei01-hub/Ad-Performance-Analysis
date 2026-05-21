@@ -23,8 +23,8 @@ export const dataManageService = {
     campaignId?: string
     page?: number
     pageSize?: number
-    sortBy?: string
-    sortOrder?: string
+    sort_by?: string
+    sort_order?: string
   }): Promise<{
     total: number
     page: number

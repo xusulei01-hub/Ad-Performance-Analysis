@@ -51,6 +51,7 @@ router.post('/upload', upload.fields([
   { name: 'mediaFile', maxCount: 1 },
   { name: 'convFile', maxCount: 1 },
 ]), async (req, res, next) => {
+  // multer 已处理 multipart，req.body 包含非文件字段
   try {
     const files = req.files as { mediaFile?: Express.Multer.File[]; convFile?: Express.Multer.File[] }
     if (!files.mediaFile?.[0] || !files.convFile?.[0]) {

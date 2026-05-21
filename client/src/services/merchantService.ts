@@ -20,7 +20,7 @@ export const merchantService = {
   },
 
   async getRecords(params?: {
-    qsId?: string
+    qs_id?: string
     channel?: string
     startDate?: string
     endDate?: string

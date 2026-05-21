@@ -5,13 +5,6 @@ import { request } from '@services/api/client'
 
 const { Paragraph } = Typography
 
-interface DashboardData {
-  daily: unknown
-  weekly: unknown
-  monthly: unknown
-  rankings: unknown
-}
-
 function renderMarkdown(text: string): string {
   return text
     .replace(/&/g, '&amp;')
@@ -32,21 +25,42 @@ function renderMarkdown(text: string): string {
     .replace(/\n/g, '<br/>')
 }
 
-interface Props {
-  data: DashboardData | null
+const PANEL_META: Record<string, { title: string; subtitle: string; endpoint: string }> = {
+  dashboard: {
+    title: 'AI 数据诊断',
+    subtitle: '基于当前全部数据自动分析，给出结论和投放建议',
+    endpoint: '/v1/ai/analyze',
+  },
+  channel: {
+    title: 'AI 渠道诊断',
+    subtitle: '基于当前渠道数据自动分析各渠道和计划表现',
+    endpoint: '/v1/ai/analyze-channel',
+  },
+  merchant: {
+    title: 'AI 期商诊断',
+    subtitle: '基于当前期商数据自动分析期商质量和渠道效果',
+    endpoint: '/v1/ai/analyze-merchant',
+  },
 }
 
-const AIAnalysisPanel: React.FC<Props> = ({ data }) => {
+interface Props {
+  data: unknown
+  type?: 'dashboard' | 'channel' | 'merchant'
+}
+
+const AIAnalysisPanel: React.FC<Props> = ({ data, type = 'dashboard' }) => {
   const [analysis, setAnalysis] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  const meta = PANEL_META[type]
 
   const handleAnalyze = useCallback(async () => {
     if (!data) return
     setLoading(true)
     setError(null)
     try {
-      const res = await request.post<{ analysis: string }>('/v1/ai/analyze', data)
+      const res = await request.post<{ analysis: string }>(meta.endpoint, data)
       setAnalysis(res.analysis)
     } catch (err: any) {
       const msg = err?.responseData?.message || err?.message || '分析失败，请稍后重试'
@@ -54,7 +68,7 @@ const AIAnalysisPanel: React.FC<Props> = ({ data }) => {
     } finally {
       setLoading(false)
     }
-  }, [data])
+  }, [data, meta.endpoint])
 
   const handleClose = () => {
     setAnalysis(null)
@@ -96,10 +110,10 @@ const AIAnalysisPanel: React.FC<Props> = ({ data }) => {
           </div>
           <div>
             <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--color-text-primary)' }}>
-              AI 数据诊断
+              {meta.title}
             </div>
             <div style={{ fontSize: 12, color: 'var(--color-text-tertiary)' }}>
-              基于当前全部数据自动分析，给出结论和投放建议
+              {meta.subtitle}
             </div>
           </div>
         </div>

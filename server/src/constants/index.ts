@@ -1,6 +1,9 @@
 /** 每账户收益（元） */
 export const REVENUE_PER_ACCOUNT = 3100
 
+/** 每个期商留资的估算获客成本（元） */
+export const COST_PER_MERCHANT_LEAD = 1000
+
 /** 文件上传大小限制（50MB） */
 export const FILE_SIZE_LIMIT = 50 * 1024 * 1024
 

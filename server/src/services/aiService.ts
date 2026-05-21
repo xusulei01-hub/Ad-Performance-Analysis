@@ -56,7 +56,7 @@ interface DashboardSnapshot {
   }
 }
 
-const SYSTEM_PROMPT = `你是一位资深的广告投放数据分析师，负责为运营团队提供数据洞察和操作建议。
+const DASHBOARD_PROMPT = `你是一位资深的广告投放数据分析师，负责为运营团队提供数据洞察和操作建议。
 
 数据指标说明：
 - 花费(cost)：广告投放消耗金额（元）
@@ -83,7 +83,60 @@ const SYSTEM_PROMPT = `你是一位资深的广告投放数据分析师，负责
 - 总字数控制在 300-500 字
 - 如果数据正常无明显异常，简洁说明即可`
 
-function fingerprint(data: DashboardSnapshot): string {
+const CHANNEL_PROMPT = `你是一位资深的广告投放渠道分析师，负责为运营团队提供渠道层面的数据洞察和投放优化建议。
+
+数据指标说明：
+- 花费(cost)：广告投放消耗金额（元）
+- 激活(activations)：用户激活数量
+- 开户(accounts)：完成开户的用户数
+- ROI：投资回报率 = (开户数 × 3100) / 花费
+- CTR：点击率 = 点击 / 曝光
+- CPA：单次激活成本 = 花费 / 激活
+- 转正(formalActivations)：完成转正的用户数
+- 留资(leads)：留资用户数
+- 渠道：hihonor、oppo、vivo、xiaomi、wangyi 等
+- 计划(campaign)：每个渠道下的具体投放计划
+
+分析规则：
+1. 渠道间 ROI 差异 > 0.5 时，需考虑预算重新分配
+2. 单个计划 CPA 高于渠道均值 20% 以上视为低效计划
+3. 连续 3 天 CTR 下降视为素材疲劳信号
+4. 花费 Top5 计划中 ROI 低于 1 的需重点关注
+5. 渠道拆解中开户率差异 > 10% 说明渠道质量分化明显
+
+输出格式要求：
+- 使用 ## 渠道结论 和 ## 优化建议 两个二级标题
+- 结论部分用无序列表，每条一个要点，**粗体**标注关键数字
+- 建议部分用有序列表，每条建议具体到渠道或计划级别
+- 总字数控制在 300-500 字
+- 如果数据正常无明显异常，简洁说明即可`
+
+const MERCHANT_PROMPT = `你是一位资深的期商买断业务分析师，负责为运营团队提供期商质量和渠道效果的洞察建议。
+
+数据指标说明：
+- 留资(leads)：留下联系方式的潜在客户数
+- 开户(accounts)：完成开户的用户数
+- 开户率(accountRate)：开户数 / 留资数
+- 开户成本(accountCost)：每个开户客户的平均成本（元）
+- 花费(cost)：按留资数 × 1000 估算的获客成本
+- 期商(qsId)：不同的期货商编号
+- 渠道(channel)：带来留资的来源渠道
+
+分析规则：
+1. 开户率 < 20% 的期商/渠道需重点关注转化漏斗
+2. 开户成本 > 5000 元视为高成本获客
+3. 期商间开户率差异 > 15% 说明期商服务质量分化
+4. 渠道间开户率差异 > 10% 说明渠道质量不同
+5. 留资多但开户少的期商可能存在跟进不及时问题
+
+输出格式要求：
+- 使用 ## 期商结论 和 ## 优化建议 两个二级标题
+- 结论部分用无序列表，每条一个要点，**粗体**标注关键数字
+- 建议部分用有序列表，每条建议具体到期商或渠道
+- 总字数控制在 300-500 字
+- 如果数据正常无明显异常，简洁说明即可`
+
+function fingerprint(data: unknown): string {
   return crypto.createHash('md5').update(JSON.stringify(data)).digest('hex')
 }
 
@@ -153,18 +206,30 @@ async function deepseekChat(messages: { role: string; content: string }[]): Prom
   })
 }
 
-export async function analyzeDashboard(data: DashboardSnapshot): Promise<string> {
-  const fp = fingerprint(data)
+async function analyzeWithPrompt(type: string, data: unknown, systemPrompt: string): Promise<string> {
+  const fp = `${type}:${fingerprint(data)}`
   const cached = cache.get(fp)
   if (cached && Date.now() - cached.ts < CACHE_TTL) {
     return cached.text
   }
 
   const text = await deepseekChat([
-    { role: 'system', content: SYSTEM_PROMPT },
+    { role: 'system', content: systemPrompt },
     { role: 'user', content: JSON.stringify(data, null, 2) },
   ])
 
   cache.set(fp, { text, ts: Date.now() })
   return text
+}
+
+export async function analyzeDashboard(data: DashboardSnapshot): Promise<string> {
+  return analyzeWithPrompt('dashboard', data, DASHBOARD_PROMPT)
+}
+
+export async function analyzeChannel(data: unknown): Promise<string> {
+  return analyzeWithPrompt('channel', data, CHANNEL_PROMPT)
+}
+
+export async function analyzeMerchant(data: unknown): Promise<string> {
+  return analyzeWithPrompt('merchant', data, MERCHANT_PROMPT)
 }

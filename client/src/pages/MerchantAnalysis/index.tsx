@@ -8,6 +8,7 @@ import { useRefresh } from '@components/layout/RefreshContext'
 import { METRIC_COLORS, SOFT_COLORS, CARD_BASE } from '@utils/constants'
 import { exportToExcel } from '@utils/export'
 import { MerchantReportItem, ChannelReportItem } from '@/types'
+import AIAnalysisPanel from '@components/ai/AIAnalysisPanel'
 
 const { RangePicker } = DatePicker
 
@@ -318,6 +319,21 @@ const MerchantAnalysis: React.FC = () => {
             </Col>
           </Row>
         </Card>
+
+        {/* AI 期商诊断 */}
+        {merchantReport.length > 0 && channelReport.length > 0 && (
+          <AIAnalysisPanel
+            type="merchant"
+            data={{
+              merchantReport,
+              channelReport,
+              dateRange: {
+                startDate: dateRange[0].format('YYYY-MM-DD'),
+                endDate: dateRange[1].format('YYYY-MM-DD'),
+              },
+            }}
+          />
+        )}
 
         {/* 核心指标 */}
         <Row gutter={[20, 20]} style={{ marginBottom: 'var(--margin-super-loose)' }}>

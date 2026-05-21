@@ -1,6 +1,6 @@
 import dayjs from 'dayjs'
 import { prisma } from '../lib/prisma'
-import { calcRoi, calcCtr } from '../utils/formulas'
+import { calcRoi, calcCtr, calcCpa } from '../utils/formulas'
 import { toEndOfDay } from '../utils/date'
 import type { DailyTrendItem } from '../types'
 
@@ -155,7 +155,7 @@ export async function getChannelMetrics(channels: string[], startDate: string, e
       downloads: r._sum.downloads ?? 0,
       ctr: calcCtr(clk, imp),
       roi: calcRoi(acc, c),
-      cpa: a > 0 ? Number((c / a).toFixed(2)) : 0,
+      cpa: calcCpa(c, a),
     }
   })
 

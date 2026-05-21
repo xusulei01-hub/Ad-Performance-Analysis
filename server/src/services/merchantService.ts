@@ -1,6 +1,8 @@
 import dayjs from 'dayjs'
 import { prisma } from '../lib/prisma'
 import { parseBuffer, parseRows, normalizeDate } from '../utils/upload'
+import { toEndOfDay } from '../utils/date'
+import { COST_PER_MERCHANT_LEAD } from '../constants'
 import type { ParsedMerchantRow } from '../types'
 
 const MERCHANT_HEADERS: Record<string, string> = {
@@ -99,7 +101,7 @@ export async function getMerchantReport(startDate: string, endDate: string, qsId
   const where: any = {
     leadDate: {
       gte: new Date(startDate),
-      lte: new Date(endDate + 'T23:59:59.999Z'),
+      lte: toEndOfDay(endDate),
     },
   }
   if (qsIdFilter && qsIdFilter.length > 0) where.qsId = { in: qsIdFilter }
@@ -126,7 +128,7 @@ export async function getMerchantReport(startDate: string, endDate: string, qsId
   }
 
   const report = Array.from(merchantMap.entries()).map(([qsId, data]) => {
-    const cost = data.leads * 1000
+    const cost = data.leads * COST_PER_MERCHANT_LEAD
     return {
       qsId,
       merchantName: data.merchantName,
@@ -145,7 +147,7 @@ export async function getChannelReport(startDate: string, endDate: string, qsIdF
   const where: any = {
     leadDate: {
       gte: new Date(startDate),
-      lte: new Date(endDate + 'T23:59:59.999Z'),
+      lte: toEndOfDay(endDate),
     },
   }
   if (qsIdFilter && qsIdFilter.length > 0) where.qsId = { in: qsIdFilter }

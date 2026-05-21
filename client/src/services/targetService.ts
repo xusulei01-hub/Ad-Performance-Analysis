@@ -1,28 +1,5 @@
 import { request } from './api/client'
-
-export interface Target {
-  id: number
-  periodType: string
-  periodStart: string
-  periodEnd: string
-  targetCost: number
-  targetActivations: number
-  targetAccounts: number
-  targetRoi: number
-  createdAt: string
-  updatedAt: string
-}
-
-export interface CurrentTarget {
-  periodType: string
-  configured: boolean
-  targets: {
-    targetCost: number
-    targetActivations: number
-    targetAccounts: number
-    targetRoi: number
-  }
-}
+import { Target, CurrentTarget } from '@/types'
 
 export const targetService = {
   async getTargets(params?: { period_type?: string; page?: number; pageSize?: number }): Promise<{ total: number; page: number; pageSize: number; targets: Target[] }> {

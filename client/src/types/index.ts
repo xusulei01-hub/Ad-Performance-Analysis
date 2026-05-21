@@ -18,14 +18,14 @@ export interface RawData {
 }
 
 export interface UploadResult {
-  uploadId: number
+  uploadId?: number
   filename: string
   totalRecords: number
   mediaRows: number
   convRows: number
   insertedCount: number
   updatedCount: number
-  failedCount: number
+  failedCount?: number
   unmatchedMediaCount: number
   unmatchedConvCount: number
   preview: RawData[]
@@ -261,6 +261,30 @@ export interface Plan {
   createdAt: string
   updatedAt: string
   milestones: Milestone[]
+}
+
+export interface Target {
+  id: number
+  periodType: string
+  periodStart: string
+  periodEnd: string
+  targetCost: number
+  targetActivations: number
+  targetAccounts: number
+  targetRoi: number
+  createdAt: string
+  updatedAt: string
+}
+
+export interface CurrentTarget {
+  periodType: string
+  configured: boolean
+  targets: {
+    targetCost: number
+    targetActivations: number
+    targetAccounts: number
+    targetRoi: number
+  }
 }
 
 export interface ApiResponse<T> {
