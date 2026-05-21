@@ -1,12 +1,12 @@
 export function exportToExcel<T extends Record<string, any>>(
   data: T[],
-  columns: { title: string; dataIndex: string; render?: (v: any, record: T) => string }[],
+  columns: { title: string; dataIndex?: string; render?: (v: any, record: T) => any }[],
   filename: string
 ) {
   const headers = columns.map((c) => c.title)
   const rows = data.map((record) =>
     columns.map((col) => {
-      const val = record[col.dataIndex]
+      const val = col.dataIndex ? record[col.dataIndex] : undefined
       const display = col.render ? col.render(val, record) : (val ?? '')
       return String(display).includes(',') || String(display).includes('"')
         ? `"${String(display).replace(/"/g, '""')}"`

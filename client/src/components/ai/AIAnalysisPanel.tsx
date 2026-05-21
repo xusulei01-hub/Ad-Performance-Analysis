@@ -1,7 +1,16 @@
 import React, { useState, useCallback } from 'react'
-import { Card, Button, Spin, Typography } from 'antd'
-import { RobotOutlined, ReloadOutlined, CloseOutlined } from '@ant-design/icons'
+import { Card, Button, Spin, Typography, message, Modal } from 'antd'
+import {
+  RobotOutlined,
+  ReloadOutlined,
+  CloseOutlined,
+  FileWordOutlined,
+  SaveOutlined,
+} from '@ant-design/icons'
 import { request } from '@services/api/client'
+import { aiReportService } from '@services/aiReportService'
+import { exportAnalysisToDocx } from '@utils/docxExport'
+import dayjs from 'dayjs'
 
 const { Paragraph } = Typography
 
@@ -43,6 +52,57 @@ const PANEL_META: Record<string, { title: string; subtitle: string; endpoint: st
   },
 }
 
+function buildDataSnapshot(type: string, data: unknown): Record<string, any> | undefined {
+  if (!data) return undefined
+  const d = data as any
+
+  if (type === 'dashboard') {
+    return {
+      yesterday: d.daily
+        ? {
+            cost: d.daily.cost,
+            activations: d.daily.activations,
+            accounts: d.daily.accounts,
+            roi: d.daily.roi,
+          }
+        : undefined,
+      weekly: d.weekly
+        ? {
+            cost: d.weekly.cost,
+            activations: d.weekly.activations,
+            accounts: d.weekly.accounts,
+            roi: d.weekly.roi,
+          }
+        : undefined,
+    }
+  }
+
+  if (type === 'channel') {
+    return {
+      totalCost: d.totalMetrics?.cost,
+      totalActivations: d.totalMetrics?.activations,
+      totalAccounts: d.totalMetrics?.accounts,
+      avgRoi: d.totalMetrics?.roi,
+      channelCount: d.channels?.length || d.channelBreakdown?.length,
+    }
+  }
+
+  if (type === 'merchant') {
+    const mr = d.merchantReport || []
+    const totalCost = mr.reduce((s: number, r: any) => s + (r.cost || 0), 0)
+    const totalLeads = mr.reduce((s: number, r: any) => s + (r.leads || 0), 0)
+    const totalAccounts = mr.reduce((s: number, r: any) => s + (r.accounts || 0), 0)
+    return {
+      totalCost,
+      totalLeads,
+      totalAccounts,
+      accountRate: totalLeads > 0 ? totalAccounts / totalLeads : 0,
+    }
+  }
+
+  return undefined
+}
+
 interface Props {
   data: unknown
   type?: 'dashboard' | 'channel' | 'merchant'
@@ -52,6 +112,8 @@ const AIAnalysisPanel: React.FC<Props> = ({ data, type = 'dashboard' }) => {
   const [analysis, setAnalysis] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [saving, setSaving] = useState(false)
+  const [exporting, setExporting] = useState(false)
 
   const meta = PANEL_META[type]
 
@@ -73,6 +135,81 @@ const AIAnalysisPanel: React.FC<Props> = ({ data, type = 'dashboard' }) => {
   const handleClose = () => {
     setAnalysis(null)
     setError(null)
+  }
+
+  const handleExportWord = async () => {
+    if (!analysis) return
+    setExporting(true)
+    try {
+      const title = `${meta.title}报告 — ${dayjs().format('YYYY-MM-DD')}`
+      const snapshot = buildDataSnapshot(type, data)
+      await exportAnalysisToDocx(title, type, analysis, snapshot)
+      message.success('Word 导出成功')
+    } catch (e) {
+      console.error('Export word error:', e)
+      message.error('Word 导出失败')
+    } finally {
+      setExporting(false)
+    }
+  }
+
+  const handleSaveReport = async () => {
+    if (!analysis) return
+    setSaving(true)
+    try {
+      const title = `${meta.title}报告 — ${dayjs().format('YYYY-MM-DD')}`
+      const snapshot = buildDataSnapshot(type, data)
+      const result = await aiReportService.createReport({
+        title,
+        type,
+        analysis,
+        dataSnapshot: snapshot ? JSON.stringify(snapshot) : undefined,
+      })
+
+      if (result.warning) {
+        Modal.confirm({
+          title: '存储空间预警',
+          content: `${result.warning}，是否继续保存？`,
+          okText: '继续保存',
+          cancelText: '取消',
+          onOk: async () => {
+            try {
+              const r = await aiReportService.createReport({
+                title,
+                type,
+                analysis,
+                dataSnapshot: snapshot ? JSON.stringify(snapshot) : undefined,
+              })
+              message.success('报告已保存')
+              return r
+            } catch (err: any) {
+              if (err?.responseData?.message?.includes('上限')) {
+                Modal.warning({
+                  title: '存储空间已满',
+                  content: '报告数量已达上限（100条），请先到「历史报告」页面删除旧报告后再保存。',
+                })
+              } else {
+                message.error(err?.responseData?.message || '保存失败')
+              }
+            }
+          },
+        })
+      } else {
+        message.success('报告已保存')
+      }
+    } catch (err: any) {
+      const msg = err?.responseData?.message || err?.message || '保存失败'
+      if (msg.includes('上限') || err?.responseData?.message?.includes('上限')) {
+        Modal.warning({
+          title: '存储空间已满',
+          content: '报告数量已达上限（100条），请先到「历史报告」页面删除旧报告后再保存。',
+        })
+      } else {
+        message.error(msg)
+      }
+    } finally {
+      setSaving(false)
+    }
   }
 
   return (
@@ -126,6 +263,20 @@ const AIAnalysisPanel: React.FC<Props> = ({ data, type = 'dashboard' }) => {
           )}
           {(analysis || error) && (
             <>
+              <Button
+                icon={<FileWordOutlined />}
+                onClick={handleExportWord}
+                loading={exporting}
+              >
+                导出 Word
+              </Button>
+              <Button
+                icon={<SaveOutlined />}
+                onClick={handleSaveReport}
+                loading={saving}
+              >
+                保存报告
+              </Button>
               <Button icon={<ReloadOutlined />} onClick={handleAnalyze} loading={loading}>
                 重新分析
               </Button>

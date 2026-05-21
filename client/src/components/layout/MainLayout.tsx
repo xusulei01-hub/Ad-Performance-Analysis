@@ -2,13 +2,11 @@ import React, { ReactNode, useState, useEffect } from 'react'
 import { Layout, Menu, Typography, Button, Modal, Tag, Timeline, Breadcrumb } from 'antd'
 import {
   DashboardOutlined,
-  BarChartOutlined,
-  CloudUploadOutlined,
   ReloadOutlined,
   ShopOutlined,
-  TeamOutlined,
   MenuOutlined,
   CalendarOutlined,
+  FileTextOutlined,
 } from '@ant-design/icons'
 import { Link, useLocation } from 'react-router-dom'
 import { useRefresh } from '@components/layout/RefreshContext'
@@ -23,6 +21,10 @@ const CHANGELOG = [
     version: '2.3',
     date: '2026-05-21',
     changes: [
+      'AI 报告存档：分析结果可保存到数据库，支持历史回溯查看、删除和重新导出',
+      'Word 导出：AI 分析报告可一键导出为图文并茂的 .docx 文档，含标题、数据摘要表格、分级标题、加粗重点、有序/无序列表',
+      '存储空间预警：报告数量上限 100 条，接近上限时自动提醒清理旧报告',
+      '新增「历史报告」独立页面：左侧导航栏单开 Tab，列表展示全部存档报告，支持查看、导出、删除',
       'AI 分析扩展：渠道分析和期商分析页面新增 AI 诊断面板，支持渠道/计划/期商多维分析',
       '前后端一致性修复：修复期商筛选、表格排序等参数命名不匹配导致的隐性 bug',
       '代码规范：期商成本提取命名常量，CPA 计算统一使用工具函数，计划更新接口添加字段校验',
@@ -184,6 +186,11 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
         },
       ],
     },
+    {
+      key: '/ai-reports',
+      icon: <FileTextOutlined />,
+      label: <Link to="/ai-reports">历史报告</Link>,
+    },
   ]
 
   return (
@@ -344,6 +351,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
                 '/merchant-analysis': { parent: '期商买断', label: '期商分析' },
                 '/merchant-data': { parent: '期商买断', label: '期商数据' },
                 '/schedule': { parent: '', label: '日程表' },
+                '/ai-reports': { parent: '', label: '历史报告' },
               }
               const match = pathMap[location.pathname]
               if (!match) return [{ title: '首页' }]

@@ -7,6 +7,7 @@ import DataManagement from '@pages/DataManagement'
 import MerchantDataManagement from '@pages/MerchantDataManagement'
 import MerchantAnalysis from '@pages/MerchantAnalysis'
 import Schedule from '@pages/Schedule'
+import AIReportHistory from '@pages/AIReportHistory'
 
 function App() {
   return (
@@ -21,6 +22,7 @@ function App() {
             <Route path="/merchant-data" element={<MerchantDataManagement />} />
             <Route path="/merchant-analysis" element={<MerchantAnalysis />} />
             <Route path="/schedule" element={<Schedule />} />
+            <Route path="/ai-reports" element={<AIReportHistory />} />
           </Routes>
         </MainLayout>
       </RefreshProvider>

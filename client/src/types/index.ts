@@ -287,6 +287,15 @@ export interface CurrentTarget {
   }
 }
 
+export interface AiReport {
+  id: number
+  title: string
+  type: 'dashboard' | 'channel' | 'merchant'
+  analysis: string
+  dataSnapshot?: string | null
+  createdAt: string
+}
+
 export interface ApiResponse<T> {
   success: boolean
   data?: T

@@ -371,7 +371,7 @@ function OverviewTab({
               title={kpi.title}
               value={(data as any)[kpi.key] ?? 0}
               prefix={kpi.prefix}
-              suffix={kpi.suffix}
+              suffix={(kpi as any).suffix}
               precision={kpi.precision}
               icon={kpi.icon}
               change={kpi.change}

@@ -140,3 +140,16 @@ model Target {
   @@unique([periodType, periodStart], name: "unique_period")
   @@map("targets")
 }
+
+model AiReport {
+  id           Int      @id @default(autoincrement())
+  title        String
+  type         String   // dashboard | channel | merchant
+  analysis     String   // AI 分析原文（Markdown）
+  dataSnapshot String?  @map("data_snapshot") // 关键数据摘要 JSON，用于 Word 表格
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  @@index([type])
+  @@index([createdAt])
+  @@map("ai_reports")
+}

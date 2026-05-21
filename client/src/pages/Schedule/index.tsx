@@ -31,7 +31,7 @@ import {
 import dayjs, { Dayjs } from 'dayjs'
 import { planService } from '@services/planService'
 import { CARD_BASE } from '@utils/constants'
-import { Plan, Milestone } from '@/types'
+import { Plan } from '@/types'
 
 const { RangePicker } = DatePicker
 const { TextArea } = Input
@@ -83,11 +83,8 @@ const Schedule: React.FC = () => {
   const [currentDate, setCurrentDate] = useState(dayjs())
   const [plans, setPlans] = useState<Plan[]>([])
   const [top5Plans, setTop5Plans] = useState<Plan[]>([])
-  const [loading, setLoading] = useState(false)
-
   const [modalVisible, setModalVisible] = useState(false)
   const [editingPlan, setEditingPlan] = useState<Plan | null>(null)
-  const [selectedDate, setSelectedDate] = useState<Dayjs | null>(null)
   const [form] = Form.useForm()
 
   const [milestones, setMilestones] = useState<{ title: string; dueDate: string; completed: boolean }[]>([])
@@ -96,7 +93,6 @@ const Schedule: React.FC = () => {
   const monthStr = currentDate.format('YYYY-MM')
 
   const fetchData = useCallback(async () => {
-    setLoading(true)
     try {
       const [all, top] = await Promise.all([
         planService.getPlans(monthStr),
@@ -107,7 +103,6 @@ const Schedule: React.FC = () => {
     } catch (e) {
       console.error('Fetch plans error:', e)
     } finally {
-      setLoading(false)
     }
   }, [monthStr])
 
@@ -160,7 +155,6 @@ const Schedule: React.FC = () => {
   }
 
   const handleSelectDate = (date: Dayjs) => {
-    setSelectedDate(date)
     setEditingPlan(null)
     form.resetFields()
     form.setFieldsValue({
@@ -176,7 +170,6 @@ const Schedule: React.FC = () => {
 
   const handleEditPlan = (plan: Plan) => {
     setEditingPlan(plan)
-    setSelectedDate(dayjs(plan.startDate))
     form.setFieldsValue({
       title: plan.title,
       content: plan.content,
@@ -214,13 +207,13 @@ const Schedule: React.FC = () => {
         progress: values.progress,
         tag: values.tag,
         tagIcon: values.tagIcon,
-        milestones: milestones.filter((m) => m.title.trim()),
+        milestones: milestones.filter((m) => m.title.trim()) as any[],
       }
 
       if (editingPlan) {
-        await planService.updatePlan(editingPlan.id, payload)
+        await planService.updatePlan(editingPlan.id, payload as any)
       } else {
-        await planService.createPlan(payload)
+        await planService.createPlan(payload as any)
       }
       setModalVisible(false)
       fetchData()
