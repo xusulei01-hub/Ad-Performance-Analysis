@@ -16,9 +16,18 @@ import { useRefresh } from '@components/layout/RefreshContext'
 const { Header, Sider, Content, Footer } = Layout
 const { Title } = Typography
 
-const CURRENT_VERSION = '2.2'
+const CURRENT_VERSION = '2.3'
 
 const CHANGELOG = [
+  {
+    version: '2.3',
+    date: '2026-05-21',
+    changes: [
+      'AI 分析扩展：渠道分析和期商分析页面新增 AI 诊断面板，支持渠道/计划/期商多维分析',
+      '前后端一致性修复：修复期商筛选、表格排序等参数命名不匹配导致的隐性 bug',
+      '代码规范：期商成本提取命名常量，CPA 计算统一使用工具函数，计划更新接口添加字段校验',
+    ],
+  },
   {
     version: '2.2',
     date: '2026-05-14',
