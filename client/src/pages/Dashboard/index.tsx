@@ -731,39 +731,39 @@ const Dashboard: React.FC = () => {
                           color: '#fff',
                         },
                         data: [
-                          { value: 100, name: '曝光', itemStyle: { color: '#0052D9' } },
+                          { value: 100, name: '曝光', itemStyle: { color: '#51999F' } },
                           {
                             value: monthly.ctr * 100,
                             name: '点击',
-                            itemStyle: { color: '#1878FF' },
+                            itemStyle: { color: '#4198AC' },
                           },
                           {
                             value: monthly.downloads > 0 && monthly.clicks > 0
                               ? Math.round((monthly.downloads / monthly.clicks) * 100)
                               : 0,
                             name: '下载',
-                            itemStyle: { color: '#3C8FFF' },
+                            itemStyle: { color: '#7BC0CD' },
                           },
                           {
                             value: monthly.activations > 0 && monthly.downloads > 0
                               ? Math.round((monthly.activations / monthly.downloads) * 100)
                               : 0,
                             name: '激活',
-                            itemStyle: { color: '#60A5FF' },
+                            itemStyle: { color: '#BDFFD2' },
                           },
                           {
                             value: monthly.formalActivations > 0 && monthly.activations > 0
                               ? Math.round((monthly.formalActivations / monthly.activations) * 100)
                               : 0,
                             name: '转正',
-                            itemStyle: { color: '#84BCFF' },
+                            itemStyle: { color: '#DBCB92' },
                           },
                           {
                             value: monthly.accounts > 0 && monthly.leads > 0
                               ? Math.round((monthly.accounts / monthly.leads) * 100)
                               : 0,
                             name: '开户',
-                            itemStyle: { color: '#A8D2FF' },
+                            itemStyle: { color: '#ED8D5A' },
                           },
                         ],
                       },
@@ -814,27 +814,27 @@ const Dashboard: React.FC = () => {
                         data: [
                           {
                             value: monthly.leads > 0 ? Number(((monthly.accounts / monthly.leads) * 100).toFixed(2)) : 0,
-                            itemStyle: { color: '#0064FF' },
+                            itemStyle: { color: '#ED8D5A' },
                           },
                           {
                             value: monthly.activations > 0 ? Number(((monthly.leads / monthly.activations) * 100).toFixed(2)) : 0,
-                            itemStyle: { color: '#0064FF' },
+                            itemStyle: { color: '#EA9E58' },
                           },
                           {
                             value: monthly.activations > 0 ? Number(((monthly.formalActivations / monthly.activations) * 100).toFixed(2)) : 0,
-                            itemStyle: { color: '#0064FF' },
+                            itemStyle: { color: '#ECB66C' },
                           },
                           {
                             value: monthly.downloads > 0 ? Number(((monthly.activations / monthly.downloads) * 100).toFixed(2)) : 0,
-                            itemStyle: { color: '#0064FF' },
+                            itemStyle: { color: '#DBCB92' },
                           },
                           {
                             value: monthly.clicks > 0 ? Number(((monthly.downloads / monthly.clicks) * 100).toFixed(2)) : 0,
-                            itemStyle: { color: '#0064FF' },
+                            itemStyle: { color: '#7BC0CD' },
                           },
                           {
                             value: Number((monthly.ctr * 100).toFixed(2)),
-                            itemStyle: { color: '#0064FF' },
+                            itemStyle: { color: '#4198AC' },
                           },
                         ],
                         label: { show: true, position: 'right', formatter: '{c}%', fontFamily: 'var(--font-family-number)', color: '#666' },
