@@ -31,7 +31,7 @@ export const SOFT_COLORS = [
 
 /** 现代化卡片基础样式 */
 export const CARD_BASE: React.CSSProperties = {
-  borderRadius: 16,
-  boxShadow: '0 4px 24px rgba(0,0,0,0.05)',
-  border: 'none',
+  borderRadius: 'var(--radius-xxl)',
+  boxShadow: '0 1px 2px 0 rgba(0, 0, 0, 0.02)',
+  border: '1px solid var(--color-divider)',
 }

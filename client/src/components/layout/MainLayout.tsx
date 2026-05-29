@@ -197,14 +197,16 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
     <Layout style={{ height: '100vh', display: 'flex', flexDirection: 'column' }}>
       <Header
         style={{
-          backgroundColor: 'var(--color-background-nav)',
+          backgroundColor: '#FFFFFF',
           padding: '0 var(--padding-extra-loose)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
-          boxShadow: '0 1px 4px rgba(0,0,0,0.12)',
+          borderBottom: '1px solid var(--color-divider)',
           zIndex: 10,
           flexShrink: 0,
+          height: '60px',
+          lineHeight: '60px',
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--margin-loose)' }}>
@@ -213,7 +215,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
             icon={<MenuOutlined />}
             onClick={() => setSiderCollapsed(!siderCollapsed)}
             style={{
-              color: 'var(--color-text-inverse)',
+              color: 'var(--color-text-primary)',
               display: 'none',
             }}
             className="mobile-menu-btn"
@@ -222,19 +224,19 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
             src="/logo-for-alang.png"
             alt="logo"
             style={{
-              height: 36,
-              width: 36,
-              borderRadius: 'var(--radius-medium)',
-              objectFit: 'cover',
+              height: 32,
+              width: 32,
+              objectFit: 'contain',
+              mixBlendMode: 'multiply',
             }}
           />
           <Title
             level={4}
             style={{
               margin: 0,
-              color: 'var(--color-text-inverse)',
-              fontSize: 'var(--font-size-large)',
-              fontWeight: 'var(--font-weight-medium)',
+              color: 'var(--color-text-primary)',
+              fontSize: 'var(--font-size-base)',
+              fontWeight: 600,
             }}
           >
             阿浪个人工作台
@@ -242,15 +244,18 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
           <span
             className="header-subtitle"
             style={{
-              color: 'var(--color-text-inverse-secondary)',
+              color: 'var(--color-text-secondary)',
               fontSize: 'var(--font-size-small)',
+              marginLeft: 'var(--margin-base)',
+              paddingLeft: 'var(--padding-base)',
+              borderLeft: '1px solid var(--color-divider)'
             }}
           >
             广告投放数据分析
           </span>
           <Tag
-            color="blue"
-            style={{ cursor: 'pointer', fontSize: 11, marginLeft: 4, lineHeight: '18px' }}
+            color="processing"
+            style={{ cursor: 'pointer', fontSize: 10, marginLeft: 8, lineHeight: '18px', border: 'none', backgroundColor: '#E6F7FF', color: '#0064FF' }}
             onClick={() => setChangelogVisible(true)}
           >
             v{CURRENT_VERSION}
@@ -261,7 +266,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
           icon={<ReloadOutlined spin={refreshing} />}
           onClick={handleRefresh}
           style={{
-            color: 'var(--color-text-inverse)',
+            color: 'var(--color-text-secondary)',
             fontSize: 'var(--font-size-small)',
           }}
         >
@@ -304,8 +309,8 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
           collapsible
           collapsed={siderCollapsed}
           style={{
-            backgroundColor: 'var(--color-foreground-layer1)',
-            boxShadow: 'var(--shadow-elevation-small)',
+            backgroundColor: '#FFFFFF',
+            borderRight: '1px solid var(--color-divider)',
             overflow: 'auto',
             height: '100%',
           }}
@@ -333,12 +338,13 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
         <Content
           className="main-content"
           style={{
-            margin: 'var(--padding-super-loose)',
-            padding: 'var(--padding-super-loose)',
-            backgroundColor: 'var(--color-foreground-layer1)',
-            borderRadius: 'var(--radius-extra-large)',
+            margin: 'var(--padding-extra-loose)',
+            padding: 'var(--padding-extra-loose)',
+            backgroundColor: '#FFFFFF',
+            borderRadius: 'var(--radius-large)',
             minHeight: 280,
             overflow: 'auto',
+            border: '1px solid var(--color-divider)',
           }}
         >
           <Breadcrumb
@@ -366,11 +372,11 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
       <Footer
         style={{
           textAlign: 'center',
-          fontSize: 'var(--font-size-small)',
-          color: 'var(--color-text-secondary)',
-          padding: 'var(--padding-loose) var(--padding-super-loose)',
-          backgroundColor: 'var(--color-background-secondary)',
-          borderTop: '1px solid var(--color-border-secondary)',
+          fontSize: 'var(--font-size-extra-small)',
+          color: 'var(--color-text-tertiary)',
+          padding: 'var(--padding-base) var(--padding-super-loose)',
+          backgroundColor: '#F7F9FA',
+          borderTop: '1px solid var(--color-divider)',
           flexShrink: 0,
         }}
       >

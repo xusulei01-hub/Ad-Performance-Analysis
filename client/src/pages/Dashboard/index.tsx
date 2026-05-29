@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback, useMemo } from 'react'
-import { Row, Col, Card, Progress, Spin, Empty, Button, Modal, Form, InputNumber, DatePicker, message, Tag, Tabs } from 'antd'
+import { Row, Col, Card, Progress, Spin, Empty, Button, Modal, Form, InputNumber, DatePicker, message, Tag, Tabs, Segmented } from 'antd'
 import {
   ArrowUpOutlined,
   ArrowDownOutlined,
@@ -24,7 +24,7 @@ import { getWeekRange } from '@utils/dates'
 import { formatNumber } from '@utils/format'
 import { DailyOverview, WeeklyOverview, MonthlyOverview, RankingsData } from '@/types'
 
-/** 异常阈值 */
+/** 异常值判定阈值 */
 const ALERT_THRESHOLD = 0.3
 
 /* ─── 环比变化标签 ─── */
@@ -33,15 +33,17 @@ function ChangeTag({ value, suffix = '%', alert }: { value: number; suffix?: str
   return (
     <span
       style={{
-        color: alert ? '#F5222D' : isUp ? 'var(--color-data-red)' : 'var(--color-data-green)',
+        color: alert ? '#FF4A00' : isUp ? 'var(--color-data-red)' : 'var(--color-data-green)',
         fontSize: 12,
         fontFamily: 'var(--font-family-number)',
         marginLeft: 8,
-        fontWeight: 500,
+        fontWeight: 600,
+        display: 'inline-flex',
+        alignItems: 'center',
       }}
     >
-      {alert && <AlertOutlined style={{ color: '#F5222D', marginRight: 4 }} />}
-      {isUp ? <ArrowUpOutlined /> : <ArrowDownOutlined />}
+      {alert && <AlertOutlined style={{ color: '#FF4A00', marginRight: 4 }} />}
+      {isUp ? <ArrowUpOutlined style={{ fontSize: 10 }} /> : <ArrowDownOutlined style={{ fontSize: 10 }} />}
       {Math.abs(value * 100).toFixed(1)}{suffix}
     </span>
   )
@@ -76,65 +78,61 @@ function KpiCard({
     : 0
 
   return (
-    <Card style={CARD_BASE} bodyStyle={{ padding: '28px 24px' }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
-        <div
-          style={{
-            width: 44,
-            height: 44,
-            borderRadius: 12,
-            background: `linear-gradient(135deg, ${color}18, ${color}0A)`,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            color,
-            fontSize: 20,
-          }}
-        >
-          {icon}
-        </div>
-        <span style={{ fontSize: 14, color: 'var(--color-text-secondary)', fontWeight: 500 }}>
+    <Card style={CARD_BASE} bodyStyle={{ padding: '24px 20px' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+        <span style={{ fontSize: 13, color: 'var(--color-text-secondary)', fontWeight: 500 }}>
           {title}
         </span>
+        <div
+          style={{
+            color: alert ? '#FF4A00' : 'var(--color-text-tertiary)',
+            fontSize: 16,
+            display: 'flex',
+            alignItems: 'center',
+          }}
+        >
+          {alert && <AlertOutlined style={{ color: '#FF4A00', marginRight: 4 }} />}
+          {icon}
+        </div>
       </div>
-      <div
-        style={{
-          fontSize: 32,
-          fontFamily: 'var(--font-family-number)',
-          fontWeight: 700,
-          color: 'var(--color-text-primary)',
-          lineHeight: 1.2,
-        }}
-      >
-        {prefix}
-        {value.toLocaleString(undefined, { minimumFractionDigits: precision, maximumFractionDigits: precision })}
-        {suffix}
+      <div style={{ display: 'flex', alignItems: 'baseline', flexWrap: 'wrap' }}>
+        <span
+          style={{
+            fontSize: 26,
+            fontFamily: 'var(--font-family-number)',
+            fontWeight: 600,
+            color: 'var(--color-text-primary)',
+            lineHeight: 1.1,
+          }}
+        >
+          {prefix}
+          {value.toLocaleString(undefined, { minimumFractionDigits: precision, maximumFractionDigits: precision })}
+          {suffix}
+        </span>
         {change !== undefined && <ChangeTag value={change} alert={alert} />}
       </div>
       {target !== undefined && target > 0 && (
-        <div style={{ marginTop: 16 }}>
+        <div style={{ marginTop: 12 }}>
           <Progress
             percent={pct}
-            size={{ height: 5 }}
+            size={{ height: 4 }}
             strokeColor={color}
-            trailColor="rgba(0,0,0,0.04)"
+            trailColor="#F0F2F5"
             showInfo={false}
           />
           <div
             style={{
-              fontSize: 12,
+              fontSize: 11,
               color: 'var(--color-text-tertiary)',
-              marginTop: 6,
+              marginTop: 4,
               display: 'flex',
               justifyContent: 'space-between',
               fontFamily: 'var(--font-family-number)',
             }}
           >
-            <span>目标完成度</span>
+            <span>目标完成 {pct}%</span>
             <span>
-              {prefix}{value.toLocaleString(undefined, { minimumFractionDigits: precision, maximumFractionDigits: precision })}
-              <span style={{ color: 'var(--color-text-tertiary)', margin: '0 4px' }}>/</span>
-              {prefix}{target.toLocaleString(undefined, { minimumFractionDigits: precision, maximumFractionDigits: precision })}
+              {prefix}{value.toLocaleString(undefined, { minimumFractionDigits: precision, maximumFractionDigits: precision })} / {prefix}{target.toLocaleString(undefined, { minimumFractionDigits: precision, maximumFractionDigits: precision })}
             </span>
           </div>
         </div>
@@ -163,40 +161,25 @@ function EfficiencyCard({
 }) {
   return (
     <Card
-      style={{ ...CARD_BASE, backgroundColor: 'var(--color-background-secondary)' }}
-      bodyStyle={{ padding: '18px 20px' }}
+      style={{ ...CARD_BASE, border: '1px solid var(--color-divider)' }}
+      bodyStyle={{ padding: '16px 20px' }}
     >
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <div
+        <span style={{ fontSize: 13, color: 'var(--color-text-secondary)', fontWeight: 500 }}>{title}</span>
+        <div style={{ display: 'flex', alignItems: 'baseline', gap: 4 }}>
+          <span
             style={{
-              width: 32,
-              height: 32,
-              borderRadius: 8,
-              backgroundColor: `${color}14`,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              color,
-              fontSize: 14,
+              fontSize: 20,
+              fontFamily: 'var(--font-family-number)',
+              fontWeight: 600,
+              color: 'var(--color-text-primary)',
             }}
           >
-            {icon}
-          </div>
-          <span style={{ fontSize: 13, color: 'var(--color-text-secondary)' }}>{title}</span>
+            {prefix}
+            {value.toLocaleString(undefined, { minimumFractionDigits: precision, maximumFractionDigits: precision })}
+            {suffix}
+          </span>
         </div>
-        <span
-          style={{
-            fontSize: 20,
-            fontFamily: 'var(--font-family-number)',
-            fontWeight: 600,
-            color: 'var(--color-text-primary)',
-          }}
-        >
-          {prefix}
-          {value.toLocaleString(undefined, { minimumFractionDigits: precision, maximumFractionDigits: precision })}
-          {suffix}
-        </span>
       </div>
     </Card>
   )
@@ -469,6 +452,53 @@ function OverviewTab({
   )
 }
 
+/* ─── 渠道花费 DOM 排行榜组件 ─── */
+function DOMCostRankingList({ data }: { data: { channel: string; cost: number }[] }) {
+  const maxCost = useMemo(() => Math.max(...data.map((d) => d.cost), 1), [data])
+  return (
+    <div className="rank-list" style={{ padding: '8px 4px' }}>
+      {data.slice(0, 10).map((item, idx) => (
+        <div className="rank-item" key={item.channel}>
+          <span className="rank-badge">{idx + 1}</span>
+          <span className="rank-channel">{item.channel}</span>
+          <div className="rank-bar-container">
+            <div
+              className="rank-bar-fill"
+              style={{ width: `${(item.cost / maxCost) * 100}%` }}
+            />
+          </div>
+          <span className="rank-value">¥{formatNumber(item.cost)}</span>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+/* ─── 渠道效果 DOM 排行榜组件 ─── */
+function DOMPerformanceRankingList({ data }: { data: { channel: string; roi: number; cpa: number }[] }) {
+  const maxRoi = useMemo(() => Math.max(...data.map((d) => d.roi), 1), [data])
+  return (
+    <div className="rank-list" style={{ padding: '8px 4px' }}>
+      {data.slice(0, 10).map((item, idx) => (
+        <div className="rank-item" key={item.channel}>
+          <span className="rank-badge">{idx + 1}</span>
+          <span className="rank-channel">{item.channel}</span>
+          <div className="rank-bar-container">
+            <div
+              className="rank-bar-fill"
+              style={{ width: `${(item.roi / maxRoi) * 100}%` }}
+            />
+          </div>
+          <span className="rank-value" style={{ width: 150, display: 'flex', justifyContent: 'flex-end', gap: 12 }}>
+            <span>ROI: {item.roi?.toFixed(2)}</span>
+            <span style={{ color: 'var(--color-text-tertiary)', fontSize: 11 }}>CPA: ¥{item.cpa?.toFixed(1)}</span>
+          </span>
+        </div>
+      ))}
+    </div>
+  )
+}
+
 /* ─── 主组件 ─── */
 const Dashboard: React.FC = () => {
   const [daily, setDaily] = useState<DailyOverview | null>(null)
@@ -482,26 +512,7 @@ const Dashboard: React.FC = () => {
   const [targetModalVisible, setTargetModalVisible] = useState(false)
   const [targetForm] = Form.useForm()
 
-  const tabItems = useMemo(
-    () => [
-      {
-        key: 'daily',
-        label: '昨日',
-        children: <OverviewTab daily={daily} weekly={weekly} monthly={monthly} type="daily" />,
-      },
-      {
-        key: 'weekly',
-        label: '本周',
-        children: <OverviewTab daily={daily} weekly={weekly} monthly={monthly} type="weekly" />,
-      },
-      {
-        key: 'monthly',
-        label: '本月',
-        children: <OverviewTab daily={daily} weekly={weekly} monthly={monthly} type="monthly" />,
-      },
-    ],
-    [daily, weekly, monthly]
-  )
+
 
   const fetchData = useCallback(async () => {
     setLoading(true)
@@ -584,91 +595,7 @@ const Dashboard: React.FC = () => {
     }
   }
 
-  /* ─── ECharts 配置（明亮色系 + 去网格线） ─── */
-  const costRankingOption = rankings?.costRanking.length
-    ? {
-        tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
-        grid: { left: '3%', right: '4%', bottom: '3%', top: '8%', containLabel: true },
-        xAxis: {
-          type: 'category',
-          data: rankings.costRanking.map((r) => r.channel),
-          axisLine: { lineStyle: { color: '#E8E8E8' } },
-          axisTick: { show: false },
-          axisLabel: { fontFamily: 'var(--font-family-cn)', color: '#888' },
-        },
-        yAxis: {
-          type: 'value',
-          splitLine: { lineStyle: { type: 'dashed', color: '#F0F0F0' } },
-          axisLabel: { formatter: (v: number) => formatNumber(v), fontFamily: 'var(--font-family-number)', color: '#888' },
-        },
-        series: [
-          {
-            name: '花费',
-            type: 'bar',
-            data: rankings.costRanking.map((r, i) => ({
-              value: r.cost,
-              itemStyle: {
-                color: SOFT_COLORS[i % SOFT_COLORS.length],
-                borderRadius: [6, 6, 0, 0],
-              },
-            })),
-            barWidth: '50%',
-          },
-        ],
-      }
-    : null
 
-  const performanceRankingOption = rankings?.performanceRanking.length
-    ? {
-        tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
-        legend: { data: ['ROI', '激活成本'], bottom: 0, textStyle: { color: '#888' } },
-        grid: { left: '3%', right: '4%', bottom: '15%', top: '8%', containLabel: true },
-        xAxis: {
-          type: 'category',
-          data: rankings.performanceRanking.map((r) => r.channel),
-          axisLine: { lineStyle: { color: '#E8E8E8' } },
-          axisTick: { show: false },
-          axisLabel: { fontFamily: 'var(--font-family-cn)', color: '#888' },
-        },
-        yAxis: [
-          {
-            type: 'value',
-            name: 'ROI',
-            position: 'left',
-            splitLine: { lineStyle: { type: 'dashed', color: '#F0F0F0' } },
-            axisLabel: { fontFamily: 'var(--font-family-number)', color: '#888' },
-            nameTextStyle: { color: '#888' },
-          },
-          {
-            type: 'value',
-            name: '激活成本',
-            position: 'right',
-            splitLine: { show: false },
-            axisLabel: { formatter: (v: number) => '¥' + v, fontFamily: 'var(--font-family-number)', color: '#888' },
-            nameTextStyle: { color: '#888' },
-          },
-        ],
-        series: [
-          {
-            name: 'ROI',
-            type: 'bar',
-            data: rankings.performanceRanking.map((r) => Number(r.roi?.toFixed(2))),
-            itemStyle: { color: '#D4A5A5', borderRadius: [4, 4, 0, 0] },
-            barWidth: '30%',
-          },
-          {
-            name: '激活成本',
-            type: 'line',
-            yAxisIndex: 1,
-            data: rankings.performanceRanking.map((r) => r.cpa),
-            itemStyle: { color: '#6B8DD6' },
-            lineStyle: { width: 3 },
-            symbol: 'circle',
-            symbolSize: 6,
-          },
-        ],
-      }
-    : null
 
   const hasAlert = daily && (
     Math.abs(daily.costChange ?? 0) >= ALERT_THRESHOLD ||
@@ -719,14 +646,25 @@ const Dashboard: React.FC = () => {
         {/* AI 分析面板 */}
         <AIAnalysisPanel data={daily && weekly && monthly && rankings ? { daily, weekly, monthly, rankings } : null} />
 
-        {/* Tabs 主区域 */}
-        <Tabs
-          activeKey={activeTab}
-          onChange={setActiveTab}
-          items={tabItems}
-          destroyInactiveTabPane={false}
-          style={{ marginBottom: 'var(--margin-super-loose)' }}
-        />
+        {/* Tabs/Segmented 主区域 */}
+        <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 24, marginTop: 16 }}>
+          <Segmented
+            value={activeTab}
+            onChange={(val) => setActiveTab(val as string)}
+            options={[
+              { label: '昨日指标', value: 'daily' },
+              { label: '本周指标', value: 'weekly' },
+              { label: '本月指标', value: 'monthly' }
+            ]}
+            size="large"
+          />
+        </div>
+
+        <div style={{ marginBottom: 'var(--margin-super-loose)' }}>
+          {activeTab === 'daily' && <OverviewTab daily={daily} weekly={weekly} monthly={monthly} type="daily" />}
+          {activeTab === 'weekly' && <OverviewTab daily={daily} weekly={weekly} monthly={monthly} type="weekly" />}
+          {activeTab === 'monthly' && <OverviewTab daily={daily} weekly={weekly} monthly={monthly} type="monthly" />}
+        </div>
 
         {/* 转化漏斗 */}
         <h2
@@ -920,8 +858,8 @@ const Dashboard: React.FC = () => {
               >
                 渠道花费排名
               </div>
-              {costRankingOption ? (
-                <ReactECharts option={costRankingOption} style={{ height: 280 }} />
+              {rankings?.costRanking && rankings.costRanking.length > 0 ? (
+                <DOMCostRankingList data={rankings.costRanking} />
               ) : (
                 <Empty description="暂无数据" style={{ padding: '60px 0' }} />
               )}
@@ -939,8 +877,8 @@ const Dashboard: React.FC = () => {
               >
                 渠道效果排名
               </div>
-              {performanceRankingOption ? (
-                <ReactECharts option={performanceRankingOption} style={{ height: 280 }} />
+              {rankings?.performanceRanking && rankings.performanceRanking.length > 0 ? (
+                <DOMPerformanceRankingList data={rankings.performanceRanking} />
               ) : (
                 <Empty description="暂无数据" style={{ padding: '60px 0' }} />
               )}
