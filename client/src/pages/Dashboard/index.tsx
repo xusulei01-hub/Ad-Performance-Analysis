@@ -731,39 +731,39 @@ const Dashboard: React.FC = () => {
                           color: '#fff',
                         },
                         data: [
-                          { value: 100, name: '曝光', itemStyle: { color: METRIC_COLORS.impressions } },
+                          { value: 100, name: '曝光', itemStyle: { color: '#0052D9' } },
                           {
                             value: monthly.ctr * 100,
                             name: '点击',
-                            itemStyle: { color: METRIC_COLORS.clicks },
+                            itemStyle: { color: '#1878FF' },
                           },
                           {
                             value: monthly.downloads > 0 && monthly.clicks > 0
                               ? Math.round((monthly.downloads / monthly.clicks) * 100)
                               : 0,
                             name: '下载',
-                            itemStyle: { color: METRIC_COLORS.downloads },
+                            itemStyle: { color: '#3C8FFF' },
                           },
                           {
                             value: monthly.activations > 0 && monthly.downloads > 0
                               ? Math.round((monthly.activations / monthly.downloads) * 100)
                               : 0,
                             name: '激活',
-                            itemStyle: { color: METRIC_COLORS.activations },
+                            itemStyle: { color: '#60A5FF' },
                           },
                           {
                             value: monthly.formalActivations > 0 && monthly.activations > 0
                               ? Math.round((monthly.formalActivations / monthly.activations) * 100)
                               : 0,
                             name: '转正',
-                            itemStyle: { color: METRIC_COLORS.formalActivations },
+                            itemStyle: { color: '#84BCFF' },
                           },
                           {
                             value: monthly.accounts > 0 && monthly.leads > 0
                               ? Math.round((monthly.accounts / monthly.leads) * 100)
                               : 0,
                             name: '开户',
-                            itemStyle: { color: METRIC_COLORS.accounts },
+                            itemStyle: { color: '#A8D2FF' },
                           },
                         ],
                       },
@@ -814,27 +814,27 @@ const Dashboard: React.FC = () => {
                         data: [
                           {
                             value: monthly.leads > 0 ? Number(((monthly.accounts / monthly.leads) * 100).toFixed(2)) : 0,
-                            itemStyle: { color: METRIC_COLORS.accounts },
+                            itemStyle: { color: '#0064FF' },
                           },
                           {
                             value: monthly.activations > 0 ? Number(((monthly.leads / monthly.activations) * 100).toFixed(2)) : 0,
-                            itemStyle: { color: METRIC_COLORS.leads },
+                            itemStyle: { color: '#0064FF' },
                           },
                           {
                             value: monthly.activations > 0 ? Number(((monthly.formalActivations / monthly.activations) * 100).toFixed(2)) : 0,
-                            itemStyle: { color: METRIC_COLORS.formalActivations },
+                            itemStyle: { color: '#0064FF' },
                           },
                           {
                             value: monthly.downloads > 0 ? Number(((monthly.activations / monthly.downloads) * 100).toFixed(2)) : 0,
-                            itemStyle: { color: METRIC_COLORS.activations },
+                            itemStyle: { color: '#0064FF' },
                           },
                           {
                             value: monthly.clicks > 0 ? Number(((monthly.downloads / monthly.clicks) * 100).toFixed(2)) : 0,
-                            itemStyle: { color: METRIC_COLORS.downloads },
+                            itemStyle: { color: '#0064FF' },
                           },
                           {
                             value: Number((monthly.ctr * 100).toFixed(2)),
-                            itemStyle: { color: METRIC_COLORS.clicks },
+                            itemStyle: { color: '#0064FF' },
                           },
                         ],
                         label: { show: true, position: 'right', formatter: '{c}%', fontFamily: 'var(--font-family-number)', color: '#666' },
