@@ -85,10 +85,14 @@ function KpiCard({
         </span>
         <div
           style={{
-            color: alert ? '#FF4A00' : 'var(--color-text-tertiary)',
-            fontSize: 16,
-            display: 'flex',
+            color: alert ? '#FF4A00' : color,
+            fontSize: 15,
+            display: 'inline-flex',
             alignItems: 'center',
+            backgroundColor: alert ? '#FFF2E8' : `${color}10`,
+            padding: '5px 7px',
+            borderRadius: '6px',
+            transition: 'all 0.2s',
           }}
         >
           {alert && <AlertOutlined style={{ color: '#FF4A00', marginRight: 4 }} />}
@@ -165,21 +169,34 @@ function EfficiencyCard({
       bodyStyle={{ padding: '16px 20px' }}
     >
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <span style={{ fontSize: 13, color: 'var(--color-text-secondary)', fontWeight: 500 }}>{title}</span>
-        <div style={{ display: 'flex', alignItems: 'baseline', gap: 4 }}>
-          <span
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <div
             style={{
-              fontSize: 20,
-              fontFamily: 'var(--font-family-number)',
-              fontWeight: 600,
-              color: 'var(--color-text-primary)',
+              color,
+              backgroundColor: `${color}10`,
+              padding: '5px 7px',
+              borderRadius: '6px',
+              display: 'inline-flex',
+              alignItems: 'center',
+              fontSize: 14,
             }}
           >
-            {prefix}
-            {value.toLocaleString(undefined, { minimumFractionDigits: precision, maximumFractionDigits: precision })}
-            {suffix}
-          </span>
+            {icon}
+          </div>
+          <span style={{ fontSize: 13, color: 'var(--color-text-secondary)', fontWeight: 500 }}>{title}</span>
         </div>
+        <span
+          style={{
+            fontSize: 20,
+            fontFamily: 'var(--font-family-number)',
+            fontWeight: 600,
+            color: 'var(--color-text-primary)',
+          }}
+        >
+          {prefix}
+          {value.toLocaleString(undefined, { minimumFractionDigits: precision, maximumFractionDigits: precision })}
+          {suffix}
+        </span>
       </div>
     </Card>
   )
