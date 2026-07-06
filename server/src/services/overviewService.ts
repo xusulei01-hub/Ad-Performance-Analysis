@@ -18,64 +18,63 @@ function buildWhere(startDate: Date, endDate: Date, channelFilter?: string[] | n
   return where
 }
 
+// 始终查询 accounts（计算 ROI 需要），非管理员仅在响应中隐藏
+const SUM_FIELDS = {
+  cost: true, activations: true, accounts: true, formalActivations: true,
+  leads: true, impressions: true, clicks: true, downloads: true,
+} as const
+
 async function aggregateMetrics(startDate: Date, endDate: Date, channelFilter?: string[] | null, isNonAdmin = false) {
   const where = buildWhere(startDate, endDate, channelFilter)
 
-  // 非管理员的 _sum 排除 leads 和 accounts
-  const sumFields: any = isNonAdmin
-    ? { cost: true, activations: true, formalActivations: true, impressions: true, clicks: true, downloads: true }
-    : { cost: true, activations: true, accounts: true, formalActivations: true, leads: true, impressions: true, clicks: true, downloads: true }
-
-  const agg = await prisma.rawData.aggregate({ where, _sum: sumFields })
+  const agg = await prisma.rawData.aggregate({ where, _sum: SUM_FIELDS })
 
   const totalCost = agg._sum.cost ?? 0
-  const totalActivations = agg._sum.activations ?? 0
-  const totalAccounts = isNonAdmin ? 0 : (agg._sum.accounts ?? 0)
+  const realAccounts = agg._sum.accounts ?? 0
   const totalImpressions = agg._sum.impressions ?? 0
   const totalClicks = agg._sum.clicks ?? 0
 
   return {
     cost: totalCost,
-    activations: totalActivations,
-    accounts: totalAccounts,
+    activations: agg._sum.activations ?? 0,
+    accounts: isNonAdmin ? 0 : realAccounts,
     formalActivations: agg._sum.formalActivations ?? 0,
     leads: isNonAdmin ? 0 : (agg._sum.leads ?? 0),
     impressions: totalImpressions,
     clicks: totalClicks,
     downloads: agg._sum.downloads ?? 0,
     ctr: calcCtr(totalClicks, totalImpressions),
-    roi: calcRoi(totalAccounts, totalCost),
-    cpa: calcCpa(totalCost, totalActivations),
+    roi: calcRoi(realAccounts, totalCost), // ROI 用真实 accounts 计算
+    cpa: calcCpa(totalCost, agg._sum.activations ?? 0),
   }
 }
 
 async function getDailyTrends(startDate: Date, endDate: Date, channelFilter?: string[] | null, isNonAdmin = false): Promise<DailyTrendItem[]> {
   const where = buildWhere(startDate, endDate, channelFilter)
 
-  const sumFields: any = isNonAdmin
-    ? { cost: true, activations: true, formalActivations: true, impressions: true, clicks: true, downloads: true }
-    : { cost: true, activations: true, accounts: true, formalActivations: true, leads: true, impressions: true, clicks: true, downloads: true }
-
   const dailyRaw = await prisma.rawData.groupBy({
     by: ['recordDate'],
     where,
-    _sum: sumFields,
+    _sum: SUM_FIELDS,
     orderBy: { recordDate: 'asc' },
   })
 
-  return dailyRaw.map((r) => ({
-    date: dayjs(r.recordDate).format('YYYY-MM-DD'),
-    cost: r._sum.cost ?? 0,
-    activations: r._sum.activations ?? 0,
-    accounts: isNonAdmin ? 0 : (r._sum.accounts ?? 0),
-    formalActivations: r._sum.formalActivations ?? 0,
-    leads: isNonAdmin ? 0 : (r._sum.leads ?? 0),
-    impressions: r._sum.impressions ?? 0,
-    clicks: r._sum.clicks ?? 0,
-    downloads: r._sum.downloads ?? 0,
-    ctr: calcCtr(r._sum.clicks ?? 0, r._sum.impressions ?? 0),
-    roi: calcRoi(isNonAdmin ? 0 : (r._sum.accounts ?? 0), r._sum.cost ?? 0),
-  }))
+  return dailyRaw.map((r) => {
+    const realAcc = r._sum.accounts ?? 0
+    return {
+      date: dayjs(r.recordDate).format('YYYY-MM-DD'),
+      cost: r._sum.cost ?? 0,
+      activations: r._sum.activations ?? 0,
+      accounts: isNonAdmin ? 0 : realAcc,
+      formalActivations: r._sum.formalActivations ?? 0,
+      leads: isNonAdmin ? 0 : (r._sum.leads ?? 0),
+      impressions: r._sum.impressions ?? 0,
+      clicks: r._sum.clicks ?? 0,
+      downloads: r._sum.downloads ?? 0,
+      ctr: calcCtr(r._sum.clicks ?? 0, r._sum.impressions ?? 0),
+      roi: calcRoi(realAcc, r._sum.cost ?? 0),
+    }
+  })
 }
 
 export async function getDailyMetrics(channelFilter?: string[] | null, isNonAdmin = false) {
@@ -159,23 +158,22 @@ export async function getRankings(channelFilter?: string[] | null, isNonAdmin = 
 
   const where = buildWhere(startOfMonth, endOfMonth, channelFilter)
 
-  const sumFields: any = isNonAdmin
-    ? { cost: true, activations: true }
-    : { cost: true, activations: true, accounts: true }
-
   const channelGroups = await prisma.rawData.groupBy({
     by: ['channel'],
     where,
-    _sum: sumFields,
+    _sum: { cost: true, activations: true, accounts: true },
   })
 
-  const channelData = channelGroups.map((g) => ({
-    channel: g.channel,
-    cost: g._sum.cost ?? 0,
-    roi: calcRoi(isNonAdmin ? 0 : (g._sum.accounts ?? 0), g._sum.cost ?? 0),
-    cpa: calcCpa(g._sum.cost ?? 0, g._sum.activations ?? 0),
-    activations: g._sum.activations ?? 0,
-  }))
+  const channelData = channelGroups.map((g) => {
+    const realAcc = g._sum.accounts ?? 0
+    return {
+      channel: g.channel,
+      cost: g._sum.cost ?? 0,
+      roi: calcRoi(realAcc, g._sum.cost ?? 0),
+      cpa: calcCpa(g._sum.cost ?? 0, g._sum.activations ?? 0),
+      activations: g._sum.activations ?? 0,
+    }
+  })
 
   const costRanking = channelData
     .sort((a, b) => b.cost - a.cost)
