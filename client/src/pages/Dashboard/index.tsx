@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback, useMemo } from 'react'
-import { Row, Col, Card, Progress, Spin, Empty, Button, Modal, Form, InputNumber, DatePicker, message, Tag, Tabs, Segmented } from 'antd'
+import { Row, Col, Card, Progress, Spin, Empty, Button, Modal, Form, InputNumber, DatePicker, message, Tag, Segmented } from 'antd'
 import {
   ArrowUpOutlined,
   ArrowDownOutlined,
@@ -19,10 +19,11 @@ import { dashboardService } from '@services/dashboardService'
 import { targetService } from '@services/targetService'
 import { useRefresh } from '@components/layout/RefreshContext'
 import AIAnalysisPanel from '@components/ai/AIAnalysisPanel'
-import { METRIC_COLORS, SOFT_COLORS, CARD_BASE } from '@utils/constants'
+import { METRIC_COLORS, CARD_BASE } from '@utils/constants'
 import { getWeekRange } from '@utils/dates'
 import { formatNumber } from '@utils/format'
 import { DailyOverview, WeeklyOverview, MonthlyOverview, RankingsData } from '@/types'
+import { useAuthStore } from '@stores/authStore'
 
 /** 异常值判定阈值 */
 const ALERT_THRESHOLD = 0.3
@@ -261,13 +262,14 @@ function OverviewTab({
   monthly: MonthlyOverview | null
   type: 'daily' | 'weekly' | 'monthly'
 }) {
+  const isAdmin = useAuthStore((s) => s.isAdmin)
   const data = type === 'daily' ? daily : type === 'weekly' ? weekly : monthly
   const isDaily = type === 'daily'
   const labelPrefix = isDaily ? '昨日' : type === 'weekly' ? '本周' : '本月'
 
   if (!data) return <Empty description="暂无数据" style={{ padding: '60px 0' }} />
 
-  /* 核心指标 */
+  /* 核心指标 — 非管理员过滤掉 accounts/leads */
   const coreKpis = [
     {
       title: `${labelPrefix}花费`,
@@ -297,7 +299,7 @@ function OverviewTab({
         : undefined,
       alert: isDaily ? Math.abs((daily?.activationsChange ?? 0)) >= ALERT_THRESHOLD : false,
     },
-    {
+    ...(isAdmin ? [{
       title: `${labelPrefix}开户`,
       key: 'accounts',
       icon: <BankOutlined />,
@@ -309,7 +311,7 @@ function OverviewTab({
           : monthly?.targetAccounts
         : undefined,
       alert: isDaily ? Math.abs((daily?.accountsChange ?? 0)) >= ALERT_THRESHOLD : false,
-    },
+    }] : []),
     {
       title: `${labelPrefix}ROI`,
       key: 'roi',
@@ -326,7 +328,7 @@ function OverviewTab({
     },
   ]
 
-  /* 效率指标 */
+  /* 效率指标 — 非管理员过滤掉 leads */
   const efficiencyMetrics = [
     {
       title: `${labelPrefix}CPA`,
@@ -342,12 +344,12 @@ function OverviewTab({
       icon: <CheckCircleOutlined />,
       color: METRIC_COLORS.formalActivations,
     },
-    {
+    ...(isAdmin ? [{
       title: `${labelPrefix}留资`,
       key: 'leads',
       icon: <FileTextOutlined />,
       color: METRIC_COLORS.leads,
-    },
+    }] : []),
     {
       title: `${labelPrefix}CTR`,
       key: 'ctr',
@@ -470,8 +472,8 @@ function OverviewTab({
 }
 
 /* ─── 渠道花费 DOM 排行榜组件 ─── */
-function DOMCostRankingList({ data }: { data: { channel: string; cost: number }[] }) {
-  const maxCost = useMemo(() => Math.max(...data.map((d) => d.cost), 1), [data])
+function DOMCostRankingList({ data }: { data: { channel: string; cost?: number }[] }) {
+  const maxCost = useMemo(() => Math.max(...data.map((d) => d.cost ?? 0), 1), [data])
   return (
     <div className="rank-list" style={{ padding: '8px 4px' }}>
       {data.slice(0, 10).map((item, idx) => (
@@ -481,10 +483,10 @@ function DOMCostRankingList({ data }: { data: { channel: string; cost: number }[
           <div className="rank-bar-container">
             <div
               className="rank-bar-fill"
-              style={{ width: `${(item.cost / maxCost) * 100}%` }}
+              style={{ width: `${((item.cost ?? 0) / maxCost) * 100}%` }}
             />
           </div>
-          <span className="rank-value">¥{formatNumber(item.cost)}</span>
+          <span className="rank-value">¥{formatNumber(item.cost ?? 0)}</span>
         </div>
       ))}
     </div>
@@ -492,8 +494,8 @@ function DOMCostRankingList({ data }: { data: { channel: string; cost: number }[
 }
 
 /* ─── 渠道效果 DOM 排行榜组件 ─── */
-function DOMPerformanceRankingList({ data }: { data: { channel: string; roi: number; cpa: number }[] }) {
-  const maxRoi = useMemo(() => Math.max(...data.map((d) => d.roi), 1), [data])
+function DOMPerformanceRankingList({ data }: { data: { channel: string; roi?: number; cpa?: number }[] }) {
+  const maxRoi = useMemo(() => Math.max(...data.map((d) => d.roi ?? 0), 1), [data])
   return (
     <div className="rank-list" style={{ padding: '8px 4px' }}>
       {data.slice(0, 10).map((item, idx) => (
@@ -503,7 +505,7 @@ function DOMPerformanceRankingList({ data }: { data: { channel: string; roi: num
           <div className="rank-bar-container">
             <div
               className="rank-bar-fill"
-              style={{ width: `${(item.roi / maxRoi) * 100}%` }}
+              style={{ width: `${((item.roi ?? 0) / maxRoi) * 100}%` }}
             />
           </div>
           <span className="rank-value" style={{ width: 150, display: 'flex', justifyContent: 'flex-end', gap: 12 }}>

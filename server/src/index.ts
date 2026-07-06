@@ -2,6 +2,7 @@ import express from 'express'
 import cors from 'cors'
 import dotenv from 'dotenv'
 import { errorHandler } from './middleware/errorHandler'
+import { authenticate } from './middleware/authenticate'
 import dataRoutes from './routes/dataRoutes'
 import overviewRoutes from './routes/overviewRoutes'
 import channelRoutes from './routes/channelRoutes'
@@ -10,6 +11,8 @@ import planRoutes from './routes/planRoutes'
 import targetRoutes from './routes/targetRoutes'
 import aiRoutes from './routes/aiRoutes'
 import aiReportRoutes from './routes/aiReportRoutes'
+import authRoutes from './routes/authRoutes'
+import userRoutes from './routes/userRoutes'
 
 dotenv.config()
 
@@ -23,20 +26,24 @@ app.use(cors({
 app.use(express.json())
 app.use(express.urlencoded({ extended: true }))
 
-// 健康检查
+// 健康检查（无需认证）
 app.get('/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() })
 })
 
-// API 路由
-app.use('/api/v1/data', dataRoutes)
-app.use('/api/v1/overview', overviewRoutes)
-app.use('/api/v1/channels', channelRoutes)
-app.use('/api/v1/merchants', merchantRoutes)
-app.use('/api/v1/plans', planRoutes)
-app.use('/api/v1/targets', targetRoutes)
-app.use('/api/v1/ai', aiRoutes)
-app.use('/api/v1/ai-reports', aiReportRoutes)
+// 认证路由（无需认证）
+app.use('/api/v1/auth', authRoutes)
+
+// === 以下路由需要认证 ===
+app.use('/api/v1/user', authenticate, userRoutes)
+app.use('/api/v1/data', authenticate, dataRoutes)
+app.use('/api/v1/overview', authenticate, overviewRoutes)
+app.use('/api/v1/channels', authenticate, channelRoutes)
+app.use('/api/v1/merchants', authenticate, merchantRoutes)
+app.use('/api/v1/plans', authenticate, planRoutes)
+app.use('/api/v1/targets', authenticate, targetRoutes)
+app.use('/api/v1/ai', authenticate, aiRoutes)
+app.use('/api/v1/ai-reports', authenticate, aiReportRoutes)
 
 // 错误处理中间件
 app.use(errorHandler)

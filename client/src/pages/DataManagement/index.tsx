@@ -29,34 +29,41 @@ import {
   DeleteOutlined,
   HistoryOutlined,
   DownloadOutlined,
+  UploadOutlined,
 } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import { dataManageService } from '@services/dataManageService'
 import { CARD_BASE } from '@utils/constants'
 import { exportToExcel } from '@utils/export'
+import { useAuthStore } from '@stores/authStore'
 import { RawData, UploadLog, ChannelMapping } from '@/types'
 
 const { Dragger } = Upload
 const { RangePicker } = DatePicker
 
 const DataManagement: React.FC = () => {
-  const [mediaFile, setMediaFile] = useState<File | null>(null)
-  const [convFile, setConvFile] = useState<File | null>(null)
-  const [uploading, setUploading] = useState(false)
-  const [uploadResult, setUploadResult] = useState<{
-    filename: string
-    totalRecords: number
-    mediaRows: number
-    convRows: number
-    insertedCount: number
-    updatedCount: number
-    unmatchedMediaCount: number
-    unmatchedConvCount: number
-  } | null>(null)
+  const { isAdmin, user } = useAuthStore()
 
+  // ===== 转化表上传 =====
+  const [convFile, setConvFile] = useState<File | null>(null)
+  const [convUploading, setConvUploading] = useState(false)
+  const [convResult, setConvResult] = useState<{ filename: string; totalRecords: number; insertedCount: number; updatedCount: number } | null>(null)
+
+  // ===== 媒体表上传 =====
+  const [mediaFile, setMediaFile] = useState<File | null>(null)
+  const [mediaChannel, setMediaChannel] = useState<string | undefined>()
+  const [mediaUploading, setMediaUploading] = useState(false)
+  const [mediaResult, setMediaResult] = useState<any>(null)
+
+  // ===== 旧版上传 =====
+  const [oldMediaFile, setOldMediaFile] = useState<File | null>(null)
+  const [oldConvFile, setOldConvFile] = useState<File | null>(null)
+  const [oldUploading, setOldUploading] = useState(false)
+  const [oldUploadResult, setOldUploadResult] = useState<any>(null)
   const [uploadError, setUploadError] = useState<any>(null)
   const [uploadErrorVisible, setUploadErrorVisible] = useState(false)
 
+  // ===== 数据列表 =====
   const [records, setRecords] = useState<RawData[]>([])
   const [recordsTotal, setRecordsTotal] = useState(0)
   const [recordsPage, setRecordsPage] = useState(1)
@@ -78,16 +85,34 @@ const DataManagement: React.FC = () => {
   const [mappings, setMappings] = useState<ChannelMapping[]>([])
   const [mappingForm] = Form.useForm()
 
+  const [queryTrigger, setQueryTrigger] = useState(0)
+
+  // 获取用户可访问的渠道列表
+  const getUserChannels = useCallback((): string[] => {
+    if (isAdmin) return []
+    try {
+      if (user?.permittedChannels) {
+        return JSON.parse(user.permittedChannels)
+      }
+    } catch {}
+    return []
+  }, [isAdmin, user?.permittedChannels])
+
   const fetchChannels = useCallback(async () => {
     try {
       const list = await dataManageService.getChannels()
       setChannels(list)
+      // 非管理员默认选中自己的第一个渠道
+      if (!isAdmin && !filterChannel) {
+        const userChs = getUserChannels()
+        if (userChs.length > 0 && !filterChannel) {
+          setFilterChannel(userChs[0])
+        }
+      }
     } catch (e) {
       console.error('Fetch channels error:', e)
     }
-  }, [])
-
-  const [queryTrigger, setQueryTrigger] = useState(0)
+  }, [isAdmin, getUserChannels, filterChannel])
 
   const fetchRecords = useCallback(async () => {
     setRecordsLoading(true)
@@ -137,30 +162,68 @@ const DataManagement: React.FC = () => {
   useEffect(() => { fetchMappings() }, [fetchMappings])
   useEffect(() => { if (logsVisible) fetchUploadLogs() }, [logsVisible, fetchUploadLogs])
 
-  const handleUpload = async () => {
-    if (!mediaFile || !convFile) {
-      message.warning('请同时上传媒体数据表和转化数据表')
+  // ===== 新版：上传转化数据表 =====
+  const handleConvUpload = async () => {
+    if (!convFile) {
+      message.warning('请选择转化数据表文件')
       return
     }
-    setUploading(true)
-    setUploadError(null)
+    setConvUploading(true)
     try {
-      const result = await dataManageService.uploadFiles(mediaFile, convFile)
-      setUploadResult({
-        filename: result.filename,
-        totalRecords: result.totalRecords,
-        mediaRows: result.mediaRows,
-        convRows: result.convRows,
-        insertedCount: result.insertedCount,
-        updatedCount: result.updatedCount,
-        unmatchedMediaCount: result.unmatchedMediaCount,
-        unmatchedConvCount: result.unmatchedConvCount,
-      })
-      message.success(`上传成功！匹配 ${result.totalRecords} 条，新增 ${result.insertedCount} 条，更新 ${result.updatedCount} 条`)
+      const result = await dataManageService.uploadConvFile(convFile)
+      setConvResult(result)
+      message.success(`转化数据上传成功！共 ${result.totalRecords} 条，新增 ${result.insertedCount} 条，更新 ${result.updatedCount} 条`)
+      setConvFile(null)
+    } catch (e: any) {
+      message.error(`上传失败: ${e.message || '未知错误'}`)
+    } finally {
+      setConvUploading(false)
+    }
+  }
+
+  // ===== 新版：按渠道上传媒体表 =====
+  const handleMediaUpload = async () => {
+    if (!mediaFile) {
+      message.warning('请选择媒体数据表文件')
+      return
+    }
+    if (!mediaChannel) {
+      message.warning('请先选择渠道')
+      return
+    }
+    setMediaUploading(true)
+    try {
+      const result = await dataManageService.uploadMediaFile(mediaFile, mediaChannel)
+      setMediaResult(result)
+      message.success(
+        `媒体数据上传成功！共 ${result.totalRecords} 条，匹配 ${result.matchedCount} 条，新增 ${result.insertedCount} 条，更新 ${result.updatedCount} 条`
+      )
       fetchRecords()
       fetchChannels()
       setMediaFile(null)
-      setConvFile(null)
+    } catch (e: any) {
+      message.error(`上传失败: ${e.message || '未知错误'}`)
+    } finally {
+      setMediaUploading(false)
+    }
+  }
+
+  // ===== 旧版：双文件上传 =====
+  const handleOldUpload = async () => {
+    if (!oldMediaFile || !oldConvFile) {
+      message.warning('请同时上传媒体数据表和转化数据表')
+      return
+    }
+    setOldUploading(true)
+    setUploadError(null)
+    try {
+      const result = await dataManageService.uploadFiles(oldMediaFile, oldConvFile)
+      setOldUploadResult(result)
+      message.success(`上传成功！匹配 ${result.totalRecords} 条，新增 ${result.insertedCount} 条，更新 ${result.updatedCount} 条`)
+      fetchRecords()
+      fetchChannels()
+      setOldMediaFile(null)
+      setOldConvFile(null)
     } catch (e: any) {
       const errData = e.responseData
       if (errData?.data?.diagnosis) {
@@ -169,7 +232,7 @@ const DataManagement: React.FC = () => {
       }
       message.error(`上传失败: ${e.message || '未知错误'}`)
     } finally {
-      setUploading(false)
+      setOldUploading(false)
     }
   }
 
@@ -194,6 +257,19 @@ const DataManagement: React.FC = () => {
     }
   }
 
+  const handleRollback = async (id: number) => {
+    try {
+      const result = await dataManageService.rollbackUpload(id)
+      message.success(result.message)
+      fetchUploadLogs()
+      fetchRecords()
+      fetchChannels()
+    } catch (e: any) {
+      message.error(`撤销失败: ${e.message || '未知错误'}`)
+    }
+  }
+
+  // 动态构建列（非管理员隐藏 leads/accounts）
   const recordColumns = [
     { title: '渠道', dataIndex: 'channel', key: 'channel', width: 100 },
     { title: '日期', dataIndex: 'recordDate', key: 'recordDate', width: 120 },
@@ -206,21 +282,11 @@ const DataManagement: React.FC = () => {
     { title: '下载', dataIndex: 'downloads', key: 'downloads', align: 'right' as const, render: (v: number) => <span className="font-number">{v.toLocaleString()}</span> },
     { title: '激活', dataIndex: 'activations', key: 'activations', align: 'right' as const, render: (v: number) => <span className="font-number">{v.toLocaleString()}</span> },
     { title: '转正', dataIndex: 'formalActivations', key: 'formalActivations', align: 'right' as const, render: (v: number) => <span className="font-number">{v.toLocaleString()}</span> },
-    { title: '留资', dataIndex: 'leads', key: 'leads', align: 'right' as const, render: (v: number) => <span className="font-number">{v.toLocaleString()}</span> },
-    { title: '开户', dataIndex: 'accounts', key: 'accounts', align: 'right' as const, render: (v: number) => <span className="font-number">{v.toLocaleString()}</span> },
+    ...(isAdmin ? [
+      { title: '留资', dataIndex: 'leads', key: 'leads', align: 'right' as const, render: (v: number) => <span className="font-number">{v.toLocaleString()}</span> },
+      { title: '开户', dataIndex: 'accounts', key: 'accounts', align: 'right' as const, render: (v: number) => <span className="font-number">{v.toLocaleString()}</span> },
+    ] : []),
   ]
-
-  const handleRollback = async (id: number) => {
-    try {
-      const result = await dataManageService.rollbackUpload(id)
-      message.success(result.message)
-      fetchUploadLogs()
-      fetchRecords()
-      fetchChannels()
-    } catch (e: any) {
-      message.error(`撤销失败: ${e.message || '未知错误'}`)
-    }
-  }
 
   const logColumns = [
     { title: '文件名', dataIndex: 'filename', key: 'filename' },
@@ -236,7 +302,8 @@ const DataManagement: React.FC = () => {
       render: (_: any, record: UploadLog) => (
         record.errorDetails?.startsWith('已撤销')
           ? <Tag color="default">已撤销</Tag>
-          : <Popconfirm
+          : isAdmin ? (
+            <Popconfirm
               title="确定撤销本次上传？"
               description="这将删除本次上传首次创建的所有数据，不可恢复。"
               okButtonProps={{ danger: true }}
@@ -246,55 +313,129 @@ const DataManagement: React.FC = () => {
             >
               <Button type="link" danger size="small">撤销</Button>
             </Popconfirm>
+          ) : null
       ),
     },
   ]
 
+  // 构建动态 tab 项
   const tabItems = [
-    {
-      key: 'upload',
+    // 管理员：转化数据上传 tab
+    ...(isAdmin ? [{
+      key: 'conv-upload',
       label: (
         <Space>
-          <FileExcelOutlined />
-          数据上传
+          <FileTextOutlined />
+          转化数据上传
         </Space>
       ),
       children: (
-        <Spin spinning={uploading} tip="正在解析匹配并入库...">
+        <Spin spinning={convUploading} tip="正在解析并入库...">
+          <Card style={CARD_BASE} bodyStyle={{ padding: '20px 24px' }}>
+            <div style={{ fontSize: 15, fontWeight: 500, color: 'var(--color-text-primary)', marginBottom: 16 }}>
+              上传转化数据表（端内数据表）
+            </div>
+            <div style={{ fontSize: 'var(--font-size-small)', color: 'var(--color-text-tertiary)', marginBottom: 16 }}>
+              转化数据表作为各渠道媒体表匹配的基底，可随时重新上传覆盖。
+              包含字段：渠道、日期、计划ID、激活、转正、留资、开户
+            </div>
+            <Dragger
+              beforeUpload={(file) => { setConvFile(file); return false }}
+              accept=".xlsx,.xls,.csv"
+              showUploadList={false}
+            >
+              <p className="ant-upload-drag-icon"><FileTextOutlined style={{ fontSize: 48, color: 'var(--color-brand-primary)' }} /></p>
+              <p style={{ color: 'var(--color-text-primary)' }}>
+                {convFile ? convFile.name : '点击或拖拽上传转化数据表'}
+              </p>
+              <p style={{ fontSize: 'var(--font-size-small)', color: 'var(--color-text-tertiary)' }}>
+                支持 .xlsx / .xls / .csv
+              </p>
+            </Dragger>
+
+            <div style={{ marginTop: 'var(--margin-loose)', textAlign: 'center' }}>
+              <Button type="primary" size="large" onClick={handleConvUpload} disabled={!convFile}>
+                上传转化数据
+              </Button>
+            </div>
+
+            {convResult && (
+              <Card style={{ ...CARD_BASE, marginTop: 'var(--margin-loose)', backgroundColor: 'var(--color-background-secondary)' }} bodyStyle={{ padding: '24px' }}>
+                <Row gutter={[16, 16]}>
+                  <Col xs={24} sm={8}>
+                    <div style={{ textAlign: 'center' }}>
+                      <div style={{ fontSize: 28, fontFamily: 'var(--font-family-number)', fontWeight: 'bold', color: 'var(--color-brand-primary)' }}>
+                        {convResult.totalRecords}
+                      </div>
+                      <div style={{ fontSize: 'var(--font-size-small)', color: 'var(--color-text-secondary)' }}>总记录数</div>
+                    </div>
+                  </Col>
+                  <Col xs={24} sm={8}>
+                    <div style={{ textAlign: 'center' }}>
+                      <div style={{ fontSize: 28, fontFamily: 'var(--font-family-number)', fontWeight: 'bold', color: 'var(--color-data-green)' }}>
+                        +{convResult.insertedCount}
+                      </div>
+                      <div style={{ fontSize: 'var(--font-size-small)', color: 'var(--color-text-secondary)' }}>新增</div>
+                    </div>
+                  </Col>
+                  <Col xs={24} sm={8}>
+                    <div style={{ textAlign: 'center' }}>
+                      <div style={{ fontSize: 28, fontFamily: 'var(--font-family-number)', fontWeight: 'bold', color: 'var(--color-data-blue)' }}>
+                        {convResult.updatedCount}
+                      </div>
+                      <div style={{ fontSize: 'var(--font-size-small)', color: 'var(--color-text-secondary)' }}>更新</div>
+                    </div>
+                  </Col>
+                </Row>
+              </Card>
+            )}
+          </Card>
+        </Spin>
+      ),
+    }] : []),
+    // 媒体数据上传 tab（所有登录用户）
+    {
+      key: 'media-upload',
+      label: (
+        <Space>
+          <FileExcelOutlined />
+          媒体数据上传
+        </Space>
+      ),
+      children: (
+        <Spin spinning={mediaUploading} tip="正在解析匹配并入库...">
           <Row gutter={[24, 24]}>
-            <Col xs={24} md={12}>
+            <Col xs={24} md={8}>
               <Card style={CARD_BASE} bodyStyle={{ padding: '20px 24px' }}>
                 <div style={{ fontSize: 15, fontWeight: 500, color: 'var(--color-text-primary)', marginBottom: 16 }}>
-                  媒体数据表
+                  选择渠道
+                </div>
+                <Select
+                  style={{ width: '100%' }}
+                  placeholder="请先选择要上传的渠道"
+                  value={mediaChannel}
+                  onChange={setMediaChannel}
+                  options={channels.map((c) => ({ label: c, value: c }))}
+                />
+                <div style={{ marginTop: 8, fontSize: 'var(--font-size-small)', color: 'var(--color-text-tertiary)' }}>
+                  选择渠道后上传该渠道的媒体数据表
+                </div>
+              </Card>
+            </Col>
+            <Col xs={24} md={16}>
+              <Card style={CARD_BASE} bodyStyle={{ padding: '20px 24px' }}>
+                <div style={{ fontSize: 15, fontWeight: 500, color: 'var(--color-text-primary)', marginBottom: 16 }}>
+                  上传 {mediaChannel || '...'} 的媒体数据表
                 </div>
                 <Dragger
                   beforeUpload={(file) => { setMediaFile(file); return false }}
                   accept=".xlsx,.xls,.csv"
                   showUploadList={false}
+                  disabled={!mediaChannel}
                 >
-                  <p className="ant-upload-drag-icon"><FileExcelOutlined style={{ fontSize: 48, color: 'var(--color-brand-primary)' }} /></p>
-                  <p style={{ color: 'var(--color-text-primary)' }}>
-                    {mediaFile ? mediaFile.name : '点击或拖拽上传媒体数据表'}
-                  </p>
-                  <p style={{ fontSize: 'var(--font-size-small)', color: 'var(--color-text-tertiary)' }}>
-                    支持 .xlsx / .xls / .csv
-                  </p>
-                </Dragger>
-              </Card>
-            </Col>
-            <Col xs={24} md={12}>
-              <Card style={CARD_BASE} bodyStyle={{ padding: '20px 24px' }}>
-                <div style={{ fontSize: 15, fontWeight: 500, color: 'var(--color-text-primary)', marginBottom: 16 }}>
-                  转化数据表
-                </div>
-                <Dragger
-                  beforeUpload={(file) => { setConvFile(file); return false }}
-                  accept=".xlsx,.xls,.csv"
-                  showUploadList={false}
-                >
-                  <p className="ant-upload-drag-icon"><FileTextOutlined style={{ fontSize: 48, color: 'var(--color-brand-primary)' }} /></p>
-                  <p style={{ color: 'var(--color-text-primary)' }}>
-                    {convFile ? convFile.name : '点击或拖拽上传转化数据表'}
+                  <p className="ant-upload-drag-icon"><FileExcelOutlined style={{ fontSize: 48, color: mediaChannel ? 'var(--color-brand-primary)' : '#d9d9d9' }} /></p>
+                  <p style={{ color: mediaChannel ? 'var(--color-text-primary)' : '#d9d9d9' }}>
+                    {mediaFile ? mediaFile.name : mediaChannel ? '点击或拖拽上传媒体数据表' : '请先选择渠道'}
                   </p>
                   <p style={{ fontSize: 'var(--font-size-small)', color: 'var(--color-text-tertiary)' }}>
                     支持 .xlsx / .xls / .csv
@@ -305,18 +446,118 @@ const DataManagement: React.FC = () => {
           </Row>
 
           <div style={{ marginTop: 'var(--margin-loose)', textAlign: 'center' }}>
-            <Button type="primary" size="large" onClick={handleUpload} disabled={!mediaFile || !convFile}>
+            <Button type="primary" size="large" onClick={handleMediaUpload} disabled={!mediaFile || !mediaChannel}>
               开始匹配并入库
             </Button>
           </div>
 
-          {uploadResult && (
+          {mediaResult && (
+            <Card style={{ ...CARD_BASE, marginTop: 'var(--margin-loose)', backgroundColor: 'var(--color-background-secondary)' }} bodyStyle={{ padding: '24px' }}>
+              <Row gutter={[16, 16]}>
+                <Col xs={24} sm={6}>
+                  <div style={{ textAlign: 'center' }}>
+                    <div style={{ fontSize: 28, fontFamily: 'var(--font-family-number)', fontWeight: 'bold', color: 'var(--color-brand-primary)' }}>
+                      {mediaResult.totalRecords}
+                    </div>
+                    <div style={{ fontSize: 'var(--font-size-small)', color: 'var(--color-text-secondary)' }}>总记录数</div>
+                  </div>
+                </Col>
+                <Col xs={24} sm={6}>
+                  <div style={{ textAlign: 'center' }}>
+                    <div style={{ fontSize: 28, fontFamily: 'var(--font-family-number)', fontWeight: 'bold', color: 'var(--color-data-purple)' }}>
+                      {mediaResult.matchedCount}
+                    </div>
+                    <div style={{ fontSize: 'var(--font-size-small)', color: 'var(--color-text-secondary)' }}>匹配成功</div>
+                  </div>
+                </Col>
+                <Col xs={24} sm={6}>
+                  <div style={{ textAlign: 'center' }}>
+                    <div style={{ fontSize: 28, fontFamily: 'var(--font-family-number)', fontWeight: 'bold', color: 'var(--color-data-green)' }}>
+                      +{mediaResult.insertedCount}
+                    </div>
+                    <div style={{ fontSize: 'var(--font-size-small)', color: 'var(--color-text-secondary)' }}>新增</div>
+                  </div>
+                </Col>
+                <Col xs={24} sm={6}>
+                  <div style={{ textAlign: 'center' }}>
+                    <div style={{ fontSize: 28, fontFamily: 'var(--font-family-number)', fontWeight: 'bold', color: 'var(--color-data-blue)' }}>
+                      {mediaResult.updatedCount}
+                    </div>
+                    <div style={{ fontSize: 'var(--font-size-small)', color: 'var(--color-text-secondary)' }}>更新</div>
+                  </div>
+                </Col>
+              </Row>
+              {mediaResult.unmatchedCount > 0 && (
+                <div style={{ marginTop: 'var(--margin-base)', textAlign: 'center', fontSize: 'var(--font-size-small)', color: 'var(--color-data-orange)' }}>
+                  未匹配 {mediaResult.unmatchedCount} 条（转化表中无对应数据）
+                </div>
+              )}
+            </Card>
+          )}
+        </Spin>
+      ),
+    },
+    // 旧版双文件上传（保留兼容）
+    {
+      key: 'old-upload',
+      label: (
+        <Space>
+          <UploadOutlined />
+          双文件上传（旧版）
+        </Space>
+      ),
+      children: (
+        <Spin spinning={oldUploading} tip="正在解析匹配并入库...">
+          <Row gutter={[24, 24]}>
+            <Col xs={24} md={12}>
+              <Card style={CARD_BASE} bodyStyle={{ padding: '20px 24px' }}>
+                <div style={{ fontSize: 15, fontWeight: 500, color: 'var(--color-text-primary)', marginBottom: 16 }}>
+                  媒体数据表
+                </div>
+                <Dragger
+                  beforeUpload={(file) => { setOldMediaFile(file); return false }}
+                  accept=".xlsx,.xls,.csv"
+                  showUploadList={false}
+                >
+                  <p className="ant-upload-drag-icon"><FileExcelOutlined style={{ fontSize: 48, color: 'var(--color-brand-primary)' }} /></p>
+                  <p style={{ color: 'var(--color-text-primary)' }}>
+                    {oldMediaFile ? oldMediaFile.name : '点击或拖拽上传媒体数据表'}
+                  </p>
+                </Dragger>
+              </Card>
+            </Col>
+            <Col xs={24} md={12}>
+              <Card style={CARD_BASE} bodyStyle={{ padding: '20px 24px' }}>
+                <div style={{ fontSize: 15, fontWeight: 500, color: 'var(--color-text-primary)', marginBottom: 16 }}>
+                  转化数据表
+                </div>
+                <Dragger
+                  beforeUpload={(file) => { setOldConvFile(file); return false }}
+                  accept=".xlsx,.xls,.csv"
+                  showUploadList={false}
+                >
+                  <p className="ant-upload-drag-icon"><FileTextOutlined style={{ fontSize: 48, color: 'var(--color-brand-primary)' }} /></p>
+                  <p style={{ color: 'var(--color-text-primary)' }}>
+                    {oldConvFile ? oldConvFile.name : '点击或拖拽上传转化数据表'}
+                  </p>
+                </Dragger>
+              </Card>
+            </Col>
+          </Row>
+
+          <div style={{ marginTop: 'var(--margin-loose)', textAlign: 'center' }}>
+            <Button type="primary" size="large" onClick={handleOldUpload} disabled={!oldMediaFile || !oldConvFile}>
+              开始匹配并入库
+            </Button>
+          </div>
+
+          {oldUploadResult && (
             <Card style={{ ...CARD_BASE, marginTop: 'var(--margin-loose)', backgroundColor: 'var(--color-background-secondary)' }} bodyStyle={{ padding: '24px' }}>
               <Row gutter={[16, 16]}>
                 <Col xs={24} sm={8}>
                   <div style={{ textAlign: 'center' }}>
                     <div style={{ fontSize: 28, fontFamily: 'var(--font-family-number)', fontWeight: 'bold', color: 'var(--color-brand-primary)' }}>
-                      {uploadResult.totalRecords}
+                      {oldUploadResult.totalRecords}
                     </div>
                     <div style={{ fontSize: 'var(--font-size-small)', color: 'var(--color-text-secondary)' }}>匹配成功</div>
                   </div>
@@ -324,7 +565,7 @@ const DataManagement: React.FC = () => {
                 <Col xs={24} sm={8}>
                   <div style={{ textAlign: 'center' }}>
                     <div style={{ fontSize: 28, fontFamily: 'var(--font-family-number)', fontWeight: 'bold', color: 'var(--color-data-green)' }}>
-                      +{uploadResult.insertedCount}
+                      +{oldUploadResult.insertedCount}
                     </div>
                     <div style={{ fontSize: 'var(--font-size-small)', color: 'var(--color-text-secondary)' }}>新增</div>
                   </div>
@@ -332,22 +573,18 @@ const DataManagement: React.FC = () => {
                 <Col xs={24} sm={8}>
                   <div style={{ textAlign: 'center' }}>
                     <div style={{ fontSize: 28, fontFamily: 'var(--font-family-number)', fontWeight: 'bold', color: 'var(--color-data-blue)' }}>
-                      {uploadResult.updatedCount}
+                      {oldUploadResult.updatedCount}
                     </div>
                     <div style={{ fontSize: 'var(--font-size-small)', color: 'var(--color-text-secondary)' }}>更新</div>
                   </div>
                 </Col>
               </Row>
-              <div style={{ marginTop: 'var(--margin-base)', textAlign: 'center', fontSize: 'var(--font-size-small)', color: 'var(--color-text-tertiary)' }}>
-                媒体表 {uploadResult.mediaRows} 条 · 转化表 {uploadResult.convRows} 条
-                {uploadResult.unmatchedMediaCount > 0 && ` · 媒体表未匹配 ${uploadResult.unmatchedMediaCount} 条`}
-                {uploadResult.unmatchedConvCount > 0 && ` · 转化表未匹配 ${uploadResult.unmatchedConvCount} 条`}
-              </div>
             </Card>
           )}
         </Spin>
       ),
     },
+    // 渠道映射 tab
     {
       key: 'mapping',
       label: (
@@ -414,6 +651,7 @@ const DataManagement: React.FC = () => {
         </>
       ),
     },
+    // 数据列表 tab
     {
       key: 'records',
       label: (
@@ -483,7 +721,7 @@ const DataManagement: React.FC = () => {
       </div>
 
       <Tabs
-        defaultActiveKey="upload"
+        defaultActiveKey={isAdmin ? 'conv-upload' : 'media-upload'}
         items={tabItems}
         destroyInactiveTabPane={false}
       />

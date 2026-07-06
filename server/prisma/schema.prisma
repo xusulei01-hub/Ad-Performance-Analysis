@@ -141,6 +141,37 @@ model Target {
   @@map("targets")
 }
 
+model User {
+  id                Int      @id @default(autoincrement())
+  username          String   @unique
+  passwordHash      String   @map("password_hash")
+  role              String   @default("channel_user") // admin | channel_user
+  permittedChannels String?  @map("permitted_channels") // JSON 数组，如 ["oppo","vivo"]；admin 为 null 表示全权限
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @updatedAt @map("updated_at")
+
+  @@map("users")
+}
+
+model ConvData {
+  id                Int      @id @default(autoincrement())
+  channel           String
+  recordDate        DateTime @map("record_date")
+  campaignId        String   @map("campaign_id")
+  activations       Int      @default(0)
+  formalActivations Int      @default(0) @map("formal_activations")
+  leads             Int      @default(0)
+  accounts          Int      @default(0)
+  uploadLogId       Int?     @map("upload_log_id")
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @updatedAt @map("updated_at")
+
+  @@unique([channel, recordDate, campaignId])
+  @@index([channel])
+  @@index([recordDate])
+  @@map("conv_data")
+}
+
 model AiReport {
   id           Int      @id @default(autoincrement())
   title        String

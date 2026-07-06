@@ -31,6 +31,7 @@ import { METRIC_COLORS, SOFT_COLORS, CARD_BASE } from '@utils/constants'
 import { getWeekRange } from '@utils/dates'
 import { ChannelMetrics } from '@/types'
 import AIAnalysisPanel from '@components/ai/AIAnalysisPanel'
+import { useAuthStore } from '@stores/authStore'
 
 const { RangePicker } = DatePicker
 
@@ -186,6 +187,7 @@ function CampaignChart({
 }
 
 const ChannelAnalysis: React.FC = () => {
+  const isAdmin = useAuthStore((s) => s.isAdmin)
   const [channels, setChannels] = useState<string[]>([])
   const [selectedChannels, setSelectedChannels] = useState<string[]>([])
   const [dateRange, setDateRange] = useState<[dayjs.Dayjs, dayjs.Dayjs]>([
@@ -269,10 +271,63 @@ const ChannelAnalysis: React.FC = () => {
     }
   }
 
+  const trendLegendData = isAdmin
+    ? ['花费', '激活', '开户', '转正', '留资', 'ROI', 'CTR']
+    : ['花费', '激活', '转正', 'ROI', 'CTR']
+
+  const trendLegendSelected: Record<string, boolean> = isAdmin
+    ? { '花费': true, '激活': true, '开户': true, '转正': false, '留资': false, 'ROI': false, 'CTR': false }
+    : { '花费': true, '激活': true, '转正': false, 'ROI': false, 'CTR': false }
+
+  const trendSeries: any[] = !metrics ? [] : [
+    {
+      name: '花费', type: 'line',
+      data: metrics.dailyTrends.map((d) => Number(d.cost.toFixed(2))),
+      itemStyle: { color: METRIC_COLORS.cost },
+      smooth: true, symbol: 'circle', symbolSize: 6,
+    },
+    {
+      name: '激活', type: 'line',
+      data: metrics.dailyTrends.map((d) => d.activations),
+      itemStyle: { color: METRIC_COLORS.activations },
+      smooth: true, symbol: 'circle', symbolSize: 6,
+    },
+    ...(isAdmin ? [{
+      name: '开户', type: 'line',
+      data: metrics.dailyTrends.map((d) => d.accounts),
+      itemStyle: { color: METRIC_COLORS.accounts },
+      smooth: true, symbol: 'circle', symbolSize: 6,
+    }] : []),
+    {
+      name: '转正', type: 'line',
+      data: metrics.dailyTrends.map((d) => d.formalActivations),
+      itemStyle: { color: METRIC_COLORS.formalActivations },
+      smooth: true, symbol: 'circle', symbolSize: 6,
+    },
+    ...(isAdmin ? [{
+      name: '留资', type: 'line',
+      data: metrics.dailyTrends.map((d) => d.leads),
+      itemStyle: { color: METRIC_COLORS.leads },
+      smooth: true, symbol: 'circle', symbolSize: 6,
+    }] : []),
+    {
+      name: 'ROI', type: 'line', yAxisIndex: 1,
+      data: metrics.dailyTrends.map((d) => Number(d.roi.toFixed(2))),
+      itemStyle: { color: METRIC_COLORS.roi },
+      smooth: true, symbol: 'circle', symbolSize: 6,
+    },
+    {
+      name: 'CTR', type: 'line', yAxisIndex: 1,
+      data: metrics.dailyTrends.map((d) => Number((d.ctr * 100).toFixed(2))),
+      itemStyle: { color: METRIC_COLORS.ctr },
+      smooth: true, symbol: 'circle', symbolSize: 6,
+    },
+  ]
+
   const trendOption = metrics?.dailyTrends.length
     ? {
         tooltip: { trigger: 'axis' },
-        legend: { data: ['花费', '激活', '开户', '转正', '留资', 'ROI', 'CTR'], bottom: 0, textStyle: { color: '#888' }, selected: { '花费': true, '激活': true, '开户': true, '转正': false, '留资': false, 'ROI': false, 'CTR': false } },
+        legend: { data: trendLegendData, bottom: 0, textStyle: { color: '#888' }, selected: trendLegendSelected },
         grid: { left: '3%', right: '4%', bottom: '15%', top: '5%', containLabel: true },
         xAxis: {
           type: 'category',
@@ -299,73 +354,7 @@ const ChannelAnalysis: React.FC = () => {
             nameTextStyle: { color: '#888' },
           },
         ],
-        series: [
-          {
-            name: '花费',
-            type: 'line',
-            data: metrics.dailyTrends.map((d) => Number(d.cost.toFixed(2))),
-            itemStyle: { color: METRIC_COLORS.cost },
-            smooth: true,
-            symbol: 'circle',
-            symbolSize: 6,
-          },
-          {
-            name: '激活',
-            type: 'line',
-            data: metrics.dailyTrends.map((d) => d.activations),
-            itemStyle: { color: METRIC_COLORS.activations },
-            smooth: true,
-            symbol: 'circle',
-            symbolSize: 6,
-          },
-          {
-            name: '开户',
-            type: 'line',
-            data: metrics.dailyTrends.map((d) => d.accounts),
-            itemStyle: { color: METRIC_COLORS.accounts },
-            smooth: true,
-            symbol: 'circle',
-            symbolSize: 6,
-          },
-          {
-            name: '转正',
-            type: 'line',
-            data: metrics.dailyTrends.map((d) => d.formalActivations),
-            itemStyle: { color: METRIC_COLORS.formalActivations },
-            smooth: true,
-            symbol: 'circle',
-            symbolSize: 6,
-          },
-          {
-            name: '留资',
-            type: 'line',
-            data: metrics.dailyTrends.map((d) => d.leads),
-            itemStyle: { color: METRIC_COLORS.leads },
-            smooth: true,
-            symbol: 'circle',
-            symbolSize: 6,
-          },
-          {
-            name: 'ROI',
-            type: 'line',
-            yAxisIndex: 1,
-            data: metrics.dailyTrends.map((d) => Number(d.roi.toFixed(2))),
-            itemStyle: { color: METRIC_COLORS.roi },
-            smooth: true,
-            symbol: 'circle',
-            symbolSize: 6,
-          },
-          {
-            name: 'CTR',
-            type: 'line',
-            yAxisIndex: 1,
-            data: metrics.dailyTrends.map((d) => Number((d.ctr * 100).toFixed(2))),
-            itemStyle: { color: METRIC_COLORS.ctr },
-            smooth: true,
-            symbol: 'circle',
-            symbolSize: 6,
-          },
-        ],
+        series: trendSeries,
       }
     : null
 
@@ -502,15 +491,17 @@ const ChannelAnalysis: React.FC = () => {
               color={METRIC_COLORS.activations}
             />
           </Col>
-          <Col xs={24} sm={12} lg={6}>
-            <MetricCard
-              title="总开户"
-              value={metrics?.totalMetrics.accounts ?? 0}
-              icon={<BankOutlined />}
-              color={METRIC_COLORS.accounts}
-            />
-          </Col>
-          <Col xs={24} sm={12} lg={6}>
+          {isAdmin && (
+            <Col xs={24} sm={12} lg={6}>
+              <MetricCard
+                title="总开户"
+                value={metrics?.totalMetrics.accounts ?? 0}
+                icon={<BankOutlined />}
+                color={METRIC_COLORS.accounts}
+              />
+            </Col>
+          )}
+          <Col xs={24} sm={12} lg={isAdmin ? 6 : 12}>
             <MetricCard
               title="ROI"
               value={metrics?.totalMetrics.roi ?? 0}
@@ -529,15 +520,17 @@ const ChannelAnalysis: React.FC = () => {
               color={METRIC_COLORS.formalActivations}
             />
           </Col>
-          <Col xs={24} sm={12} lg={8}>
-            <MetricCard
-              title="总留资"
-              value={metrics?.totalMetrics.leads ?? 0}
-              icon={<FileTextOutlined />}
-              color={METRIC_COLORS.leads}
-            />
-          </Col>
-          <Col xs={24} sm={12} lg={8}>
+          {isAdmin && (
+            <Col xs={24} sm={12} lg={8}>
+              <MetricCard
+                title="总留资"
+                value={metrics?.totalMetrics.leads ?? 0}
+                icon={<FileTextOutlined />}
+                color={METRIC_COLORS.leads}
+              />
+            </Col>
+          )}
+          <Col xs={24} sm={12} lg={isAdmin ? 8 : 16}>
             <MetricCard
               title="CTR"
               value={(metrics?.totalMetrics.ctr ?? 0) * 100}
@@ -587,14 +580,14 @@ const ChannelAnalysis: React.FC = () => {
                         sorter: (a: any, b: any) => a.activations - b.activations,
                         render: (v: number) => v.toLocaleString(),
                       },
-                      {
+                      ...(isAdmin ? [{
                         title: '开户',
                         dataIndex: 'accounts',
                         key: 'accounts',
-                        align: 'right',
+                        align: 'right' as const,
                         sorter: (a: any, b: any) => a.accounts - b.accounts,
                         render: (v: number) => v.toLocaleString(),
-                      },
+                      }] : []),
                       {
                         title: 'CTR',
                         dataIndex: 'ctr',
@@ -654,15 +647,17 @@ const ChannelAnalysis: React.FC = () => {
               onBarClick={handleDrillDown}
             />
           </Col>
-          <Col xs={24} lg={12}>
-            <CampaignChart
-              title="分计划开户"
-              data={metrics?.campaignMetrics.accounts ?? []}
-              valueKey="accounts"
-              onBarClick={handleDrillDown}
-            />
-          </Col>
-          <Col xs={24} lg={12}>
+          {isAdmin && (
+            <Col xs={24} lg={12}>
+              <CampaignChart
+                title="分计划开户"
+                data={metrics?.campaignMetrics.accounts ?? []}
+                valueKey="accounts"
+                onBarClick={handleDrillDown}
+              />
+            </Col>
+          )}
+          <Col xs={24} lg={isAdmin ? 12 : 24}>
             <CampaignChart
               title="分计划ROI"
               data={metrics?.campaignMetrics.roi ?? []}

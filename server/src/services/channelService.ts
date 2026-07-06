@@ -4,7 +4,7 @@ import { calcRoi, calcCtr, calcCpa } from '../utils/formulas'
 import { toEndOfDay } from '../utils/date'
 import type { DailyTrendItem } from '../types'
 
-export async function getChannelMetrics(channels: string[], startDate: string, endDate: string) {
+export async function getChannelMetrics(channels: string[], startDate: string, endDate: string, isNonAdmin = false) {
   const sDate = new Date(startDate)
   const eDate = toEndOfDay(endDate)
 
@@ -15,22 +15,14 @@ export async function getChannelMetrics(channels: string[], startDate: string, e
     where.channel = { in: channels }
   }
 
-  const totalAgg = await prisma.rawData.aggregate({
-    where,
-    _sum: {
-      cost: true,
-      activations: true,
-      accounts: true,
-      formalActivations: true,
-      leads: true,
-      impressions: true,
-      clicks: true,
-      downloads: true,
-    },
-  })
+  const sumFields: any = isNonAdmin
+    ? { cost: true, activations: true, formalActivations: true, impressions: true, clicks: true, downloads: true }
+    : { cost: true, activations: true, accounts: true, formalActivations: true, leads: true, impressions: true, clicks: true, downloads: true }
+
+  const totalAgg = await prisma.rawData.aggregate({ where, _sum: sumFields })
 
   const totalCost = totalAgg._sum.cost ?? 0
-  const totalAccounts = totalAgg._sum.accounts ?? 0
+  const totalAccounts = isNonAdmin ? 0 : (totalAgg._sum.accounts ?? 0)
   const totalImpressions = totalAgg._sum.impressions ?? 0
   const totalClicks = totalAgg._sum.clicks ?? 0
 
@@ -39,7 +31,7 @@ export async function getChannelMetrics(channels: string[], startDate: string, e
     activations: totalAgg._sum.activations ?? 0,
     accounts: totalAccounts,
     formalActivations: totalAgg._sum.formalActivations ?? 0,
-    leads: totalAgg._sum.leads ?? 0,
+    leads: isNonAdmin ? 0 : (totalAgg._sum.leads ?? 0),
     impressions: totalImpressions,
     clicks: totalClicks,
     downloads: totalAgg._sum.downloads ?? 0,
@@ -47,7 +39,7 @@ export async function getChannelMetrics(channels: string[], startDate: string, e
     roi: calcRoi(totalAccounts, totalCost),
   }
 
-  const [costTop, activationsTop, accountsTop, roiRaw] = await Promise.all([
+  const [costTop, activationsTop, accountsTop] = await Promise.all([
     prisma.rawData.groupBy({
       by: ['campaignId', 'campaignName'],
       where,
@@ -65,22 +57,15 @@ export async function getChannelMetrics(channels: string[], startDate: string, e
     prisma.rawData.groupBy({
       by: ['campaignId', 'campaignName'],
       where,
-      _sum: { accounts: true },
-      orderBy: { _sum: { accounts: 'desc' } },
-      take: 5,
-    }),
-    prisma.rawData.groupBy({
-      by: ['campaignId', 'campaignName'],
-      where,
-      _sum: { cost: true, accounts: true },
+      _sum: { cost: true, accounts: isNonAdmin ? undefined : true },
     }),
   ])
 
-  const roiTop = roiRaw
+  const roiTop = accountsTop
     .map((r) => ({
       campaignId: r.campaignId,
       campaignName: r.campaignName,
-      roi: calcRoi(r._sum.accounts ?? 0, r._sum.cost ?? 0),
+      roi: calcRoi(isNonAdmin ? 0 : (r._sum.accounts ?? 0), r._sum.cost ?? 0),
     }))
     .sort((a, b) => b.roi - a.roi)
     .slice(0, 5)
@@ -88,23 +73,16 @@ export async function getChannelMetrics(channels: string[], startDate: string, e
   const campaignMetrics = {
     cost: costTop.map((r) => ({ campaignId: r.campaignId, campaignName: r.campaignName, cost: r._sum.cost ?? 0 })),
     activations: activationsTop.map((r) => ({ campaignId: r.campaignId, campaignName: r.campaignName, activations: r._sum.activations ?? 0 })),
-    accounts: accountsTop.map((r) => ({ campaignId: r.campaignId, campaignName: r.campaignName, accounts: r._sum.accounts ?? 0 })),
+    accounts: isNonAdmin
+      ? []
+      : accountsTop.map((r) => ({ campaignId: r.campaignId, campaignName: r.campaignName, accounts: (r._sum as any).accounts ?? 0 })),
     roi: roiTop,
   }
 
   const dailyRaw = await prisma.rawData.groupBy({
     by: ['recordDate'],
     where,
-    _sum: {
-      cost: true,
-      activations: true,
-      accounts: true,
-      formalActivations: true,
-      leads: true,
-      impressions: true,
-      clicks: true,
-      downloads: true,
-    },
+    _sum: sumFields,
     orderBy: { recordDate: 'asc' },
   })
 
@@ -112,35 +90,26 @@ export async function getChannelMetrics(channels: string[], startDate: string, e
     date: dayjs(r.recordDate).format('YYYY-MM-DD'),
     cost: r._sum.cost ?? 0,
     activations: r._sum.activations ?? 0,
-    accounts: r._sum.accounts ?? 0,
+    accounts: isNonAdmin ? 0 : (r._sum.accounts ?? 0),
     formalActivations: r._sum.formalActivations ?? 0,
-    leads: r._sum.leads ?? 0,
+    leads: isNonAdmin ? 0 : (r._sum.leads ?? 0),
     impressions: r._sum.impressions ?? 0,
     clicks: r._sum.clicks ?? 0,
     downloads: r._sum.downloads ?? 0,
     ctr: calcCtr(r._sum.clicks ?? 0, r._sum.impressions ?? 0),
-    roi: calcRoi(r._sum.accounts ?? 0, r._sum.cost ?? 0),
+    roi: calcRoi(isNonAdmin ? 0 : (r._sum.accounts ?? 0), r._sum.cost ?? 0),
   }))
 
   const channelBreakdownRaw = await prisma.rawData.groupBy({
     by: ['channel'],
     where,
-    _sum: {
-      cost: true,
-      activations: true,
-      accounts: true,
-      formalActivations: true,
-      leads: true,
-      impressions: true,
-      clicks: true,
-      downloads: true,
-    },
+    _sum: sumFields,
   })
 
   const channelBreakdown = channelBreakdownRaw.map((r) => {
     const c = r._sum.cost ?? 0
     const a = r._sum.activations ?? 0
-    const acc = r._sum.accounts ?? 0
+    const acc = isNonAdmin ? 0 : (r._sum.accounts ?? 0)
     const imp = r._sum.impressions ?? 0
     const clk = r._sum.clicks ?? 0
     return {
@@ -149,7 +118,7 @@ export async function getChannelMetrics(channels: string[], startDate: string, e
       activations: a,
       accounts: acc,
       formalActivations: r._sum.formalActivations ?? 0,
-      leads: r._sum.leads ?? 0,
+      leads: isNonAdmin ? 0 : (r._sum.leads ?? 0),
       impressions: imp,
       clicks: clk,
       downloads: r._sum.downloads ?? 0,
@@ -162,7 +131,7 @@ export async function getChannelMetrics(channels: string[], startDate: string, e
   return { channels, dateRange: { startDate, endDate }, totalMetrics, campaignMetrics, dailyTrends, channelBreakdown }
 }
 
-export async function getCampaignTrends(channel: string, campaignId: string, startDate: string, endDate: string) {
+export async function getCampaignTrends(channel: string, campaignId: string, startDate: string, endDate: string, isNonAdmin = false) {
   const sDate = new Date(startDate)
   const eDate = toEndOfDay(endDate)
 
@@ -173,29 +142,22 @@ export async function getCampaignTrends(channel: string, campaignId: string, sta
       recordDate: { gte: sDate, lte: eDate },
     },
     orderBy: { recordDate: 'asc' },
-    select: {
-      recordDate: true,
-      cost: true,
-      activations: true,
-      accounts: true,
-      formalActivations: true,
-      leads: true,
-      impressions: true,
-      clicks: true,
-    },
+    select: isNonAdmin
+      ? { recordDate: true, cost: true, activations: true, formalActivations: true, impressions: true, clicks: true }
+      : { recordDate: true, cost: true, activations: true, accounts: true, formalActivations: true, leads: true, impressions: true, clicks: true },
   })
 
-  const trends = rows.map((r) => ({
+  const trends = rows.map((r: any) => ({
     date: dayjs(r.recordDate).format('YYYY-MM-DD'),
     cost: r.cost,
     activations: r.activations,
-    accounts: r.accounts,
-    formalActivations: r.formalActivations,
-    leads: r.leads,
-    impressions: r.impressions,
-    clicks: r.clicks,
-    ctr: calcCtr(r.clicks, r.impressions),
-    roi: calcRoi(r.accounts, r.cost),
+    accounts: isNonAdmin ? 0 : (r.accounts ?? 0),
+    formalActivations: r.formalActivations ?? 0,
+    leads: isNonAdmin ? 0 : (r.leads ?? 0),
+    impressions: r.impressions ?? 0,
+    clicks: r.clicks ?? 0,
+    ctr: calcCtr(r.clicks ?? 0, r.impressions ?? 0),
+    roi: calcRoi(isNonAdmin ? 0 : (r.accounts ?? 0), r.cost ?? 0),
   }))
 
   return { channel, campaignId, dateRange: { startDate, endDate }, trends }
