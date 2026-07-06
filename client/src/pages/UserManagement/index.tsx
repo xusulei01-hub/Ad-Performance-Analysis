@@ -14,17 +14,28 @@ interface UserRow {
   createdAt: string
 }
 
-const CHANNEL_OPTIONS = [
-  'oppo', 'vivo', 'xiaomi', 'hihonor', 'rongyao', 'wangyi',
-  'baidu', 'huawei', 'meizu', 'samsung', 'mi',
-]
+// 从 API 动态获取可用渠道列表
+async function fetchChannelOptions(): Promise<string[]> {
+  try {
+    const data = await request.get('/v1/data/channels')
+    return (data as string[]) || []
+  } catch {
+    return []
+  }
+}
 
 const UserManagement: React.FC = () => {
   const [users, setUsers] = useState<UserRow[]>([])
   const [loading, setLoading] = useState(false)
   const [modalOpen, setModalOpen] = useState(false)
   const [editingUser, setEditingUser] = useState<UserRow | null>(null)
+  const [channelOptions, setChannelOptions] = useState<string[]>([])
   const [form] = Form.useForm()
+
+  // 加载可用渠道列表
+  useEffect(() => {
+    fetchChannelOptions().then(setChannelOptions)
+  }, [])
 
   const fetchUsers = useCallback(async () => {
     setLoading(true)
@@ -195,7 +206,7 @@ const UserManagement: React.FC = () => {
               <Select
                 mode="multiple"
                 placeholder="选择渠道"
-                options={CHANNEL_OPTIONS.map((c) => ({ label: c, value: c }))}
+                options={channelOptions.map((c) => ({ label: c, value: c }))}
               />
             </Form.Item>
           )}
