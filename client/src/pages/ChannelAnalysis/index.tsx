@@ -22,6 +22,7 @@ import {
   CheckCircleOutlined,
   FileTextOutlined,
   BarChartOutlined,
+  DownloadOutlined,
 } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import ReactECharts from 'echarts-for-react'
@@ -232,6 +233,37 @@ const ChannelAnalysis: React.FC = () => {
       setLoading(false)
     }
   }, [selectedChannels, dateRange])
+
+  /** 下载当前筛选条件下的明细表（含 ROI） */
+  const handleDownloadDetail = async () => {
+    if (selectedChannels.length === 0) {
+      message.warning('请先选择渠道')
+      return
+    }
+    try {
+      const params = new URLSearchParams({
+        start_date: dateRange[0].format('YYYY-MM-DD'),
+        end_date: dateRange[1].format('YYYY-MM-DD'),
+        channel: selectedChannels.join(','),
+      })
+      const token = localStorage.getItem('token') || ''
+      const resp = await fetch(`/api/v1/data/records/export?${params.toString()}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      if (!resp.ok) throw new Error('下载失败')
+      const blob = await resp.blob()
+      const url = URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = url
+      const filename = `渠道明细_${selectedChannels.join('-')}_${dateRange[0].format('YYYYMMDD')}_${dateRange[1].format('YYYYMMDD')}.csv`
+      link.download = filename
+      link.click()
+      URL.revokeObjectURL(url)
+      message.success('下载成功')
+    } catch (e: any) {
+      message.error(e.message || '下载失败')
+    }
+  }
 
   useEffect(() => {
     fetchChannels()
@@ -449,6 +481,14 @@ const ChannelAnalysis: React.FC = () => {
                 style={{ marginTop: 28 }}
               >
                 应用筛选
+              </Button>
+              <Button
+                icon={<DownloadOutlined />}
+                onClick={handleDownloadDetail}
+                style={{ marginTop: 28, marginLeft: 8 }}
+                disabled={selectedChannels.length === 0}
+              >
+                下载明细
               </Button>
             </Col>
           </Row>

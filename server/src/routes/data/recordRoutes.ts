@@ -121,4 +121,91 @@ router.get('/channels', async (req, res, next) => {
   }
 })
 
+// GET /api/v1/data/records/export — 导出筛选后的明细（含 ROI）
+// 返回 CSV：渠道、日期、计划ID、品种/名称、曝光、点击、CTR、花费、下载、激活、转正、留资、开户、ROI
+router.get('/records/export', async (req, res, next) => {
+  try {
+    const requestedChannels = req.query.channel
+      ? String(req.query.channel).split(',').filter(Boolean)
+      : undefined
+    const startDate = req.query.start_date ? String(req.query.start_date) : undefined
+    const endDate = req.query.end_date ? String(req.query.end_date) : undefined
+    const campaignId = req.query.campaign_id ? String(req.query.campaign_id) : undefined
+    const isAdmin = req.user?.role === 'admin'
+
+    const channels = resolveUserChannels(req, requestedChannels)
+
+    const where: any = {}
+    if (channels && channels.length > 0) {
+      where.channel = { in: channels }
+    } else if (channels !== null && channels.length === 0) {
+      // 无可用渠道 → 返回空 CSV（仅表头）
+      const headers = ['渠道', '日期', '计划ID', '品种/名称', '曝光', '点击', 'CTR', '花费', '下载', '激活', '转正', '留资', '开户', 'ROI']
+      const csv = '﻿' + headers.join(',') + '\n'
+      res.setHeader('Content-Type', 'text/csv; charset=utf-8')
+      res.setHeader('Content-Disposition', 'attachment; filename="records.csv"')
+      res.send(csv)
+      return
+    }
+
+    if (startDate || endDate) {
+      where.recordDate = {}
+      if (startDate) where.recordDate.gte = new Date(startDate)
+      if (endDate) where.recordDate.lte = toEndOfDay(endDate)
+    }
+    if (campaignId) {
+      where.campaignId = { contains: campaignId }
+    }
+
+    // 管理员查全字段，非管理员排除 leads/accounts（导出时置 0）
+    const selectFields = isAdmin ? undefined : {
+      id: true, channel: true, recordDate: true, campaignId: true, campaignName: true,
+      impressions: true, clicks: true, cost: true, downloads: true, activations: true,
+      formalActivations: true, ctr: true,
+    }
+
+    const records = await prisma.rawData.findMany({
+      where,
+      select: selectFields,
+      orderBy: [{ channel: 'asc' }, { recordDate: 'asc' }, { campaignId: 'asc' }],
+    })
+
+    const REVENUE_PER_ACCOUNT = 3100
+    const rows = records.map((r: any) => {
+      const accounts = isAdmin ? (r.accounts ?? 0) : 0
+      const leads = isAdmin ? (r.leads ?? 0) : 0
+      const cost = r.cost ?? 0
+      const roi = cost > 0 ? Number(((accounts * REVENUE_PER_ACCOUNT) / cost).toFixed(4)) : 0
+      const ctr = r.ctr ?? 0
+      const date = new Date(r.recordDate).toISOString().slice(0, 10)
+      const name = (r.campaignName || '').replace(/"/g, '""')
+      return [
+        r.channel,
+        date,
+        r.campaignId,
+        `"${name}"`,
+        r.impressions ?? 0,
+        r.clicks ?? 0,
+        (ctr * 100).toFixed(2) + '%',
+        cost.toFixed(2),
+        r.downloads ?? 0,
+        r.activations ?? 0,
+        r.formalActivations ?? 0,
+        leads,
+        accounts,
+        roi.toFixed(4),
+      ].join(',')
+    })
+
+    const headers = ['渠道', '日期', '计划ID', '品种/名称', '曝光', '点击', 'CTR', '花费', '下载', '激活', '转正', '留资', '开户', 'ROI']
+    const csv = '﻿' + headers.join(',') + '\n' + rows.join('\n') + '\n'
+
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8')
+    res.setHeader('Content-Disposition', 'attachment; filename="records.csv"')
+    res.send(csv)
+  } catch (err) {
+    next(err)
+  }
+})
+
 export default router
