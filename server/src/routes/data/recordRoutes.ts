@@ -80,7 +80,7 @@ router.get('/records', async (req, res, next) => {
   }
 })
 
-// GET /api/v1/data/channels — 返回用户有权限的渠道
+// GET /api/v1/data/channels — 返回用户有权限的渠道（优先从 conv_data 获取，fallback raw_data）
 router.get('/channels', async (req, res, next) => {
   try {
     const channels = resolveUserChannels(req, undefined)
@@ -91,14 +91,31 @@ router.get('/channels', async (req, res, next) => {
     } else if (channels !== null && channels.length === 0) {
       return res.json({ success: true, data: [] })
     }
+    const whereClause = Object.keys(where).length > 0 ? where : undefined
 
-    const result = await prisma.rawData.groupBy({
-      by: ['channel'],
-      _count: { channel: true },
-      orderBy: { channel: 'asc' },
-      where: Object.keys(where).length > 0 ? where : undefined,
-    })
-    res.json({ success: true, data: result.map((r) => r.channel) })
+    // 优先从 conv_data 查渠道（转化表渠道更全），再从 raw_data 合并
+    const [convChannels, rawChannels] = await Promise.all([
+      prisma.convData.groupBy({
+        by: ['channel'],
+        _count: { channel: true },
+        orderBy: { channel: 'asc' },
+        where: whereClause,
+      }),
+      prisma.rawData.groupBy({
+        by: ['channel'],
+        _count: { channel: true },
+        orderBy: { channel: 'asc' },
+        where: whereClause,
+      }),
+    ])
+
+    // 合并去重
+    const allChannels = [...new Set([
+      ...convChannels.map((r) => r.channel),
+      ...rawChannels.map((r) => r.channel),
+    ])].sort()
+
+    res.json({ success: true, data: allChannels })
   } catch (err) {
     next(err)
   }
