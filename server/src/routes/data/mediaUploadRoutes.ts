@@ -69,7 +69,7 @@ router.post('/upload-media', upload.single('file'), async (req, res, next) => {
         const campaignId = String(r.campaignId || '').trim()
         if (!campaignId) return null
         return {
-          channel: normalizeChannel(String(r.channel || channel)), // 优先用文件中的渠道，fallback 到选择的渠道
+          channel: normalizeChannel(channel), // 强制使用用户选择的渠道，忽略文件中的渠道列
           recordDate: d,
           campaignId,
           campaignName: r.campaignName ? String(r.campaignName).trim() : null,
@@ -126,7 +126,7 @@ router.post('/upload-media', upload.single('file'), async (req, res, next) => {
     for (const row of mediaRows) {
       const matchKey = `${row.recordDate}__${row.campaignId}`
       const conv = convMap.get(matchKey)
-      const rowChannel = normalizeChannel(String(row.channel || channel))
+      const rowChannel = normalizeChannel(channel) // 强制使用用户选择的渠道
 
       const data: any = {
         channel: rowChannel,
