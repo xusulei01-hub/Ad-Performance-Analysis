@@ -77,7 +77,10 @@ export async function getChannelMetrics(channels: string[], startDate: string, e
     activations: activationsTop.map((r) => ({ campaignId: r.campaignId, campaignName: r.campaignName, activations: r._sum.activations ?? 0 })),
     accounts: isNonAdmin
       ? []
-      : accountsTop.map((r) => ({ campaignId: r.campaignId, campaignName: r.campaignName, accounts: r._sum.accounts ?? 0 })),
+      : [...accountsTop]
+          .sort((a, b) => (b._sum.accounts ?? 0) - (a._sum.accounts ?? 0))
+          .slice(0, 5)
+          .map((r) => ({ campaignId: r.campaignId, campaignName: r.campaignName, accounts: r._sum.accounts ?? 0 })),
     roi: roiTop,
   }
 
