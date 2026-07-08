@@ -95,6 +95,14 @@ export function normalizeDate(val: unknown): string | null {
 /**
  * 按表头映射解析数据行（支持大小写/空格模糊匹配）
  */
+function normalizeHeaderName(value: string): string {
+  return value
+    .normalize('NFKC')
+    .toLowerCase()
+    .replace(/\s+/g, '')
+    .replace(/[()（）［］\[\]【】{}<>《》]/g, '')
+}
+
 export function parseRows(
   rows: unknown[][],
   headerMap: Record<string, string>,
@@ -108,6 +116,7 @@ export function parseRows(
     fuzzyHeaderMap.set(key.toLowerCase(), val)
     fuzzyHeaderMap.set(key.replace(/\s+/g, ''), val)
     fuzzyHeaderMap.set(key.toLowerCase().replace(/\s+/g, ''), val)
+    fuzzyHeaderMap.set(normalizeHeaderName(key), val)
   }
 
   const out: Array<Record<string, unknown>> = []
@@ -120,7 +129,8 @@ export function parseRows(
         fuzzyHeaderMap.get(h) ||
         fuzzyHeaderMap.get(h.toLowerCase()) ||
         fuzzyHeaderMap.get(h.replace(/\s+/g, '')) ||
-        fuzzyHeaderMap.get(h.toLowerCase().replace(/\s+/g, ''))
+        fuzzyHeaderMap.get(h.toLowerCase().replace(/\s+/g, '')) ||
+        fuzzyHeaderMap.get(normalizeHeaderName(h))
       if (dbKey) obj[dbKey] = row[j]
     }
     out.push(obj)
