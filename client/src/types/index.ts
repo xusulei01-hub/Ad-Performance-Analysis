@@ -17,6 +17,24 @@ export interface RawData {
   updatedAt?: string
 }
 
+export interface CampaignSummary {
+  channel: string
+  campaignId: string
+  campaignName?: string | null
+  impressions: number
+  clicks: number
+  cost: number
+  downloads: number
+  activations: number
+  formalActivations: number
+  leads: number
+  accounts: number
+  ctr: number
+  cpa: number
+  roi: number
+  costChange?: number | null
+}
+
 export interface UploadResult {
   uploadId?: number
   filename: string

@@ -1,5 +1,5 @@
 import { request } from './api/client'
-import { RawData, UploadResult, UploadLog, ChannelMapping } from '@/types'
+import { RawData, UploadResult, UploadLog, ChannelMapping, CampaignSummary } from '@/types'
 
 export const dataManageService = {
   // === 旧版双文件上传（保留兼容）===
@@ -59,6 +59,8 @@ export const dataManageService = {
     end_date?: string
     campaignId?: string
     campaign_id?: string
+    previous_start_date?: string
+    previous_end_date?: string
     page?: number
     pageSize?: number
     sort_by?: string
@@ -79,6 +81,38 @@ export const dataManageService = {
         }
       : undefined
     return request.get('/v1/data/records', { params: query })
+  },
+
+  async getCampaignSummary(params?: {
+    channel?: string
+    startDate?: string
+    endDate?: string
+    start_date?: string
+    end_date?: string
+    campaignId?: string
+    campaign_id?: string
+    previous_start_date?: string
+    previous_end_date?: string
+    page?: number
+    pageSize?: number
+    sort_by?: string
+    sort_order?: string
+  }): Promise<{
+    total: number
+    page: number
+    pageSize: number
+    records: CampaignSummary[]
+  }> {
+    const query = params
+      ? {
+          ...params,
+          start_date: params.start_date ?? params.startDate,
+          end_date: params.end_date ?? params.endDate,
+          campaign_id: params.campaign_id ?? params.campaignId,
+          page_size: params.pageSize,
+        }
+      : undefined
+    return request.get('/v1/data/campaign-summary', { params: query })
   },
 
   async getChannels(): Promise<string[]> {

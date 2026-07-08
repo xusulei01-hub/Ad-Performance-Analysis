@@ -34,7 +34,7 @@ import { METRIC_COLORS, SOFT_COLORS, CARD_BASE } from '@utils/constants'
 import { getWeekRange } from '@utils/dates'
 import { formatCost, formatCtr, formatNumber } from '@utils/format'
 import { calcPeriodChange, ChangeText, getPreviousDateRange } from '@utils/changes'
-import { ChannelMetrics, RawData } from '@/types'
+import { CampaignSummary, ChannelMetrics } from '@/types'
 import AIAnalysisPanel from '@components/ai/AIAnalysisPanel'
 import { useAuthStore } from '@stores/authStore'
 
@@ -48,21 +48,6 @@ type DetailQuery = {
   endDate: string
   previousStartDate: string
   previousEndDate: string
-  comparisonDays: number
-}
-
-function calcDetailRoi(record: RawData) {
-  if (!record.cost) return 0
-  return (record.accounts * 3100) / record.cost
-}
-
-function calcDetailCpa(record: RawData) {
-  if (!record.activations) return 0
-  return record.cost / record.activations
-}
-
-function getDetailCompareKey(record: RawData, date: string) {
-  return `${record.channel}::${record.campaignId}::${date}`
 }
 
 function MetricCard({
@@ -234,7 +219,6 @@ function CampaignChart({
 
 function DetailTable({
   records,
-  previousRecords,
   total,
   page,
   pageSize,
@@ -244,8 +228,7 @@ function DetailTable({
   sortOrder,
   onChange,
 }: {
-  records: RawData[]
-  previousRecords: RawData[]
+  records: CampaignSummary[]
   total: number
   page: number
   pageSize: number
@@ -257,27 +240,8 @@ function DetailTable({
 }) {
   const isAdmin = useAuthStore((s) => s.isAdmin)
   const activeSortOrder = (key: string) => (sortBy === key ? (sortOrder === 'asc' ? 'ascend' : 'descend') : undefined)
-  const previousRecordMap = new Map(previousRecords.map((record) => (
-    [getDetailCompareKey(record, dayjs(record.recordDate).format('YYYY-MM-DD')), record]
-  )))
-  const getCostChange = (record: RawData) => {
-    if (!query) return undefined
-    const previousDate = dayjs(record.recordDate).subtract(query.comparisonDays, 'day').format('YYYY-MM-DD')
-    const previousRecord = previousRecordMap.get(getDetailCompareKey(record, previousDate))
-    return calcPeriodChange(record.cost, previousRecord?.cost)
-  }
 
   const columns: any[] = [
-    {
-      title: '日期',
-      dataIndex: 'recordDate',
-      key: 'recordDate',
-      sorter: true,
-      sortOrder: activeSortOrder('recordDate'),
-      fixed: 'left',
-      width: 110,
-      render: (v: string) => dayjs(v).format('YYYY-MM-DD'),
-    },
     {
       title: '渠道',
       dataIndex: 'channel',
@@ -319,7 +283,7 @@ function DetailTable({
       key: 'costChange',
       align: 'right',
       width: 110,
-      render: (_: unknown, record: RawData) => <ChangeText value={getCostChange(record)} label="" compact />,
+      render: (_: unknown, record: CampaignSummary) => <ChangeText value={record.costChange} label="" compact />,
     },
     {
       title: '曝光',
@@ -373,10 +337,13 @@ function DetailTable({
     },
     {
       title: 'CPA',
+      dataIndex: 'cpa',
       key: 'cpa',
       align: 'right',
+      sorter: true,
+      sortOrder: activeSortOrder('cpa'),
       width: 110,
-      render: (_: unknown, record: RawData) => formatCost(calcDetailCpa(record)),
+      render: (v: number) => formatCost(v ?? 0),
     },
     {
       title: '转正',
@@ -414,10 +381,13 @@ function DetailTable({
       : []),
     {
       title: 'ROI',
+      dataIndex: 'roi',
       key: 'roi',
       align: 'right',
+      sorter: true,
+      sortOrder: activeSortOrder('roi'),
       width: 100,
-      render: (_: unknown, record: RawData) => calcDetailRoi(record).toFixed(2),
+      render: (v: number) => (v ?? 0).toFixed(2),
     },
   ]
 
@@ -434,7 +404,7 @@ function DetailTable({
         }}
       >
         <div>
-          <div style={{ fontSize: 15, fontWeight: 500, color: 'var(--color-text-primary)' }}>投放明细</div>
+          <div style={{ fontSize: 15, fontWeight: 500, color: 'var(--color-text-primary)' }}>分计划投放汇总</div>
           <div style={{ marginTop: 4, fontSize: 12, color: 'var(--color-text-tertiary)' }}>
             {query ? `${query.startDate} 至 ${query.endDate}` : '应用筛选后展示明细'}
           </div>
@@ -446,7 +416,7 @@ function DetailTable({
         columns={columns}
         dataSource={records}
         loading={loading}
-        rowKey={(r) => r.id ?? `${r.channel}-${r.recordDate}-${r.campaignId}`}
+        rowKey={(r) => `${r.channel}-${r.campaignId}`}
         size="middle"
         scroll={{ x: isAdmin ? 1730 : 1530, y: 520 }}
         pagination={{
@@ -458,11 +428,11 @@ function DetailTable({
           showTotal: (count) => `共 ${count} 条`,
         }}
         onChange={(pagination, _filters, sorter: any) => {
-          const nextSortBy = sorter?.order ? String(sorter.field || sorter.columnKey || 'recordDate') : 'recordDate'
+          const nextSortBy = sorter?.order ? String(sorter.field || sorter.columnKey || 'cost') : 'cost'
           const nextSortOrder = sorter?.order === 'ascend' ? 'asc' : 'desc'
           onChange(pagination.current ?? 1, pagination.pageSize ?? DETAIL_PAGE_SIZE, nextSortBy, nextSortOrder)
         }}
-        locale={{ emptyText: <Empty description="当前筛选条件暂无明细数据" /> }}
+        locale={{ emptyText: <Empty description="当前筛选条件暂无计划汇总数据" /> }}
       />
     </Card>
   )
@@ -480,13 +450,12 @@ const ChannelAnalysis: React.FC = () => {
   const [previousMetrics, setPreviousMetrics] = useState<ChannelMetrics | null>(null)
   const [loading, setLoading] = useState(false)
   const [detailQuery, setDetailQuery] = useState<DetailQuery | null>(null)
-  const [detailRecords, setDetailRecords] = useState<RawData[]>([])
-  const [previousDetailRecords, setPreviousDetailRecords] = useState<RawData[]>([])
+  const [detailRecords, setDetailRecords] = useState<CampaignSummary[]>([])
   const [detailTotal, setDetailTotal] = useState(0)
   const [detailPage, setDetailPage] = useState(1)
   const [detailPageSize, setDetailPageSize] = useState(DETAIL_PAGE_SIZE)
   const [detailLoading, setDetailLoading] = useState(false)
-  const [detailSortBy, setDetailSortBy] = useState('recordDate')
+  const [detailSortBy, setDetailSortBy] = useState('cost')
   const [detailSortOrder, setDetailSortOrder] = useState<DetailSortOrder>('desc')
 
   const { refreshKey } = useRefresh()
@@ -514,7 +483,6 @@ const ChannelAnalysis: React.FC = () => {
       setPreviousMetrics(null)
       setDetailQuery(null)
       setDetailRecords([])
-      setPreviousDetailRecords([])
       setDetailTotal(0)
       return
     }
@@ -527,7 +495,6 @@ const ChannelAnalysis: React.FC = () => {
         endDate: dateRange[1].format('YYYY-MM-DD'),
         previousStartDate: previousRange.startDate.format('YYYY-MM-DD'),
         previousEndDate: previousRange.endDate.format('YYYY-MM-DD'),
-        comparisonDays: previousRange.days,
       }
       const [data, previousData] = await Promise.all([
         channelService.getChannelMetrics(
@@ -556,28 +523,18 @@ const ChannelAnalysis: React.FC = () => {
     if (!detailQuery) return
     setDetailLoading(true)
     try {
-      const [res, previousRes] = await Promise.all([
-        dataManageService.getRecords({
-          page: detailPage,
-          pageSize: detailPageSize,
-          channel: detailQuery.channel,
-          start_date: detailQuery.startDate,
-          end_date: detailQuery.endDate,
-          sort_by: detailSortBy,
-          sort_order: detailSortOrder,
-        }),
-        dataManageService.getRecords({
-          page: 1,
-          pageSize: 500,
-          channel: detailQuery.channel,
-          start_date: detailQuery.previousStartDate,
-          end_date: detailQuery.previousEndDate,
-          sort_by: 'recordDate',
-          sort_order: 'desc',
-        }),
-      ])
+      const res = await dataManageService.getCampaignSummary({
+        page: detailPage,
+        pageSize: detailPageSize,
+        channel: detailQuery.channel,
+        start_date: detailQuery.startDate,
+        end_date: detailQuery.endDate,
+        previous_start_date: detailQuery.previousStartDate,
+        previous_end_date: detailQuery.previousEndDate,
+        sort_by: detailSortBy,
+        sort_order: detailSortOrder,
+      })
       setDetailRecords(res.records)
-      setPreviousDetailRecords(previousRes.records)
       setDetailTotal(res.total)
     } catch (e) {
       console.error('Fetch detail records error:', e)
@@ -845,7 +802,7 @@ const ChannelAnalysis: React.FC = () => {
                 style={{ marginTop: 28, marginLeft: 8 }}
                 disabled={selectedChannels.length === 0}
               >
-                下载明细
+                下载原始明细
               </Button>
             </Col>
           </Row>
@@ -1280,11 +1237,10 @@ const ChannelAnalysis: React.FC = () => {
             marginBottom: 'var(--margin-loose)',
           }}
         >
-          投放明细
+          分计划投放汇总
         </h2>
         <DetailTable
           records={detailRecords}
-          previousRecords={previousDetailRecords}
           total={detailTotal}
           page={detailPage}
           pageSize={detailPageSize}

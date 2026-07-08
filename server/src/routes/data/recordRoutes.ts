@@ -3,11 +3,48 @@ import { prisma } from '../../lib/prisma'
 import { toEndOfDay } from '../../utils/date'
 import { parsePagination } from '../../utils/pagination'
 import { resolveUserChannels } from '../../middleware/authorize'
+import { calcCpa, calcCtr, calcRoi } from '../../utils/formulas'
 
 const router = Router()
 
 // 非管理员不可见的敏感字段
 const ADMIN_ONLY_FIELDS = ['leads', 'accounts']
+
+function buildRawDataWhere(req: any, requestedChannels?: string[], isAdmin = false) {
+  const channels = resolveUserChannels(req, requestedChannels)
+  const where: any = {}
+
+  if (channels && channels.length > 0) {
+    where.channel = { in: channels }
+  } else if (channels !== null && channels.length === 0 && isAdmin === false) {
+    return { where, empty: true }
+  }
+
+  const startDate = req.query.start_date ? String(req.query.start_date) : undefined
+  const endDate = req.query.end_date ? String(req.query.end_date) : undefined
+  const campaignId = req.query.campaign_id ? String(req.query.campaign_id) : undefined
+
+  if (startDate || endDate) {
+    where.recordDate = {}
+    if (startDate) where.recordDate.gte = new Date(startDate)
+    if (endDate) where.recordDate.lte = toEndOfDay(endDate)
+  }
+  if (campaignId) {
+    where.campaignId = { contains: campaignId }
+  }
+
+  return { where, empty: false }
+}
+
+function calcNullableChange(current: number, previous?: number | null) {
+  const previousValue = previous ?? 0
+  if (previousValue === 0) return current === 0 ? 0 : null
+  return Number(((current - previousValue) / previousValue).toFixed(4))
+}
+
+function getCampaignKey(row: { channel: string; campaignId: string }) {
+  return `${row.channel}::${row.campaignId}`
+}
 
 // GET /api/v1/data/records
 router.get('/records', async (req, res, next) => {
@@ -16,9 +53,6 @@ router.get('/records', async (req, res, next) => {
     let requestedChannels = req.query.channel
       ? String(req.query.channel).split(',').filter(Boolean)
       : undefined
-    const startDate = req.query.start_date ? String(req.query.start_date) : undefined
-    const endDate = req.query.end_date ? String(req.query.end_date) : undefined
-    const campaignId = req.query.campaign_id ? String(req.query.campaign_id) : undefined
     const sortBy = [
       'recordDate', 'channel', 'campaignId', 'cost', 'impressions', 'clicks',
       'ctr', 'downloads', 'activations', 'formalActivations', 'leads',
@@ -30,25 +64,12 @@ router.get('/records', async (req, res, next) => {
     const isAdmin = req.user?.role === 'admin'
 
     // 渠道权限过滤
-    const channels = resolveUserChannels(req, requestedChannels)
-
-    const where: any = {}
-    if (channels && channels.length > 0) {
-      where.channel = { in: channels }
-    } else if (channels !== null && channels.length === 0 && isAdmin === false) {
+    const { where, empty } = buildRawDataWhere(req, requestedChannels, isAdmin)
+    if (empty) {
       // 非 admin 且无可用渠道
       return res.json({ success: true, data: { total: 0, page, pageSize, records: [] } })
     }
     // channels === null 表示 admin 不过滤
-
-    if (startDate || endDate) {
-      where.recordDate = {}
-      if (startDate) where.recordDate.gte = new Date(startDate)
-      if (endDate) where.recordDate.lte = toEndOfDay(endDate)
-    }
-    if (campaignId) {
-      where.campaignId = { contains: campaignId }
-    }
 
     // 敏感字段过滤：非管理员不查询 leads 和 accounts
     const selectFields = isAdmin ? undefined : {
@@ -78,6 +99,114 @@ router.get('/records', async (req, res, next) => {
     res.json({
       success: true,
       data: { total, page, pageSize, records: sanitized },
+    })
+  } catch (err) {
+    next(err)
+  }
+})
+
+// GET /api/v1/data/campaign-summary — 按渠道 + 计划 ID 汇总筛选周期内投放效果
+router.get('/campaign-summary', async (req, res, next) => {
+  try {
+    const { page, pageSize, skip } = parsePagination(req.query)
+    const requestedChannels = req.query.channel
+      ? String(req.query.channel).split(',').filter(Boolean)
+      : undefined
+    const sortBy = [
+      'channel', 'campaignId', 'campaignName', 'cost', 'impressions', 'clicks',
+      'ctr', 'downloads', 'activations', 'cpa', 'formalActivations',
+      'leads', 'accounts', 'roi',
+    ].includes(String(req.query.sort_by))
+      ? String(req.query.sort_by)
+      : 'cost'
+    const sortOrder = req.query.sort_order === 'asc' ? 'asc' : 'desc'
+    const isAdmin = req.user?.role === 'admin'
+
+    const { where, empty } = buildRawDataWhere(req, requestedChannels, isAdmin)
+    if (empty) {
+      return res.json({ success: true, data: { total: 0, page, pageSize, records: [] } })
+    }
+
+    const groups = await prisma.rawData.groupBy({
+      by: ['channel', 'campaignId', 'campaignName'],
+      where,
+      _sum: {
+        cost: true,
+        impressions: true,
+        clicks: true,
+        downloads: true,
+        activations: true,
+        formalActivations: true,
+        leads: true,
+        accounts: true,
+      },
+    })
+
+    const previousStartDate = req.query.previous_start_date ? String(req.query.previous_start_date) : undefined
+    const previousEndDate = req.query.previous_end_date ? String(req.query.previous_end_date) : undefined
+    let previousCostMap = new Map<string, number>()
+
+    if (previousStartDate || previousEndDate) {
+      const previousWhere: any = { ...where }
+      delete previousWhere.recordDate
+      previousWhere.recordDate = {}
+      if (previousStartDate) previousWhere.recordDate.gte = new Date(previousStartDate)
+      if (previousEndDate) previousWhere.recordDate.lte = toEndOfDay(previousEndDate)
+
+      const previousGroups = await prisma.rawData.groupBy({
+        by: ['channel', 'campaignId'],
+        where: previousWhere,
+        _sum: { cost: true },
+      })
+      previousCostMap = new Map(previousGroups.map((g) => [getCampaignKey(g), g._sum.cost ?? 0]))
+    }
+
+    const records = groups.map((g) => {
+      const cost = g._sum.cost ?? 0
+      const impressions = g._sum.impressions ?? 0
+      const clicks = g._sum.clicks ?? 0
+      const activations = g._sum.activations ?? 0
+      const realAccounts = g._sum.accounts ?? 0
+      return {
+        channel: g.channel,
+        campaignId: g.campaignId,
+        campaignName: g.campaignName,
+        impressions,
+        clicks,
+        cost,
+        downloads: g._sum.downloads ?? 0,
+        activations,
+        formalActivations: g._sum.formalActivations ?? 0,
+        leads: isAdmin ? (g._sum.leads ?? 0) : 0,
+        accounts: isAdmin ? realAccounts : 0,
+        ctr: calcCtr(clicks, impressions),
+        cpa: calcCpa(cost, activations),
+        roi: calcRoi(realAccounts, cost),
+        costChange: calcNullableChange(cost, previousCostMap.get(getCampaignKey(g))),
+      }
+    })
+
+    records.sort((a: any, b: any) => {
+      const aValue = a[sortBy]
+      const bValue = b[sortBy]
+      if (typeof aValue === 'string' || typeof bValue === 'string') {
+        return sortOrder === 'asc'
+          ? String(aValue ?? '').localeCompare(String(bValue ?? ''))
+          : String(bValue ?? '').localeCompare(String(aValue ?? ''))
+      }
+      return sortOrder === 'asc'
+        ? Number(aValue ?? 0) - Number(bValue ?? 0)
+        : Number(bValue ?? 0) - Number(aValue ?? 0)
+    })
+
+    res.json({
+      success: true,
+      data: {
+        total: records.length,
+        page,
+        pageSize,
+        records: records.slice(skip, skip + pageSize),
+      },
     })
   } catch (err) {
     next(err)
