@@ -55,7 +55,10 @@ export const dataManageService = {
     channel?: string
     startDate?: string
     endDate?: string
+    start_date?: string
+    end_date?: string
     campaignId?: string
+    campaign_id?: string
     page?: number
     pageSize?: number
     sort_by?: string
@@ -66,7 +69,16 @@ export const dataManageService = {
     pageSize: number
     records: RawData[]
   }> {
-    return request.get('/v1/data/records', { params })
+    const query = params
+      ? {
+          ...params,
+          start_date: params.start_date ?? params.startDate,
+          end_date: params.end_date ?? params.endDate,
+          campaign_id: params.campaign_id ?? params.campaignId,
+          page_size: params.pageSize,
+        }
+      : undefined
+    return request.get('/v1/data/records', { params: query })
   },
 
   async getChannels(): Promise<string[]> {

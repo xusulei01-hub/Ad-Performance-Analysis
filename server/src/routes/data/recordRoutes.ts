@@ -19,7 +19,11 @@ router.get('/records', async (req, res, next) => {
     const startDate = req.query.start_date ? String(req.query.start_date) : undefined
     const endDate = req.query.end_date ? String(req.query.end_date) : undefined
     const campaignId = req.query.campaign_id ? String(req.query.campaign_id) : undefined
-    const sortBy = ['recordDate', 'channel', 'campaignId', 'cost', 'activations', 'accounts', 'roi', 'createdAt'].includes(String(req.query.sort_by))
+    const sortBy = [
+      'recordDate', 'channel', 'campaignId', 'cost', 'impressions', 'clicks',
+      'ctr', 'downloads', 'activations', 'formalActivations', 'leads',
+      'accounts', 'createdAt',
+    ].includes(String(req.query.sort_by))
       ? String(req.query.sort_by)
       : 'recordDate'
     const sortOrder = req.query.sort_order === 'asc' ? 'asc' : 'desc'

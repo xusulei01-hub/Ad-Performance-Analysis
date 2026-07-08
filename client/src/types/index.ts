@@ -50,6 +50,21 @@ export interface DailyOverview {
   activationsChange: number
   accountsChange: number
   roiChange: number
+  cpaChange: number
+  formalActivationsChange: number
+  leadsChange: number
+  ctrChange: number
+}
+
+export interface OverviewChanges {
+  costChange: number
+  activationsChange: number
+  accountsChange: number
+  roiChange: number
+  cpaChange: number
+  formalActivationsChange: number
+  leadsChange: number
+  ctrChange: number
 }
 
 export interface DailyTrend {
@@ -66,7 +81,7 @@ export interface DailyTrend {
   roi: number
 }
 
-export interface WeeklyOverview {
+export interface WeeklyOverview extends OverviewChanges {
   startDate: string
   endDate: string
   cost: number
@@ -87,7 +102,7 @@ export interface WeeklyOverview {
   dailyTrends: DailyTrend[]
 }
 
-export interface MonthlyOverview {
+export interface MonthlyOverview extends OverviewChanges {
   month: string
   cost: number
   activations: number

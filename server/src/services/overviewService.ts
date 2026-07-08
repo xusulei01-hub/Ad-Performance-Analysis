@@ -49,6 +49,19 @@ async function aggregateMetrics(startDate: Date, endDate: Date, channelFilter?: 
   }
 }
 
+function buildChangeMetrics(current: Awaited<ReturnType<typeof aggregateMetrics>>, previous: Awaited<ReturnType<typeof aggregateMetrics>>, isNonAdmin = false) {
+  return {
+    costChange: calcChange(current.cost, previous.cost),
+    activationsChange: calcChange(current.activations, previous.activations),
+    accountsChange: isNonAdmin ? 0 : calcChange(current.accounts, previous.accounts),
+    roiChange: calcChange(current.roi, previous.roi),
+    cpaChange: calcChange(current.cpa, previous.cpa),
+    formalActivationsChange: calcChange(current.formalActivations, previous.formalActivations),
+    leadsChange: isNonAdmin ? 0 : calcChange(current.leads, previous.leads),
+    ctrChange: calcChange(current.ctr, previous.ctr),
+  }
+}
+
 async function getDailyTrends(startDate: Date, endDate: Date, channelFilter?: string[] | null, isNonAdmin = false): Promise<DailyTrendItem[]> {
   const where = buildWhere(startDate, endDate, channelFilter)
 
@@ -95,20 +108,20 @@ export async function getDailyMetrics(channelFilter?: string[] | null, isNonAdmi
     leads: yesterdayMetrics.leads,
     ctr: yesterdayMetrics.ctr,
     roi: yesterdayMetrics.roi,
-    costChange: calcChange(yesterdayMetrics.cost, dayBeforeMetrics.cost),
-    activationsChange: calcChange(yesterdayMetrics.activations, dayBeforeMetrics.activations),
-    accountsChange: isNonAdmin ? 0 : calcChange(yesterdayMetrics.accounts, dayBeforeMetrics.accounts),
-    roiChange: calcChange(yesterdayMetrics.roi, dayBeforeMetrics.roi),
     cpa: yesterdayMetrics.cpa,
+    ...buildChangeMetrics(yesterdayMetrics, dayBeforeMetrics, isNonAdmin),
   }
 }
 
 export async function getWeeklyMetrics(channelFilter?: string[] | null, isNonAdmin = false) {
   const now = dayjs()
   const { startOfWeek, endOfWeek } = getWeekRange(now)
+  const previousStartOfWeek = startOfWeek.subtract(7, 'day')
+  const previousEndOfWeek = endOfWeek.subtract(7, 'day')
 
-  const [metrics, target, dailyTrends] = await Promise.all([
+  const [metrics, previousMetrics, target, dailyTrends] = await Promise.all([
     aggregateMetrics(startOfWeek.toDate(), endOfWeek.toDate(), channelFilter, isNonAdmin),
+    aggregateMetrics(previousStartOfWeek.toDate(), previousEndOfWeek.toDate(), channelFilter, isNonAdmin),
     getCurrentTarget('weekly'),
     getDailyTrends(startOfWeek.toDate(), endOfWeek.toDate(), channelFilter, isNonAdmin),
   ])
@@ -123,6 +136,7 @@ export async function getWeeklyMetrics(channelFilter?: string[] | null, isNonAdm
     targetActivations: t.targetActivations,
     targetAccounts: isNonAdmin ? 0 : t.targetAccounts,
     targetRoi: t.targetRoi,
+    ...buildChangeMetrics(metrics, previousMetrics, isNonAdmin),
     dailyTrends,
   }
 }
@@ -131,9 +145,13 @@ export async function getMonthlyMetrics(channelFilter?: string[] | null, isNonAd
   const now = dayjs()
   const startOfMonth = now.startOf('month')
   const endOfMonth = now.endOf('month')
+  const previousMonth = now.subtract(1, 'month')
+  const previousStartOfMonth = previousMonth.startOf('month')
+  const previousEndOfMonth = previousMonth.endOf('month')
 
-  const [metrics, target, dailyTrends] = await Promise.all([
+  const [metrics, previousMetrics, target, dailyTrends] = await Promise.all([
     aggregateMetrics(startOfMonth.toDate(), endOfMonth.toDate(), channelFilter, isNonAdmin),
+    aggregateMetrics(previousStartOfMonth.toDate(), previousEndOfMonth.toDate(), channelFilter, isNonAdmin),
     getCurrentTarget('monthly'),
     getDailyTrends(startOfMonth.toDate(), endOfMonth.toDate(), channelFilter, isNonAdmin),
   ])
@@ -147,6 +165,7 @@ export async function getMonthlyMetrics(channelFilter?: string[] | null, isNonAd
     targetActivations: t.targetActivations,
     targetAccounts: isNonAdmin ? 0 : t.targetAccounts,
     targetRoi: t.targetRoi,
+    ...buildChangeMetrics(metrics, previousMetrics, isNonAdmin),
     dailyTrends,
   }
 }

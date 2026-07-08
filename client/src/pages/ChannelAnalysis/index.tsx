@@ -12,6 +12,7 @@ import {
   Modal,
   message,
   Table,
+  Tag,
 } from 'antd'
 import {
   DollarOutlined,
@@ -27,14 +28,42 @@ import {
 import dayjs from 'dayjs'
 import ReactECharts from 'echarts-for-react'
 import { channelService } from '@services/channelService'
+import { dataManageService } from '@services/dataManageService'
 import { useRefresh } from '@components/layout/RefreshContext'
 import { METRIC_COLORS, SOFT_COLORS, CARD_BASE } from '@utils/constants'
 import { getWeekRange } from '@utils/dates'
-import { ChannelMetrics } from '@/types'
+import { formatCost, formatCtr, formatNumber } from '@utils/format'
+import { calcPeriodChange, ChangeText, getPreviousDateRange } from '@utils/changes'
+import { ChannelMetrics, RawData } from '@/types'
 import AIAnalysisPanel from '@components/ai/AIAnalysisPanel'
 import { useAuthStore } from '@stores/authStore'
 
 const { RangePicker } = DatePicker
+const DETAIL_PAGE_SIZE = 20
+
+type DetailSortOrder = 'asc' | 'desc'
+type DetailQuery = {
+  channel: string
+  startDate: string
+  endDate: string
+  previousStartDate: string
+  previousEndDate: string
+  comparisonDays: number
+}
+
+function calcDetailRoi(record: RawData) {
+  if (!record.cost) return 0
+  return (record.accounts * 3100) / record.cost
+}
+
+function calcDetailCpa(record: RawData) {
+  if (!record.activations) return 0
+  return record.cost / record.activations
+}
+
+function getDetailCompareKey(record: RawData, date: string) {
+  return `${record.channel}::${record.campaignId}::${date}`
+}
 
 function MetricCard({
   title,
@@ -44,6 +73,7 @@ function MetricCard({
   precision = 0,
   icon,
   color = METRIC_COLORS.cost,
+  change,
 }: {
   title: string
   value: number
@@ -52,6 +82,7 @@ function MetricCard({
   precision?: number
   icon: React.ReactNode
   color?: string
+  change?: number | null
 }) {
   return (
     <Card style={CARD_BASE} bodyStyle={{ padding: '28px 24px' }}>
@@ -88,6 +119,20 @@ function MetricCard({
         {value.toLocaleString(undefined, { minimumFractionDigits: precision, maximumFractionDigits: precision })}
         {suffix}
       </div>
+      {change !== undefined && (
+        <div
+          style={{
+            marginTop: 10,
+            fontSize: 12,
+            fontFamily: 'var(--font-family-number)',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 4,
+          }}
+        >
+          <ChangeText value={change} />
+        </div>
+      )}
     </Card>
   )
 }
@@ -187,6 +232,242 @@ function CampaignChart({
   )
 }
 
+function DetailTable({
+  records,
+  previousRecords,
+  total,
+  page,
+  pageSize,
+  loading,
+  query,
+  sortBy,
+  sortOrder,
+  onChange,
+}: {
+  records: RawData[]
+  previousRecords: RawData[]
+  total: number
+  page: number
+  pageSize: number
+  loading: boolean
+  query: DetailQuery | null
+  sortBy: string
+  sortOrder: DetailSortOrder
+  onChange: (page: number, pageSize: number, sortBy: string, sortOrder: DetailSortOrder) => void
+}) {
+  const isAdmin = useAuthStore((s) => s.isAdmin)
+  const activeSortOrder = (key: string) => (sortBy === key ? (sortOrder === 'asc' ? 'ascend' : 'descend') : undefined)
+  const previousRecordMap = new Map(previousRecords.map((record) => (
+    [getDetailCompareKey(record, dayjs(record.recordDate).format('YYYY-MM-DD')), record]
+  )))
+  const getCostChange = (record: RawData) => {
+    if (!query) return undefined
+    const previousDate = dayjs(record.recordDate).subtract(query.comparisonDays, 'day').format('YYYY-MM-DD')
+    const previousRecord = previousRecordMap.get(getDetailCompareKey(record, previousDate))
+    return calcPeriodChange(record.cost, previousRecord?.cost)
+  }
+
+  const columns: any[] = [
+    {
+      title: '日期',
+      dataIndex: 'recordDate',
+      key: 'recordDate',
+      sorter: true,
+      sortOrder: activeSortOrder('recordDate'),
+      fixed: 'left',
+      width: 110,
+      render: (v: string) => dayjs(v).format('YYYY-MM-DD'),
+    },
+    {
+      title: '渠道',
+      dataIndex: 'channel',
+      key: 'channel',
+      sorter: true,
+      sortOrder: activeSortOrder('channel'),
+      fixed: 'left',
+      width: 120,
+    },
+    {
+      title: '计划ID',
+      dataIndex: 'campaignId',
+      key: 'campaignId',
+      sorter: true,
+      sortOrder: activeSortOrder('campaignId'),
+      width: 150,
+      ellipsis: true,
+    },
+    {
+      title: '品种/名称',
+      dataIndex: 'campaignName',
+      key: 'campaignName',
+      width: 180,
+      ellipsis: true,
+      render: (v: string | null) => v || '-',
+    },
+    {
+      title: '花费',
+      dataIndex: 'cost',
+      key: 'cost',
+      align: 'right',
+      sorter: true,
+      sortOrder: activeSortOrder('cost'),
+      width: 120,
+      render: (v: number) => formatCost(v ?? 0),
+    },
+    {
+      title: '花费环比',
+      key: 'costChange',
+      align: 'right',
+      width: 110,
+      render: (_: unknown, record: RawData) => <ChangeText value={getCostChange(record)} label="" compact />,
+    },
+    {
+      title: '曝光',
+      dataIndex: 'impressions',
+      key: 'impressions',
+      align: 'right',
+      sorter: true,
+      sortOrder: activeSortOrder('impressions'),
+      width: 110,
+      render: (v: number) => formatNumber(v ?? 0),
+    },
+    {
+      title: '点击',
+      dataIndex: 'clicks',
+      key: 'clicks',
+      align: 'right',
+      sorter: true,
+      sortOrder: activeSortOrder('clicks'),
+      width: 100,
+      render: (v: number) => formatNumber(v ?? 0),
+    },
+    {
+      title: 'CTR',
+      dataIndex: 'ctr',
+      key: 'ctr',
+      align: 'right',
+      sorter: true,
+      sortOrder: activeSortOrder('ctr'),
+      width: 100,
+      render: (v: number) => formatCtr(v ?? 0),
+    },
+    {
+      title: '下载',
+      dataIndex: 'downloads',
+      key: 'downloads',
+      align: 'right',
+      sorter: true,
+      sortOrder: activeSortOrder('downloads'),
+      width: 100,
+      render: (v: number) => formatNumber(v ?? 0),
+    },
+    {
+      title: '激活',
+      dataIndex: 'activations',
+      key: 'activations',
+      align: 'right',
+      sorter: true,
+      sortOrder: activeSortOrder('activations'),
+      width: 100,
+      render: (v: number) => formatNumber(v ?? 0),
+    },
+    {
+      title: 'CPA',
+      key: 'cpa',
+      align: 'right',
+      width: 110,
+      render: (_: unknown, record: RawData) => formatCost(calcDetailCpa(record)),
+    },
+    {
+      title: '转正',
+      dataIndex: 'formalActivations',
+      key: 'formalActivations',
+      align: 'right',
+      sorter: true,
+      sortOrder: activeSortOrder('formalActivations'),
+      width: 100,
+      render: (v: number) => formatNumber(v ?? 0),
+    },
+    ...(isAdmin
+      ? [
+          {
+            title: '留资',
+            dataIndex: 'leads',
+            key: 'leads',
+            align: 'right' as const,
+            sorter: true,
+            sortOrder: activeSortOrder('leads'),
+            width: 100,
+            render: (v: number) => formatNumber(v ?? 0),
+          },
+          {
+            title: '开户',
+            dataIndex: 'accounts',
+            key: 'accounts',
+            align: 'right' as const,
+            sorter: true,
+            sortOrder: activeSortOrder('accounts'),
+            width: 100,
+            render: (v: number) => formatNumber(v ?? 0),
+          },
+        ]
+      : []),
+    {
+      title: 'ROI',
+      key: 'roi',
+      align: 'right',
+      width: 100,
+      render: (_: unknown, record: RawData) => calcDetailRoi(record).toFixed(2),
+    },
+  ]
+
+  return (
+    <Card style={CARD_BASE} bodyStyle={{ padding: '20px 24px' }}>
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          gap: 16,
+          alignItems: 'center',
+          marginBottom: 16,
+          flexWrap: 'wrap',
+        }}
+      >
+        <div>
+          <div style={{ fontSize: 15, fontWeight: 500, color: 'var(--color-text-primary)' }}>投放明细</div>
+          <div style={{ marginTop: 4, fontSize: 12, color: 'var(--color-text-tertiary)' }}>
+            {query ? `${query.startDate} 至 ${query.endDate}` : '应用筛选后展示明细'}
+          </div>
+        </div>
+        <Tag color="blue">共 {total.toLocaleString()} 条</Tag>
+      </div>
+
+      <Table
+        columns={columns}
+        dataSource={records}
+        loading={loading}
+        rowKey={(r) => r.id ?? `${r.channel}-${r.recordDate}-${r.campaignId}`}
+        size="middle"
+        scroll={{ x: isAdmin ? 1730 : 1530, y: 520 }}
+        pagination={{
+          current: page,
+          pageSize,
+          total,
+          showSizeChanger: true,
+          pageSizeOptions: [20, 50, 100],
+          showTotal: (count) => `共 ${count} 条`,
+        }}
+        onChange={(pagination, _filters, sorter: any) => {
+          const nextSortBy = sorter?.order ? String(sorter.field || sorter.columnKey || 'recordDate') : 'recordDate'
+          const nextSortOrder = sorter?.order === 'ascend' ? 'asc' : 'desc'
+          onChange(pagination.current ?? 1, pagination.pageSize ?? DETAIL_PAGE_SIZE, nextSortBy, nextSortOrder)
+        }}
+        locale={{ emptyText: <Empty description="当前筛选条件暂无明细数据" /> }}
+      />
+    </Card>
+  )
+}
+
 const ChannelAnalysis: React.FC = () => {
   const isAdmin = useAuthStore((s) => s.isAdmin)
   const [channels, setChannels] = useState<string[]>([])
@@ -196,7 +477,17 @@ const ChannelAnalysis: React.FC = () => {
     dayjs(),
   ])
   const [metrics, setMetrics] = useState<ChannelMetrics | null>(null)
+  const [previousMetrics, setPreviousMetrics] = useState<ChannelMetrics | null>(null)
   const [loading, setLoading] = useState(false)
+  const [detailQuery, setDetailQuery] = useState<DetailQuery | null>(null)
+  const [detailRecords, setDetailRecords] = useState<RawData[]>([])
+  const [previousDetailRecords, setPreviousDetailRecords] = useState<RawData[]>([])
+  const [detailTotal, setDetailTotal] = useState(0)
+  const [detailPage, setDetailPage] = useState(1)
+  const [detailPageSize, setDetailPageSize] = useState(DETAIL_PAGE_SIZE)
+  const [detailLoading, setDetailLoading] = useState(false)
+  const [detailSortBy, setDetailSortBy] = useState('recordDate')
+  const [detailSortOrder, setDetailSortOrder] = useState<DetailSortOrder>('desc')
 
   const { refreshKey } = useRefresh()
   const [drillModalVisible, setDrillModalVisible] = useState(false)
@@ -218,21 +509,83 @@ const ChannelAnalysis: React.FC = () => {
   }, [selectedChannels.length])
 
   const fetchMetrics = useCallback(async () => {
-    if (selectedChannels.length === 0) return
+    if (selectedChannels.length === 0) {
+      setMetrics(null)
+      setPreviousMetrics(null)
+      setDetailQuery(null)
+      setDetailRecords([])
+      setPreviousDetailRecords([])
+      setDetailTotal(0)
+      return
+    }
     setLoading(true)
     try {
-      const data = await channelService.getChannelMetrics(
-        selectedChannels.join(','),
-        dateRange[0].format('YYYY-MM-DD'),
-        dateRange[1].format('YYYY-MM-DD')
-      )
+      const previousRange = getPreviousDateRange(dateRange)
+      const nextQuery = {
+        channel: selectedChannels.join(','),
+        startDate: dateRange[0].format('YYYY-MM-DD'),
+        endDate: dateRange[1].format('YYYY-MM-DD'),
+        previousStartDate: previousRange.startDate.format('YYYY-MM-DD'),
+        previousEndDate: previousRange.endDate.format('YYYY-MM-DD'),
+        comparisonDays: previousRange.days,
+      }
+      const [data, previousData] = await Promise.all([
+        channelService.getChannelMetrics(
+          nextQuery.channel,
+          nextQuery.startDate,
+          nextQuery.endDate
+        ),
+        channelService.getChannelMetrics(
+          nextQuery.channel,
+          nextQuery.previousStartDate,
+          nextQuery.previousEndDate
+        ),
+      ])
       setMetrics(data)
+      setPreviousMetrics(previousData)
+      setDetailPage(1)
+      setDetailQuery(nextQuery)
     } catch (e) {
       console.error('Fetch metrics error:', e)
     } finally {
       setLoading(false)
     }
   }, [selectedChannels, dateRange])
+
+  const fetchDetailRecords = useCallback(async () => {
+    if (!detailQuery) return
+    setDetailLoading(true)
+    try {
+      const [res, previousRes] = await Promise.all([
+        dataManageService.getRecords({
+          page: detailPage,
+          pageSize: detailPageSize,
+          channel: detailQuery.channel,
+          start_date: detailQuery.startDate,
+          end_date: detailQuery.endDate,
+          sort_by: detailSortBy,
+          sort_order: detailSortOrder,
+        }),
+        dataManageService.getRecords({
+          page: 1,
+          pageSize: 500,
+          channel: detailQuery.channel,
+          start_date: detailQuery.previousStartDate,
+          end_date: detailQuery.previousEndDate,
+          sort_by: 'recordDate',
+          sort_order: 'desc',
+        }),
+      ])
+      setDetailRecords(res.records)
+      setPreviousDetailRecords(previousRes.records)
+      setDetailTotal(res.total)
+    } catch (e) {
+      console.error('Fetch detail records error:', e)
+      message.error('获取投放明细失败')
+    } finally {
+      setDetailLoading(false)
+    }
+  }, [detailPage, detailPageSize, detailQuery, detailSortBy, detailSortOrder])
 
   /** 下载当前筛选条件下的明细表（含 ROI） */
   const handleDownloadDetail = async () => {
@@ -277,6 +630,10 @@ const ChannelAnalysis: React.FC = () => {
     fetchMetrics()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+
+  useEffect(() => {
+    fetchDetailRecords()
+  }, [fetchDetailRecords, refreshKey])
 
   const handleDrillDown = async (campaignId: string, campaignName: string | null) => {
     if (selectedChannels.length !== 1) {
@@ -521,6 +878,7 @@ const ChannelAnalysis: React.FC = () => {
               precision={2}
               icon={<DollarOutlined />}
               color={METRIC_COLORS.cost}
+              change={calcPeriodChange(metrics?.totalMetrics.cost, previousMetrics?.totalMetrics.cost)}
             />
           </Col>
           <Col xs={24} sm={12} lg={6}>
@@ -529,6 +887,7 @@ const ChannelAnalysis: React.FC = () => {
               value={metrics?.totalMetrics.activations ?? 0}
               icon={<UserAddOutlined />}
               color={METRIC_COLORS.activations}
+              change={calcPeriodChange(metrics?.totalMetrics.activations, previousMetrics?.totalMetrics.activations)}
             />
           </Col>
           {isAdmin && (
@@ -538,6 +897,7 @@ const ChannelAnalysis: React.FC = () => {
                 value={metrics?.totalMetrics.accounts ?? 0}
                 icon={<BankOutlined />}
                 color={METRIC_COLORS.accounts}
+                change={calcPeriodChange(metrics?.totalMetrics.accounts, previousMetrics?.totalMetrics.accounts)}
               />
             </Col>
           )}
@@ -548,6 +908,7 @@ const ChannelAnalysis: React.FC = () => {
               precision={2}
               icon={<PercentageOutlined />}
               color={METRIC_COLORS.roi}
+              change={calcPeriodChange(metrics?.totalMetrics.roi, previousMetrics?.totalMetrics.roi)}
             />
           </Col>
         </Row>
@@ -558,6 +919,7 @@ const ChannelAnalysis: React.FC = () => {
               value={metrics?.totalMetrics.formalActivations ?? 0}
               icon={<CheckCircleOutlined />}
               color={METRIC_COLORS.formalActivations}
+              change={calcPeriodChange(metrics?.totalMetrics.formalActivations, previousMetrics?.totalMetrics.formalActivations)}
             />
           </Col>
           {isAdmin && (
@@ -567,6 +929,7 @@ const ChannelAnalysis: React.FC = () => {
                 value={metrics?.totalMetrics.leads ?? 0}
                 icon={<FileTextOutlined />}
                 color={METRIC_COLORS.leads}
+                change={calcPeriodChange(metrics?.totalMetrics.leads, previousMetrics?.totalMetrics.leads)}
               />
             </Col>
           )}
@@ -578,6 +941,7 @@ const ChannelAnalysis: React.FC = () => {
               suffix="%"
               icon={<BarChartOutlined />}
               color={METRIC_COLORS.ctr}
+              change={calcPeriodChange(metrics?.totalMetrics.ctr, previousMetrics?.totalMetrics.ctr)}
             />
           </Col>
         </Row>
@@ -908,6 +1272,33 @@ const ChannelAnalysis: React.FC = () => {
             </Card>
           </Col>
         </Row>
+
+        <h2
+          style={{
+            fontSize: 'var(--font-size-large)',
+            fontWeight: 'var(--font-weight-medium)',
+            marginBottom: 'var(--margin-loose)',
+          }}
+        >
+          投放明细
+        </h2>
+        <DetailTable
+          records={detailRecords}
+          previousRecords={previousDetailRecords}
+          total={detailTotal}
+          page={detailPage}
+          pageSize={detailPageSize}
+          loading={detailLoading}
+          query={detailQuery}
+          sortBy={detailSortBy}
+          sortOrder={detailSortOrder}
+          onChange={(page, pageSize, sortBy, sortOrder) => {
+            setDetailPage(page)
+            setDetailPageSize(pageSize)
+            setDetailSortBy(sortBy)
+            setDetailSortOrder(sortOrder)
+          }}
+        />
 
         {/* 下钻 Modal */}
         <Modal

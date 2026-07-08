@@ -7,6 +7,7 @@ import { merchantService } from '@services/merchantService'
 import { useRefresh } from '@components/layout/RefreshContext'
 import { METRIC_COLORS, SOFT_COLORS, CARD_BASE } from '@utils/constants'
 import { exportToExcel } from '@utils/export'
+import { calcPeriodChange, ChangeText, getPreviousDateRange } from '@utils/changes'
 import { MerchantReportItem, ChannelReportItem } from '@/types'
 import AIAnalysisPanel from '@components/ai/AIAnalysisPanel'
 
@@ -20,6 +21,7 @@ function MetricCard({
   precision = 0,
   icon,
   color = METRIC_COLORS.cost,
+  change,
 }: {
   title: string
   value: number
@@ -28,6 +30,7 @@ function MetricCard({
   precision?: number
   icon: React.ReactNode
   color?: string
+  change?: number | null
 }) {
   return (
     <Card style={CARD_BASE} bodyStyle={{ padding: '28px 24px' }}>
@@ -64,8 +67,21 @@ function MetricCard({
         {value.toLocaleString(undefined, { minimumFractionDigits: precision, maximumFractionDigits: precision })}
         {suffix}
       </div>
+      {change !== undefined && (
+        <div style={{ marginTop: 10, fontSize: 12, display: 'flex', alignItems: 'center', gap: 4 }}>
+          <ChangeText value={change} />
+        </div>
+      )}
     </Card>
   )
+}
+
+function getMerchantTotals(report: MerchantReportItem[]) {
+  const leads = report.reduce((sum, r) => sum + r.leads, 0)
+  const accounts = report.reduce((sum, r) => sum + r.accounts, 0)
+  const cost = report.reduce((sum, r) => sum + r.cost, 0)
+  const accountRate = leads > 0 ? Number((accounts / leads).toFixed(4)) : 0
+  return { leads, accounts, cost, accountRate }
 }
 
 const MerchantAnalysis: React.FC = () => {
@@ -82,6 +98,8 @@ const MerchantAnalysis: React.FC = () => {
   const [loading, setLoading] = useState(false)
   const [merchantReport, setMerchantReport] = useState<MerchantReportItem[]>([])
   const [channelReport, setChannelReport] = useState<ChannelReportItem[]>([])
+  const [previousMerchantReport, setPreviousMerchantReport] = useState<MerchantReportItem[]>([])
+  const [previousChannelReport, setPreviousChannelReport] = useState<ChannelReportItem[]>([])
 
   const fetchFilterOptions = useCallback(async () => {
     try {
@@ -116,15 +134,26 @@ const MerchantAnalysis: React.FC = () => {
         start_date: dateRange[0].format('YYYY-MM-DD'),
         end_date: dateRange[1].format('YYYY-MM-DD'),
       }
+      const previousRange = getPreviousDateRange(dateRange)
+      const previousParams: any = {
+        start_date: previousRange.startDate.format('YYYY-MM-DD'),
+        end_date: previousRange.endDate.format('YYYY-MM-DD'),
+      }
       if (selectedMerchants.length > 0) params.qs_id = selectedMerchants.join(',')
       if (selectedChannels.length > 0) params.channel = selectedChannels.join(',')
+      if (selectedMerchants.length > 0) previousParams.qs_id = selectedMerchants.join(',')
+      if (selectedChannels.length > 0) previousParams.channel = selectedChannels.join(',')
 
-      const [mRes, cRes] = await Promise.all([
+      const [mRes, cRes, previousMRes, previousCRes] = await Promise.all([
         merchantService.getMerchantReport(params),
         merchantService.getChannelReport(params),
+        merchantService.getMerchantReport(previousParams),
+        merchantService.getChannelReport(previousParams),
       ])
       setMerchantReport(mRes.report)
       setChannelReport(cRes.report)
+      setPreviousMerchantReport(previousMRes.report)
+      setPreviousChannelReport(previousCRes.report)
     } catch (e) {
       console.error('Fetch merchant report error:', e)
     } finally {
@@ -132,10 +161,15 @@ const MerchantAnalysis: React.FC = () => {
     }
   }, [dateRange, selectedMerchants, selectedChannels])
 
-  const totalLeads = merchantReport.reduce((sum, r) => sum + r.leads, 0)
-  const totalAccounts = merchantReport.reduce((sum, r) => sum + r.accounts, 0)
-  const totalCost = merchantReport.reduce((sum, r) => sum + r.cost, 0)
-  const overallAccountRate = totalLeads > 0 ? Number((totalAccounts / totalLeads).toFixed(4)) : 0
+  const totals = getMerchantTotals(merchantReport)
+  const previousTotals = getMerchantTotals(previousMerchantReport)
+  const totalLeads = totals.leads
+  const totalAccounts = totals.accounts
+  const totalCost = totals.cost
+  const overallAccountRate = totals.accountRate
+  const previousMerchantMap = new Map(previousMerchantReport.map((r) => [r.qsId, r]))
+  const previousChannelMap = new Map(previousChannelReport.map((r) => [r.channel, r]))
+  const renderChange = (value: number | null) => <ChangeText value={value} label="" compact />
 
   const merchantChartOption = merchantReport.length
     ? {
@@ -242,17 +276,25 @@ const MerchantAnalysis: React.FC = () => {
   const merchantColumns = [
     { title: '期商', dataIndex: 'merchantName', key: 'merchantName', render: (v: string, record: MerchantReportItem) => v || record.qsId },
     { title: '留资数', dataIndex: 'leads', key: 'leads', align: 'right' as const, render: (v: number) => v.toLocaleString() },
+    { title: '留资环比', key: 'leadsChange', align: 'right' as const, render: (_: unknown, record: MerchantReportItem) => renderChange(calcPeriodChange(record.leads, previousMerchantMap.get(record.qsId)?.leads)) },
     { title: '开户数', dataIndex: 'accounts', key: 'accounts', align: 'right' as const, render: (v: number) => v.toLocaleString() },
+    { title: '开户环比', key: 'accountsChange', align: 'right' as const, render: (_: unknown, record: MerchantReportItem) => renderChange(calcPeriodChange(record.accounts, previousMerchantMap.get(record.qsId)?.accounts)) },
     { title: '消耗', dataIndex: 'cost', key: 'cost', align: 'right' as const, render: (v: number) => '¥' + v.toLocaleString() },
+    { title: '消耗环比', key: 'costChange', align: 'right' as const, render: (_: unknown, record: MerchantReportItem) => renderChange(calcPeriodChange(record.cost, previousMerchantMap.get(record.qsId)?.cost)) },
     { title: '开户率', dataIndex: 'accountRate', key: 'accountRate', align: 'right' as const, render: (v: number) => (v * 100).toFixed(2) + '%' },
+    { title: '开户率环比', key: 'accountRateChange', align: 'right' as const, render: (_: unknown, record: MerchantReportItem) => renderChange(calcPeriodChange(record.accountRate, previousMerchantMap.get(record.qsId)?.accountRate)) },
     { title: '开户成本', dataIndex: 'accountCost', key: 'accountCost', align: 'right' as const, render: (v: number) => '¥' + v.toLocaleString() },
+    { title: '开户成本环比', key: 'accountCostChange', align: 'right' as const, render: (_: unknown, record: MerchantReportItem) => renderChange(calcPeriodChange(record.accountCost, previousMerchantMap.get(record.qsId)?.accountCost)) },
   ]
 
   const channelColumns = [
     { title: '渠道', dataIndex: 'channel', key: 'channel' },
     { title: '留资数', dataIndex: 'leads', key: 'leads', align: 'right' as const, render: (v: number) => v.toLocaleString() },
+    { title: '留资环比', key: 'leadsChange', align: 'right' as const, render: (_: unknown, record: ChannelReportItem) => renderChange(calcPeriodChange(record.leads, previousChannelMap.get(record.channel)?.leads)) },
     { title: '开户数', dataIndex: 'accounts', key: 'accounts', align: 'right' as const, render: (v: number) => v.toLocaleString() },
+    { title: '开户环比', key: 'accountsChange', align: 'right' as const, render: (_: unknown, record: ChannelReportItem) => renderChange(calcPeriodChange(record.accounts, previousChannelMap.get(record.channel)?.accounts)) },
     { title: '开户率', dataIndex: 'accountRate', key: 'accountRate', align: 'right' as const, render: (v: number) => (v * 100).toFixed(2) + '%' },
+    { title: '开户率环比', key: 'accountRateChange', align: 'right' as const, render: (_: unknown, record: ChannelReportItem) => renderChange(calcPeriodChange(record.accountRate, previousChannelMap.get(record.channel)?.accountRate)) },
   ]
 
   return (
@@ -345,6 +387,7 @@ const MerchantAnalysis: React.FC = () => {
               precision={2}
               icon={<DollarOutlined />}
               color={METRIC_COLORS.cost}
+              change={calcPeriodChange(totalCost, previousTotals.cost)}
             />
           </Col>
           <Col xs={24} sm={12} lg={6}>
@@ -353,6 +396,7 @@ const MerchantAnalysis: React.FC = () => {
               value={totalLeads}
               icon={<FileTextOutlined />}
               color={METRIC_COLORS.leads}
+              change={calcPeriodChange(totalLeads, previousTotals.leads)}
             />
           </Col>
           <Col xs={24} sm={12} lg={6}>
@@ -361,6 +405,7 @@ const MerchantAnalysis: React.FC = () => {
               value={totalAccounts}
               icon={<BankOutlined />}
               color={METRIC_COLORS.accounts}
+              change={calcPeriodChange(totalAccounts, previousTotals.accounts)}
             />
           </Col>
           <Col xs={24} sm={12} lg={6}>
@@ -371,6 +416,7 @@ const MerchantAnalysis: React.FC = () => {
               precision={2}
               icon={<PercentageOutlined />}
               color={METRIC_COLORS.roi}
+              change={calcPeriodChange(overallAccountRate, previousTotals.accountRate)}
             />
           </Col>
         </Row>
@@ -414,7 +460,7 @@ const MerchantAnalysis: React.FC = () => {
                 rowKey="qsId"
                 pagination={false}
                 columns={merchantColumns}
-                scroll={{ y: 320 }}
+                scroll={{ x: 1120, y: 320 }}
                 locale={{ emptyText: <Empty description="暂无数据" /> }}
                 size="small"
               />
@@ -455,7 +501,7 @@ const MerchantAnalysis: React.FC = () => {
                 rowKey="channel"
                 pagination={false}
                 columns={channelColumns}
-                scroll={{ y: 320 }}
+                scroll={{ x: 780, y: 320 }}
                 locale={{ emptyText: <Empty description="暂无数据" /> }}
                 size="small"
               />

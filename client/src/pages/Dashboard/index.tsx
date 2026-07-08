@@ -1,8 +1,6 @@
 import React, { useEffect, useState, useCallback, useMemo } from 'react'
 import { Row, Col, Card, Progress, Spin, Empty, Button, Modal, Form, InputNumber, DatePicker, message, Tag, Segmented } from 'antd'
 import {
-  ArrowUpOutlined,
-  ArrowDownOutlined,
   DollarOutlined,
   UserAddOutlined,
   BankOutlined,
@@ -22,33 +20,12 @@ import AIAnalysisPanel from '@components/ai/AIAnalysisPanel'
 import { METRIC_COLORS, CARD_BASE } from '@utils/constants'
 import { getWeekRange } from '@utils/dates'
 import { formatNumber } from '@utils/format'
+import { ChangeText } from '@utils/changes'
 import { DailyOverview, WeeklyOverview, MonthlyOverview, RankingsData } from '@/types'
 import { useAuthStore } from '@stores/authStore'
 
 /** 异常值判定阈值 */
 const ALERT_THRESHOLD = 0.3
-
-/* ─── 环比变化标签 ─── */
-function ChangeTag({ value, suffix = '%', alert }: { value: number; suffix?: string; alert?: boolean }) {
-  const isUp = value >= 0
-  return (
-    <span
-      style={{
-        color: alert ? '#FF4A00' : isUp ? 'var(--color-data-red)' : 'var(--color-data-green)',
-        fontSize: 12,
-        fontFamily: 'var(--font-family-number)',
-        marginLeft: 8,
-        fontWeight: 600,
-        display: 'inline-flex',
-        alignItems: 'center',
-      }}
-    >
-      {alert && <AlertOutlined style={{ color: '#FF4A00', marginRight: 4 }} />}
-      {isUp ? <ArrowUpOutlined style={{ fontSize: 10 }} /> : <ArrowDownOutlined style={{ fontSize: 10 }} />}
-      {Math.abs(value * 100).toFixed(1)}{suffix}
-    </span>
-  )
-}
 
 /* ─── 核心 KPI 大卡片 ─── */
 function KpiCard({
@@ -69,7 +46,7 @@ function KpiCard({
   suffix?: string
   precision?: number
   icon: React.ReactNode
-  change?: number
+  change?: number | null
   target?: number
   alert?: boolean
   color?: string
@@ -114,8 +91,12 @@ function KpiCard({
           {value.toLocaleString(undefined, { minimumFractionDigits: precision, maximumFractionDigits: precision })}
           {suffix}
         </span>
-        {change !== undefined && <ChangeTag value={change} alert={alert} />}
       </div>
+      {change !== undefined && (
+        <div style={{ marginTop: 8 }}>
+          <ChangeText value={change} />
+        </div>
+      )}
       {target !== undefined && target > 0 && (
         <div style={{ marginTop: 12 }}>
           <Progress
@@ -155,6 +136,7 @@ function EfficiencyCard({
   precision = 0,
   icon,
   color = 'var(--color-brand-primary)',
+  change,
 }: {
   title: string
   value: number
@@ -163,6 +145,7 @@ function EfficiencyCard({
   precision?: number
   icon: React.ReactNode
   color?: string
+  change?: number | null
 }) {
   return (
     <Card
@@ -199,6 +182,11 @@ function EfficiencyCard({
           {suffix}
         </span>
       </div>
+      {change !== undefined && (
+        <div style={{ marginTop: 10, display: 'flex', justifyContent: 'flex-end' }}>
+          <ChangeText value={change} />
+        </div>
+      )}
     </Card>
   )
 }
@@ -278,39 +266,39 @@ function OverviewTab({
       precision: 2,
       icon: <DollarOutlined />,
       color: METRIC_COLORS.cost,
-      change: isDaily ? daily?.costChange : undefined,
+      change: (data as any).costChange,
       target: !isDaily
         ? type === 'weekly'
           ? weekly?.targetCost
           : monthly?.targetCost
         : undefined,
-      alert: isDaily ? Math.abs((daily?.costChange ?? 0)) >= ALERT_THRESHOLD : false,
+      alert: Math.abs(((data as any).costChange ?? 0)) >= ALERT_THRESHOLD,
     },
     {
       title: `${labelPrefix}激活`,
       key: 'activations',
       icon: <UserAddOutlined />,
       color: METRIC_COLORS.activations,
-      change: isDaily ? daily?.activationsChange : undefined,
+      change: (data as any).activationsChange,
       target: !isDaily
         ? type === 'weekly'
           ? weekly?.targetActivations
           : monthly?.targetActivations
         : undefined,
-      alert: isDaily ? Math.abs((daily?.activationsChange ?? 0)) >= ALERT_THRESHOLD : false,
+      alert: Math.abs(((data as any).activationsChange ?? 0)) >= ALERT_THRESHOLD,
     },
     ...(isAdmin ? [{
       title: `${labelPrefix}开户`,
       key: 'accounts',
       icon: <BankOutlined />,
       color: METRIC_COLORS.accounts,
-      change: isDaily ? daily?.accountsChange : undefined,
+      change: (data as any).accountsChange,
       target: !isDaily
         ? type === 'weekly'
           ? weekly?.targetAccounts
           : monthly?.targetAccounts
         : undefined,
-      alert: isDaily ? Math.abs((daily?.accountsChange ?? 0)) >= ALERT_THRESHOLD : false,
+      alert: Math.abs(((data as any).accountsChange ?? 0)) >= ALERT_THRESHOLD,
     }] : []),
     {
       title: `${labelPrefix}ROI`,
@@ -318,13 +306,13 @@ function OverviewTab({
       precision: 2,
       icon: <PercentageOutlined />,
       color: METRIC_COLORS.roi,
-      change: isDaily ? daily?.roiChange : undefined,
+      change: (data as any).roiChange,
       target: !isDaily
         ? type === 'weekly'
           ? weekly?.targetRoi
           : monthly?.targetRoi
         : undefined,
-      alert: isDaily ? Math.abs((daily?.roiChange ?? 0)) >= ALERT_THRESHOLD : false,
+      alert: Math.abs(((data as any).roiChange ?? 0)) >= ALERT_THRESHOLD,
     },
   ]
 
@@ -337,18 +325,21 @@ function OverviewTab({
       precision: 2,
       icon: <DollarOutlined />,
       color: METRIC_COLORS.cpa,
+      change: (data as any).cpaChange,
     },
     {
       title: `${labelPrefix}转正`,
       key: 'formalActivations',
       icon: <CheckCircleOutlined />,
       color: METRIC_COLORS.formalActivations,
+      change: (data as any).formalActivationsChange,
     },
     ...(isAdmin ? [{
       title: `${labelPrefix}留资`,
       key: 'leads',
       icon: <FileTextOutlined />,
       color: METRIC_COLORS.leads,
+      change: (data as any).leadsChange,
     }] : []),
     {
       title: `${labelPrefix}CTR`,
@@ -358,6 +349,7 @@ function OverviewTab({
       icon: <BarChartOutlined />,
       color: METRIC_COLORS.ctr,
       transform: (v: number) => v * 100,
+      change: (data as any).ctrChange,
     },
   ]
 
@@ -400,6 +392,7 @@ function OverviewTab({
                 precision={eff.precision}
                 icon={eff.icon}
                 color={eff.color}
+                change={eff.change}
               />
             </Col>
           )
