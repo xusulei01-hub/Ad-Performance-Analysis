@@ -46,6 +46,18 @@ function getCampaignKey(row: { channel: string; campaignId: string }) {
   return `${row.channel}::${row.campaignId}`
 }
 
+function buildCampaignNameMap(rows: Array<{ channel: string; campaignId: string; campaignName: string | null }>) {
+  const nameMap = new Map<string, string | null>()
+  for (const row of rows) {
+    const key = getCampaignKey(row)
+    const name = row.campaignName?.trim()
+    if (name && !nameMap.has(key)) {
+      nameMap.set(key, name)
+    }
+  }
+  return nameMap
+}
+
 // GET /api/v1/data/records
 router.get('/records', async (req, res, next) => {
   try {
@@ -127,20 +139,28 @@ router.get('/campaign-summary', async (req, res, next) => {
       return res.json({ success: true, data: { total: 0, page, pageSize, records: [] } })
     }
 
-    const groups = await prisma.rawData.groupBy({
-      by: ['channel', 'campaignId', 'campaignName'],
-      where,
-      _sum: {
-        cost: true,
-        impressions: true,
-        clicks: true,
-        downloads: true,
-        activations: true,
-        formalActivations: true,
-        leads: true,
-        accounts: true,
-      },
-    })
+    const [groups, nameRows] = await Promise.all([
+      prisma.rawData.groupBy({
+        by: ['channel', 'campaignId'],
+        where,
+        _sum: {
+          cost: true,
+          impressions: true,
+          clicks: true,
+          downloads: true,
+          activations: true,
+          formalActivations: true,
+          leads: true,
+          accounts: true,
+        },
+      }),
+      prisma.rawData.findMany({
+        where: { ...where, campaignName: { not: null } },
+        select: { channel: true, campaignId: true, campaignName: true },
+        orderBy: { recordDate: 'desc' },
+      }),
+    ])
+    const campaignNameMap = buildCampaignNameMap(nameRows)
 
     const previousStartDate = req.query.previous_start_date ? String(req.query.previous_start_date) : undefined
     const previousEndDate = req.query.previous_end_date ? String(req.query.previous_end_date) : undefined
@@ -170,7 +190,7 @@ router.get('/campaign-summary', async (req, res, next) => {
       return {
         channel: g.channel,
         campaignId: g.campaignId,
-        campaignName: g.campaignName,
+        campaignName: campaignNameMap.get(getCampaignKey(g)) ?? null,
         impressions,
         clicks,
         cost,

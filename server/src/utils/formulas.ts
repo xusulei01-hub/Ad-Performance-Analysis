@@ -4,7 +4,10 @@ import { REVENUE_PER_ACCOUNT } from '../constants'
  * 未知值转数字
  */
 export function toNum(v: unknown): number {
-  const n = Number(v)
+  const normalized = typeof v === 'string'
+    ? v.trim().replace(/,/g, '').replace(/[￥¥$]/g, '').replace(/%$/, '')
+    : v
+  const n = Number(normalized)
   return Number.isNaN(n) ? 0 : n
 }
 

@@ -3,6 +3,7 @@ import dayjs from 'dayjs'
 import { prisma } from '../../lib/prisma'
 import { createMulterUpload, parseBuffer, parseRows, normalizeDate } from '../../utils/upload'
 import { toNum } from '../../utils/formulas'
+import { MEDIA_HEADERS } from '../../utils/mediaHeaders'
 import type { ParsedMedia, ParsedConv, MatchedRow } from '../../types'
 
 const router = Router()
@@ -20,19 +21,6 @@ async function getChannelMappings(): Promise<Map<string, string>> {
 function normalizeChannel(name: string, map: Map<string, string>): string {
   const key = String(name).trim().toLowerCase()
   return map.get(key) || key
-}
-
-const MEDIA_HEADERS: Record<string, string> = {
-  '渠道': 'channel',
-  '日期': 'recordDate',
-  '计划id': 'campaignId',
-  '计划ID': 'campaignId',
-  '品种/名称（选填）': 'campaignName',
-  '品种/名称': 'campaignName',
-  '曝光': 'impressions',
-  '点击': 'clicks',
-  '花费': 'cost',
-  '下载': 'downloads',
 }
 
 const CONV_HEADERS: Record<string, string> = {

@@ -3,23 +3,11 @@ import { prisma } from '../../lib/prisma'
 import { createMulterUpload, parseBuffer, parseRows, normalizeDate } from '../../utils/upload'
 import { toNum, calcCtr } from '../../utils/formulas'
 import { requireChannelPermission } from '../../middleware/authorize'
+import { MEDIA_HEADERS } from '../../utils/mediaHeaders'
 import type { ParsedMedia } from '../../types'
 
 const router = Router()
 const upload = createMulterUpload()
-
-const MEDIA_HEADERS: Record<string, string> = {
-  '渠道': 'channel',
-  '日期': 'recordDate',
-  '计划id': 'campaignId',
-  '计划ID': 'campaignId',
-  '品种/名称（选填）': 'campaignName',
-  '品种/名称': 'campaignName',
-  '曝光': 'impressions',
-  '点击': 'clicks',
-  '花费': 'cost',
-  '下载': 'downloads',
-}
 
 // POST /api/v1/data/upload-media — 按渠道上传媒体数据表
 router.post('/upload-media', upload.single('file'), async (req, res, next) => {

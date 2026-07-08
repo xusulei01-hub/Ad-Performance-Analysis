@@ -816,6 +816,24 @@ const ChannelAnalysis: React.FC = () => {
         series: trendSeries,
       }
     : null
+  const totalMetrics = metrics?.totalMetrics
+  const hasFunnelData = Boolean(totalMetrics && (
+    totalMetrics.impressions > 0 ||
+    totalMetrics.clicks > 0 ||
+    totalMetrics.downloads > 0 ||
+    totalMetrics.activations > 0 ||
+    totalMetrics.formalActivations > 0 ||
+    totalMetrics.leads > 0 ||
+    totalMetrics.accounts > 0
+  ))
+  const funnelClickValue = totalMetrics
+    ? totalMetrics.impressions > 0
+      ? (totalMetrics.ctr ?? 0) * 100
+      : totalMetrics.clicks > 0
+        ? 100
+        : 0
+    : 0
+  const clickRate = totalMetrics?.impressions ? (totalMetrics.ctr ?? 0) * 100 : 0
 
   return (
     <Spin spinning={loading} size="large">
@@ -1197,7 +1215,7 @@ const ChannelAnalysis: React.FC = () => {
               >
                 各环节转化率
               </div>
-              {metrics?.totalMetrics.impressions ?? 0 > 0 ? (
+              {hasFunnelData ? (
                 <ReactECharts
                   option={{
                     tooltip: { trigger: 'item', formatter: '{b}: {c} ({d}%)' },
@@ -1222,9 +1240,13 @@ const ChannelAnalysis: React.FC = () => {
                           color: '#fff',
                         },
                         data: [
-                          { value: 100, name: '曝光', itemStyle: { color: '#6B8DD6' } },
                           {
-                            value: (metrics?.totalMetrics.ctr ?? 0) * 100,
+                            value: (metrics?.totalMetrics.impressions ?? 0) > 0 ? 100 : 0,
+                            name: '曝光',
+                            itemStyle: { color: '#6B8DD6' },
+                          },
+                          {
+                            value: funnelClickValue,
                             name: '点击',
                             itemStyle: { color: '#E8917A' },
                           },
@@ -1279,7 +1301,7 @@ const ChannelAnalysis: React.FC = () => {
               >
                 转化效率指标
               </div>
-              {metrics?.totalMetrics.impressions ?? 0 > 0 ? (
+              {hasFunnelData ? (
                 <ReactECharts
                   option={{
                     tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
@@ -1324,7 +1346,7 @@ const ChannelAnalysis: React.FC = () => {
                             itemStyle: { color: '#7BC4A6' },
                           },
                           {
-                            value: Number(((metrics?.totalMetrics.ctr ?? 0) * 100).toFixed(2)),
+                            value: Number(clickRate.toFixed(2)),
                             itemStyle: { color: '#E8917A' },
                           },
                         ],
