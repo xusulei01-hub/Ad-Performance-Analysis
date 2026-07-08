@@ -209,19 +209,25 @@ const DataManagement: React.FC = () => {
   }
 
   const handleDownloadMediaTemplate = () => {
-    const headers = ['日期', '计划ID', '品种/名称', '展示', '点击', '花费', '下载']
-    const rows = [
-      ['2026-07-01', '2143573311', '品牌词', '943', '197', '6297.58', '147'],
-      ['2026-07-01', '2143573500', '同花顺', '1585', '65', '1513.57', '42'],
-    ]
-    const csv = `\uFEFF${[headers, ...rows].map((row) => row.join(',')).join('\n')}`
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' })
-    const url = URL.createObjectURL(blob)
-    const link = document.createElement('a')
-    link.href = url
-    link.download = '媒体表模板.csv'
-    link.click()
-    URL.revokeObjectURL(url)
+    const token = localStorage.getItem('token') || ''
+    fetch('/api/v1/data/templates/media', {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then((resp) => {
+        if (!resp.ok) throw new Error('模板下载失败')
+        return resp.blob()
+      })
+      .then((blob) => {
+        const url = URL.createObjectURL(blob)
+        const link = document.createElement('a')
+        link.href = url
+        link.download = '媒体表模板.xlsx'
+        link.click()
+        URL.revokeObjectURL(url)
+      })
+      .catch((e) => {
+        message.error(e.message || '模板下载失败')
+      })
   }
 
   // ===== 旧版：双文件上传 =====

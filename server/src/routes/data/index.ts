@@ -5,6 +5,7 @@ import mediaUploadRoutes from './mediaUploadRoutes'
 import mappingRoutes from './mappingRoutes'
 import recordRoutes from './recordRoutes'
 import uploadLogRoutes from './uploadLogRoutes'
+import templateRoutes from './templateRoutes'
 
 const router = Router()
 // 旧版双文件上传（保留兼容）
@@ -15,5 +16,6 @@ router.use(mediaUploadRoutes)
 router.use(mappingRoutes)
 router.use(recordRoutes)
 router.use(uploadLogRoutes)
+router.use(templateRoutes)
 
 export default router
