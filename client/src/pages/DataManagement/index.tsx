@@ -208,6 +208,22 @@ const DataManagement: React.FC = () => {
     }
   }
 
+  const handleDownloadMediaTemplate = () => {
+    const headers = ['日期', '计划ID', '品种/名称', '展示', '点击', '花费', '下载']
+    const rows = [
+      ['2026-07-01', '2143573311', '品牌词', '943', '197', '6297.58', '147'],
+      ['2026-07-01', '2143573500', '同花顺', '1585', '65', '1513.57', '42'],
+    ]
+    const csv = `\uFEFF${[headers, ...rows].map((row) => row.join(',')).join('\n')}`
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = '媒体表模板.csv'
+    link.click()
+    URL.revokeObjectURL(url)
+  }
+
   // ===== 旧版：双文件上传 =====
   const handleOldUpload = async () => {
     if (!oldMediaFile || !oldConvFile) {
@@ -424,8 +440,22 @@ const DataManagement: React.FC = () => {
             </Col>
             <Col xs={24} md={16}>
               <Card style={CARD_BASE} bodyStyle={{ padding: '20px 24px' }}>
-                <div style={{ fontSize: 15, fontWeight: 500, color: 'var(--color-text-primary)', marginBottom: 16 }}>
-                  上传 {mediaChannel || '...'} 的媒体数据表
+                <div
+                  style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    gap: 12,
+                    marginBottom: 16,
+                    flexWrap: 'wrap',
+                  }}
+                >
+                  <div style={{ fontSize: 15, fontWeight: 500, color: 'var(--color-text-primary)' }}>
+                    上传 {mediaChannel || '...'} 的媒体数据表
+                  </div>
+                  <Button icon={<DownloadOutlined />} onClick={handleDownloadMediaTemplate}>
+                    模板下载
+                  </Button>
                 </div>
                 <Dragger
                   beforeUpload={(file) => { setMediaFile(file); return false }}
