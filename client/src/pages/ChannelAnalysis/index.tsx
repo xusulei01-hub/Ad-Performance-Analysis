@@ -464,6 +464,16 @@ function DetailTable({
             width: 100,
             render: (v: number) => formatNumber(v ?? 0),
           },
+          {
+            title: '激活开户率',
+            dataIndex: 'activationAccountRate',
+            key: 'activationAccountRate',
+            align: 'right' as const,
+            sorter: true,
+            sortOrder: activeSortOrder('activationAccountRate'),
+            width: 120,
+            render: (v: number) => `${((v ?? 0) * 100).toFixed(2)}%`,
+          },
         ]
       : []),
     {
@@ -505,7 +515,7 @@ function DetailTable({
         loading={loading}
         rowKey={(r) => `${r.channel}-${r.campaignId}`}
         size="middle"
-        scroll={{ x: isAdmin ? 1730 : 1530, y: 520 }}
+        scroll={{ x: isAdmin ? 1850 : 1530, y: 520 }}
         pagination={{
           current: page,
           pageSize,

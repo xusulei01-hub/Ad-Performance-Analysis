@@ -127,7 +127,7 @@ router.get('/campaign-summary', async (req, res, next) => {
     const sortBy = [
       'channel', 'campaignId', 'campaignName', 'cost', 'impressions', 'clicks',
       'ctr', 'downloads', 'activations', 'cpa', 'formalActivations',
-      'leads', 'accounts', 'roi',
+      'leads', 'accounts', 'activationAccountRate', 'roi',
     ].includes(String(req.query.sort_by))
       ? String(req.query.sort_by)
       : 'cost'
@@ -187,6 +187,7 @@ router.get('/campaign-summary', async (req, res, next) => {
       const clicks = g._sum.clicks ?? 0
       const activations = g._sum.activations ?? 0
       const realAccounts = g._sum.accounts ?? 0
+      const activationAccountRate = activations > 0 ? Number((realAccounts / activations).toFixed(4)) : 0
       return {
         channel: g.channel,
         campaignId: g.campaignId,
@@ -199,6 +200,7 @@ router.get('/campaign-summary', async (req, res, next) => {
         formalActivations: g._sum.formalActivations ?? 0,
         leads: isAdmin ? (g._sum.leads ?? 0) : 0,
         accounts: isAdmin ? realAccounts : 0,
+        activationAccountRate: isAdmin ? activationAccountRate : 0,
         ctr: calcCtr(clicks, impressions),
         cpa: calcCpa(cost, activations),
         roi: calcRoi(realAccounts, cost),

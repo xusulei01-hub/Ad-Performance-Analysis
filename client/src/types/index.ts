@@ -29,6 +29,7 @@ export interface CampaignSummary {
   formalActivations: number
   leads: number
   accounts: number
+  activationAccountRate: number
   ctr: number
   cpa: number
   roi: number
