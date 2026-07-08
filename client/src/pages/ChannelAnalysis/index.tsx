@@ -13,6 +13,7 @@ import {
   message,
   Table,
   Tag,
+  Popover,
 } from 'antd'
 import {
   DollarOutlined,
@@ -48,6 +49,19 @@ type DetailQuery = {
   endDate: string
   previousStartDate: string
   previousEndDate: string
+}
+
+type CampaignTrendItem = {
+  date: string
+  cost: number
+  activations: number
+  accounts: number
+  formalActivations: number
+  leads: number
+  impressions: number
+  clicks: number
+  ctr: number
+  roi: number
 }
 
 function MetricCard({
@@ -227,6 +241,9 @@ function DetailTable({
   sortBy,
   sortOrder,
   onChange,
+  onPreviewCampaign,
+  previewTrends,
+  previewLoading,
 }: {
   records: CampaignSummary[]
   total: number
@@ -237,9 +254,65 @@ function DetailTable({
   sortBy: string
   sortOrder: DetailSortOrder
   onChange: (page: number, pageSize: number, sortBy: string, sortOrder: DetailSortOrder) => void
+  onPreviewCampaign: (record: CampaignSummary) => void
+  previewTrends: Record<string, CampaignTrendItem[]>
+  previewLoading: boolean
 }) {
   const isAdmin = useAuthStore((s) => s.isAdmin)
   const activeSortOrder = (key: string) => (sortBy === key ? (sortOrder === 'asc' ? 'ascend' : 'descend') : undefined)
+  const getPreviewKey = (record: CampaignSummary) => `${record.channel}::${record.campaignId}`
+  const renderRoiPreview = (record: CampaignSummary) => {
+    const trends = previewTrends[getPreviewKey(record)] ?? []
+    const option = trends.length
+      ? {
+          tooltip: {
+            trigger: 'axis',
+            formatter: (params: any) => {
+              const p = params?.[0]
+              return p ? `${p.axisValue}<br/>ROI: ${Number(p.value).toFixed(2)}` : ''
+            },
+          },
+          grid: { left: 34, right: 16, top: 18, bottom: 28 },
+          xAxis: {
+            type: 'category',
+            data: trends.map((d) => d.date.slice(5)),
+            axisTick: { show: false },
+            axisLine: { lineStyle: { color: '#E8E8E8' } },
+            axisLabel: { fontSize: 11, color: '#888' },
+          },
+          yAxis: {
+            type: 'value',
+            axisLabel: { fontSize: 11, color: '#888' },
+            splitLine: { lineStyle: { type: 'dashed', color: '#F0F0F0' } },
+          },
+          series: [{
+            type: 'line',
+            data: trends.map((d) => Number(d.roi.toFixed(2))),
+            smooth: true,
+            symbol: 'circle',
+            symbolSize: 5,
+            lineStyle: { width: 2, color: METRIC_COLORS.roi },
+            itemStyle: { color: METRIC_COLORS.roi },
+            areaStyle: { color: `${METRIC_COLORS.roi}12` },
+          }],
+        }
+      : null
+
+    return (
+      <div style={{ width: 320 }}>
+        <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--color-text-primary)', marginBottom: 8 }}>
+          ROI 变化趋势
+        </div>
+        <Spin spinning={previewLoading && trends.length === 0}>
+          {option ? (
+            <ReactECharts option={option} style={{ height: 200 }} />
+          ) : (
+            <Empty description="暂无趋势数据" style={{ padding: '28px 0' }} />
+          )}
+        </Spin>
+      </div>
+    )
+  }
 
   const columns: any[] = [
     {
@@ -259,6 +332,20 @@ function DetailTable({
       sortOrder: activeSortOrder('campaignId'),
       width: 150,
       ellipsis: true,
+      render: (v: string, record: CampaignSummary) => (
+        <Popover
+          content={renderRoiPreview(record)}
+          trigger="hover"
+          mouseEnterDelay={0.25}
+          onOpenChange={(open) => {
+            if (open) onPreviewCampaign(record)
+          }}
+        >
+          <span style={{ color: 'var(--color-brand-primary)', cursor: 'default', fontFamily: 'var(--font-family-number)' }}>
+            {v}
+          </span>
+        </Popover>
+      ),
     },
     {
       title: '品种/名称',
@@ -457,6 +544,8 @@ const ChannelAnalysis: React.FC = () => {
   const [detailLoading, setDetailLoading] = useState(false)
   const [detailSortBy, setDetailSortBy] = useState('cost')
   const [detailSortOrder, setDetailSortOrder] = useState<DetailSortOrder>('desc')
+  const [previewTrends, setPreviewTrends] = useState<Record<string, CampaignTrendItem[]>>({})
+  const [previewLoading, setPreviewLoading] = useState(false)
 
   const { refreshKey } = useRefresh()
   const [drillModalVisible, setDrillModalVisible] = useState(false)
@@ -484,6 +573,7 @@ const ChannelAnalysis: React.FC = () => {
       setDetailQuery(null)
       setDetailRecords([])
       setDetailTotal(0)
+      setPreviewTrends({})
       return
     }
     setLoading(true)
@@ -512,6 +602,7 @@ const ChannelAnalysis: React.FC = () => {
       setPreviousMetrics(previousData)
       setDetailPage(1)
       setDetailQuery(nextQuery)
+      setPreviewTrends({})
     } catch (e) {
       console.error('Fetch metrics error:', e)
     } finally {
@@ -543,6 +634,28 @@ const ChannelAnalysis: React.FC = () => {
       setDetailLoading(false)
     }
   }, [detailPage, detailPageSize, detailQuery, detailSortBy, detailSortOrder])
+
+  const handlePreviewCampaign = useCallback(async (record: CampaignSummary) => {
+    if (!detailQuery) return
+    const key = `${record.channel}::${record.campaignId}`
+    if (previewTrends[key]) return
+
+    setPreviewLoading(true)
+    try {
+      const trends = await channelService.getCampaignTrends(
+        record.channel,
+        record.campaignId,
+        detailQuery.startDate,
+        detailQuery.endDate
+      )
+      setPreviewTrends((prev) => ({ ...prev, [key]: trends }))
+    } catch (e) {
+      console.error('Fetch campaign ROI preview error:', e)
+      message.error('获取 ROI 趋势失败')
+    } finally {
+      setPreviewLoading(false)
+    }
+  }, [detailQuery, previewTrends])
 
   /** 下载当前筛选条件下的明细表（含 ROI） */
   const handleDownloadDetail = async () => {
@@ -1248,6 +1361,9 @@ const ChannelAnalysis: React.FC = () => {
           query={detailQuery}
           sortBy={detailSortBy}
           sortOrder={detailSortOrder}
+          previewTrends={previewTrends}
+          previewLoading={previewLoading}
+          onPreviewCampaign={handlePreviewCampaign}
           onChange={(page, pageSize, sortBy, sortOrder) => {
             setDetailPage(page)
             setDetailPageSize(pageSize)
