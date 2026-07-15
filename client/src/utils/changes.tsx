@@ -1,9 +1,11 @@
 import dayjs from 'dayjs'
 import { ArrowDownOutlined, ArrowUpOutlined } from '@ant-design/icons'
+import { isMaskedValue, MetricValue, toMetricNumber } from './format'
 
-export function calcPeriodChange(current?: number, previous?: number): number | null {
-  const currentValue = current ?? 0
-  const previousValue = previous ?? 0
+export function calcPeriodChange(current?: MetricValue, previous?: MetricValue): number | null {
+  if (isMaskedValue(current) || isMaskedValue(previous)) return null
+  const currentValue = toMetricNumber(current)
+  const previousValue = toMetricNumber(previous)
   if (previousValue === 0) return currentValue === 0 ? 0 : null
   return (currentValue - previousValue) / previousValue
 }
@@ -20,12 +22,30 @@ export function ChangeText({
   label = '环比',
   compact = false,
 }: {
-  value?: number | null
+  value?: number | null | '**'
   label?: string
   compact?: boolean
 }) {
   const hasValue = value !== undefined
   if (!hasValue) return null
+  if (value === '**') {
+    return (
+      <span
+        style={{
+          color: 'var(--color-text-tertiary)',
+          fontSize: compact ? 12 : 12,
+          fontFamily: 'var(--font-family-number)',
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: 4,
+          whiteSpace: 'nowrap',
+        }}
+      >
+        {label && <span style={{ color: 'var(--color-text-tertiary)', fontFamily: 'var(--font-family-cn)' }}>{label}</span>}
+        <span>**</span>
+      </span>
+    )
+  }
 
   const isUp = (value ?? 0) > 0
   const isFlat = value === 0

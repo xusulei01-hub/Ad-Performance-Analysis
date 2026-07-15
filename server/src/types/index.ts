@@ -1,3 +1,5 @@
+export type SensitiveMetricValue = number | '**'
+
 /**
  * 广告投放数据 — 媒体表解析后结构
  */
@@ -63,9 +65,9 @@ export interface PaginatedResult<T> {
 export interface MetricSummary {
   cost: number
   activations: number
-  accounts: number
+  accounts: SensitiveMetricValue
   formalActivations: number
-  leads: number
+  leads: SensitiveMetricValue
   impressions: number
   clicks: number
   downloads: number
@@ -81,9 +83,9 @@ export interface DailyTrendItem {
   date: string
   cost: number
   activations: number
-  accounts: number
+  accounts: SensitiveMetricValue
   formalActivations: number
-  leads: number
+  leads: SensitiveMetricValue
   impressions: number
   clicks: number
   downloads: number

@@ -4,6 +4,7 @@ import { getWeekRange } from '../utils/date'
 import { calcChange, calcRoi, calcCtr, calcCpa } from '../utils/formulas'
 import { getCurrentTarget } from './targetService'
 import { DEFAULT_TARGETS } from '../constants'
+import { maskMetric, shouldMaskSensitiveMetrics } from '../utils/sensitiveMask'
 import type { DailyTrendItem } from '../types'
 
 function buildWhere(startDate: Date, endDate: Date, channelFilter?: string[] | null) {
@@ -64,6 +65,7 @@ function buildChangeMetrics(current: Awaited<ReturnType<typeof aggregateMetrics>
 
 async function getDailyTrends(startDate: Date, endDate: Date, channelFilter?: string[] | null, isNonAdmin = false): Promise<DailyTrendItem[]> {
   const where = buildWhere(startDate, endDate, channelFilter)
+  const shouldMask = shouldMaskSensitiveMetrics(isNonAdmin)
 
   const dailyRaw = await prisma.rawData.groupBy({
     by: ['recordDate'],
@@ -78,9 +80,9 @@ async function getDailyTrends(startDate: Date, endDate: Date, channelFilter?: st
       date: dayjs(r.recordDate).format('YYYY-MM-DD'),
       cost: r._sum.cost ?? 0,
       activations: r._sum.activations ?? 0,
-      accounts: realAcc,
+      accounts: maskMetric(realAcc, shouldMask),
       formalActivations: r._sum.formalActivations ?? 0,
-      leads: r._sum.leads ?? 0,
+      leads: maskMetric(r._sum.leads ?? 0, shouldMask),
       impressions: r._sum.impressions ?? 0,
       clicks: r._sum.clicks ?? 0,
       downloads: r._sum.downloads ?? 0,
@@ -91,6 +93,7 @@ async function getDailyTrends(startDate: Date, endDate: Date, channelFilter?: st
 }
 
 export async function getDailyMetrics(channelFilter?: string[] | null, isNonAdmin = false) {
+  const shouldMask = shouldMaskSensitiveMetrics(isNonAdmin)
   const yesterday = dayjs().subtract(1, 'day')
   const dayBefore = yesterday.subtract(1, 'day')
 
@@ -103,17 +106,25 @@ export async function getDailyMetrics(channelFilter?: string[] | null, isNonAdmi
     date: yesterday.format('YYYY-MM-DD'),
     cost: yesterdayMetrics.cost,
     activations: yesterdayMetrics.activations,
-    accounts: yesterdayMetrics.accounts,
+    accounts: maskMetric(yesterdayMetrics.accounts, shouldMask),
     formalActivations: yesterdayMetrics.formalActivations,
-    leads: yesterdayMetrics.leads,
+    leads: maskMetric(yesterdayMetrics.leads, shouldMask),
     ctr: yesterdayMetrics.ctr,
     roi: yesterdayMetrics.roi,
     cpa: yesterdayMetrics.cpa,
-    ...buildChangeMetrics(yesterdayMetrics, dayBeforeMetrics, isNonAdmin),
+    ...(() => {
+      const changes = buildChangeMetrics(yesterdayMetrics, dayBeforeMetrics, isNonAdmin)
+      return {
+        ...changes,
+        accountsChange: maskMetric(changes.accountsChange, shouldMask),
+        leadsChange: maskMetric(changes.leadsChange, shouldMask),
+      }
+    })(),
   }
 }
 
 export async function getWeeklyMetrics(channelFilter?: string[] | null, isNonAdmin = false) {
+  const shouldMask = shouldMaskSensitiveMetrics(isNonAdmin)
   const now = dayjs()
   const { startOfWeek, endOfWeek } = getWeekRange(now)
   const previousStartOfWeek = startOfWeek.subtract(7, 'day')
@@ -132,16 +143,26 @@ export async function getWeeklyMetrics(channelFilter?: string[] | null, isNonAdm
     startDate: startOfWeek.format('YYYY-MM-DD'),
     endDate: endOfWeek.format('YYYY-MM-DD'),
     ...metrics,
+    accounts: maskMetric(metrics.accounts, shouldMask),
+    leads: maskMetric(metrics.leads, shouldMask),
     targetCost: t.targetCost,
     targetActivations: t.targetActivations,
-    targetAccounts: isNonAdmin ? 0 : t.targetAccounts,
+    targetAccounts: maskMetric(t.targetAccounts, shouldMask),
     targetRoi: t.targetRoi,
-    ...buildChangeMetrics(metrics, previousMetrics, isNonAdmin),
+    ...(() => {
+      const changes = buildChangeMetrics(metrics, previousMetrics, isNonAdmin)
+      return {
+        ...changes,
+        accountsChange: maskMetric(changes.accountsChange, shouldMask),
+        leadsChange: maskMetric(changes.leadsChange, shouldMask),
+      }
+    })(),
     dailyTrends,
   }
 }
 
 export async function getMonthlyMetrics(channelFilter?: string[] | null, isNonAdmin = false) {
+  const shouldMask = shouldMaskSensitiveMetrics(isNonAdmin)
   const now = dayjs()
   const startOfMonth = now.startOf('month')
   const endOfMonth = now.endOf('month')
@@ -161,11 +182,20 @@ export async function getMonthlyMetrics(channelFilter?: string[] | null, isNonAd
   return {
     month: startOfMonth.format('YYYY-MM'),
     ...metrics,
+    accounts: maskMetric(metrics.accounts, shouldMask),
+    leads: maskMetric(metrics.leads, shouldMask),
     targetCost: t.targetCost,
     targetActivations: t.targetActivations,
-    targetAccounts: isNonAdmin ? 0 : t.targetAccounts,
+    targetAccounts: maskMetric(t.targetAccounts, shouldMask),
     targetRoi: t.targetRoi,
-    ...buildChangeMetrics(metrics, previousMetrics, isNonAdmin),
+    ...(() => {
+      const changes = buildChangeMetrics(metrics, previousMetrics, isNonAdmin)
+      return {
+        ...changes,
+        accountsChange: maskMetric(changes.accountsChange, shouldMask),
+        leadsChange: maskMetric(changes.leadsChange, shouldMask),
+      }
+    })(),
     dailyTrends,
   }
 }

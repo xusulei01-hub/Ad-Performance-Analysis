@@ -35,6 +35,7 @@ import dayjs from 'dayjs'
 import { dataManageService } from '@services/dataManageService'
 import { CARD_BASE } from '@utils/constants'
 import { exportToExcel } from '@utils/export'
+import { formatNumber } from '@utils/format'
 import { useAuthStore } from '@stores/authStore'
 import { RawData, UploadLog, ChannelMapping } from '@/types'
 
@@ -304,8 +305,8 @@ const DataManagement: React.FC = () => {
     { title: '下载', dataIndex: 'downloads', key: 'downloads', align: 'right' as const, render: (v: number) => <span className="font-number">{v.toLocaleString()}</span> },
     { title: '激活', dataIndex: 'activations', key: 'activations', align: 'right' as const, render: (v: number) => <span className="font-number">{v.toLocaleString()}</span> },
     { title: '转正', dataIndex: 'formalActivations', key: 'formalActivations', align: 'right' as const, render: (v: number) => <span className="font-number">{v.toLocaleString()}</span> },
-    { title: '留资', dataIndex: 'leads', key: 'leads', align: 'right' as const, render: (v: number) => <span className="font-number">{v.toLocaleString()}</span> },
-    { title: '开户', dataIndex: 'accounts', key: 'accounts', align: 'right' as const, render: (v: number) => <span className="font-number">{v.toLocaleString()}</span> },
+    { title: '留资', dataIndex: 'leads', key: 'leads', align: 'right' as const, render: (v: RawData['leads']) => <span className="font-number">{formatNumber(v)}</span> },
+    { title: '开户', dataIndex: 'accounts', key: 'accounts', align: 'right' as const, render: (v: RawData['accounts']) => <span className="font-number">{formatNumber(v)}</span> },
   ]
 
   const logColumns = [

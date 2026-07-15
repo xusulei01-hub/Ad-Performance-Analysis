@@ -19,7 +19,7 @@ import { useRefresh } from '@components/layout/RefreshContext'
 import AIAnalysisPanel from '@components/ai/AIAnalysisPanel'
 import { METRIC_COLORS, CARD_BASE } from '@utils/constants'
 import { getWeekRange } from '@utils/dates'
-import { formatNumber } from '@utils/format'
+import { formatNumber, isMaskedValue, MetricValue, toMetricNumber } from '@utils/format'
 import { ChangeText } from '@utils/changes'
 import { DailyOverview, WeeklyOverview, MonthlyOverview, RankingsData } from '@/types'
 
@@ -40,19 +40,25 @@ function KpiCard({
   color = 'var(--color-brand-primary)',
 }: {
   title: string
-  value: number
+  value: MetricValue
   prefix?: string
   suffix?: string
   precision?: number
   icon: React.ReactNode
-  change?: number | null
-  target?: number
+  change?: number | null | '**'
+  target?: MetricValue
   alert?: boolean
   color?: string
 }) {
-  const pct = target !== undefined && target > 0
-    ? Math.min(100, Number(((value / target) * 100).toFixed(1)))
+  const masked = isMaskedValue(value)
+  const numericValue = toMetricNumber(value)
+  const numericTarget = toMetricNumber(target)
+  const pct = target !== undefined && !masked && !isMaskedValue(target) && numericTarget > 0
+    ? Math.min(100, Number(((numericValue / numericTarget) * 100).toFixed(1)))
     : 0
+  const displayValue = masked
+    ? '**'
+    : `${prefix ?? ''}${numericValue.toLocaleString(undefined, { minimumFractionDigits: precision, maximumFractionDigits: precision })}${suffix ?? ''}`
 
   return (
     <Card style={CARD_BASE} bodyStyle={{ padding: '24px 20px' }}>
@@ -86,9 +92,7 @@ function KpiCard({
             lineHeight: 1.1,
           }}
         >
-          {prefix}
-          {value.toLocaleString(undefined, { minimumFractionDigits: precision, maximumFractionDigits: precision })}
-          {suffix}
+          {displayValue}
         </span>
       </div>
       {change !== undefined && (
@@ -96,7 +100,7 @@ function KpiCard({
           <ChangeText value={change} />
         </div>
       )}
-      {target !== undefined && target > 0 && (
+      {target !== undefined && !masked && !isMaskedValue(target) && numericTarget > 0 && (
         <div style={{ marginTop: 12 }}>
           <Progress
             percent={pct}
@@ -117,7 +121,7 @@ function KpiCard({
           >
             <span>目标完成 {pct}%</span>
             <span>
-              {prefix}{value.toLocaleString(undefined, { minimumFractionDigits: precision, maximumFractionDigits: precision })} / {prefix}{target.toLocaleString(undefined, { minimumFractionDigits: precision, maximumFractionDigits: precision })}
+              {prefix}{numericValue.toLocaleString(undefined, { minimumFractionDigits: precision, maximumFractionDigits: precision })} / {prefix}{numericTarget.toLocaleString(undefined, { minimumFractionDigits: precision, maximumFractionDigits: precision })}
             </span>
           </div>
         </div>
@@ -138,13 +142,13 @@ function EfficiencyCard({
   change,
 }: {
   title: string
-  value: number
+  value: MetricValue
   prefix?: string
   suffix?: string
   precision?: number
   icon: React.ReactNode
   color?: string
-  change?: number | null
+  change?: number | null | '**'
 }) {
   return (
     <Card
@@ -176,9 +180,9 @@ function EfficiencyCard({
             color: 'var(--color-text-primary)',
           }}
         >
-          {prefix}
-          {value.toLocaleString(undefined, { minimumFractionDigits: precision, maximumFractionDigits: precision })}
-          {suffix}
+          {isMaskedValue(value)
+            ? '**'
+            : `${prefix ?? ''}${toMetricNumber(value).toLocaleString(undefined, { minimumFractionDigits: precision, maximumFractionDigits: precision })}${suffix ?? ''}`}
         </span>
       </div>
       {change !== undefined && (
@@ -610,7 +614,7 @@ const Dashboard: React.FC = () => {
   const hasAlert = daily && (
     Math.abs(daily.costChange ?? 0) >= ALERT_THRESHOLD ||
     Math.abs(daily.activationsChange ?? 0) >= ALERT_THRESHOLD ||
-    Math.abs(daily.accountsChange ?? 0) >= ALERT_THRESHOLD ||
+    Math.abs(toMetricNumber(daily.accountsChange)) >= ALERT_THRESHOLD ||
     Math.abs(daily.roiChange ?? 0) >= ALERT_THRESHOLD
   )
 
@@ -752,8 +756,8 @@ const Dashboard: React.FC = () => {
                             itemStyle: { color: '#DBCB92' },
                           },
                           {
-                            value: monthly.accounts > 0 && monthly.leads > 0
-                              ? Math.round((monthly.accounts / monthly.leads) * 100)
+                            value: toMetricNumber(monthly.accounts) > 0 && toMetricNumber(monthly.leads) > 0
+                              ? Math.round((toMetricNumber(monthly.accounts) / toMetricNumber(monthly.leads)) * 100)
                               : 0,
                             name: '开户',
                             itemStyle: { color: '#ED8D5A' },
@@ -806,11 +810,11 @@ const Dashboard: React.FC = () => {
                         type: 'bar',
                         data: [
                           {
-                            value: monthly.leads > 0 ? Number(((monthly.accounts / monthly.leads) * 100).toFixed(2)) : 0,
+                            value: toMetricNumber(monthly.leads) > 0 ? Number(((toMetricNumber(monthly.accounts) / toMetricNumber(monthly.leads)) * 100).toFixed(2)) : 0,
                             itemStyle: { color: '#ED8D5A' },
                           },
                           {
-                            value: monthly.activations > 0 ? Number(((monthly.leads / monthly.activations) * 100).toFixed(2)) : 0,
+                            value: monthly.activations > 0 ? Number(((toMetricNumber(monthly.leads) / monthly.activations) * 100).toFixed(2)) : 0,
                             itemStyle: { color: '#EA9E58' },
                           },
                           {

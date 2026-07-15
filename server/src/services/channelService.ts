@@ -2,9 +2,11 @@ import dayjs from 'dayjs'
 import { prisma } from '../lib/prisma'
 import { calcRoi, calcCtr, calcCpa } from '../utils/formulas'
 import { toEndOfDay } from '../utils/date'
+import { maskMetric, shouldMaskSensitiveMetrics } from '../utils/sensitiveMask'
 import type { DailyTrendItem } from '../types'
 
 export async function getChannelMetrics(channels: string[], startDate: string, endDate: string, isNonAdmin = false) {
+  const shouldMask = shouldMaskSensitiveMetrics(isNonAdmin)
   const sDate = new Date(startDate)
   const eDate = toEndOfDay(endDate)
 
@@ -31,9 +33,9 @@ export async function getChannelMetrics(channels: string[], startDate: string, e
   const totalMetrics = {
     cost: totalCost,
     activations: totalAgg._sum.activations ?? 0,
-    accounts: realAccounts,
+    accounts: maskMetric(realAccounts, shouldMask),
     formalActivations: totalAgg._sum.formalActivations ?? 0,
-    leads: totalAgg._sum.leads ?? 0,
+    leads: maskMetric(totalAgg._sum.leads ?? 0, shouldMask),
     impressions: totalImpressions,
     clicks: totalClicks,
     downloads: totalAgg._sum.downloads ?? 0,
@@ -78,7 +80,7 @@ export async function getChannelMetrics(channels: string[], startDate: string, e
     accounts: [...accountsTop]
       .sort((a, b) => (b._sum.accounts ?? 0) - (a._sum.accounts ?? 0))
       .slice(0, 5)
-      .map((r) => ({ campaignId: r.campaignId, campaignName: r.campaignName, accounts: r._sum.accounts ?? 0 })),
+      .map((r) => ({ campaignId: r.campaignId, campaignName: r.campaignName, accounts: maskMetric(r._sum.accounts ?? 0, shouldMask) })),
     roi: roiTop,
   }
 
@@ -95,9 +97,9 @@ export async function getChannelMetrics(channels: string[], startDate: string, e
       date: dayjs(r.recordDate).format('YYYY-MM-DD'),
       cost: r._sum.cost ?? 0,
       activations: r._sum.activations ?? 0,
-      accounts: realAcc,
+      accounts: maskMetric(realAcc, shouldMask),
       formalActivations: r._sum.formalActivations ?? 0,
-      leads: r._sum.leads ?? 0,
+      leads: maskMetric(r._sum.leads ?? 0, shouldMask),
       impressions: r._sum.impressions ?? 0,
       clicks: r._sum.clicks ?? 0,
       downloads: r._sum.downloads ?? 0,
@@ -122,9 +124,9 @@ export async function getChannelMetrics(channels: string[], startDate: string, e
       channel: r.channel,
       cost: c,
       activations: a,
-      accounts: realAcc,
+      accounts: maskMetric(realAcc, shouldMask),
       formalActivations: r._sum.formalActivations ?? 0,
-      leads: r._sum.leads ?? 0,
+      leads: maskMetric(r._sum.leads ?? 0, shouldMask),
       impressions: imp,
       clicks: clk,
       downloads: r._sum.downloads ?? 0,
@@ -138,6 +140,7 @@ export async function getChannelMetrics(channels: string[], startDate: string, e
 }
 
 export async function getCampaignTrends(channel: string, campaignId: string, startDate: string, endDate: string, isNonAdmin = false) {
+  const shouldMask = shouldMaskSensitiveMetrics(isNonAdmin)
   const sDate = new Date(startDate)
   const eDate = toEndOfDay(endDate)
 
@@ -160,9 +163,9 @@ export async function getCampaignTrends(channel: string, campaignId: string, sta
       date: dayjs(r.recordDate).format('YYYY-MM-DD'),
       cost: r.cost,
       activations: r.activations,
-      accounts: realAcc,
+      accounts: maskMetric(realAcc, shouldMask),
       formalActivations: r.formalActivations ?? 0,
-      leads: r.leads ?? 0,
+      leads: maskMetric(r.leads ?? 0, shouldMask),
       impressions: r.impressions ?? 0,
       clicks: r.clicks ?? 0,
       ctr: calcCtr(r.clicks ?? 0, r.impressions ?? 0),

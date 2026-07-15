@@ -4,6 +4,7 @@ import { toEndOfDay } from '../../utils/date'
 import { parsePagination } from '../../utils/pagination'
 import { resolveUserChannels } from '../../middleware/authorize'
 import { calcCpa, calcCtr, calcRoi } from '../../utils/formulas'
+import { maskMetric, shouldMaskSensitiveMetrics } from '../../utils/sensitiveMask'
 
 const router = Router()
 
@@ -71,6 +72,7 @@ router.get('/records', async (req, res, next) => {
       : 'recordDate'
     const sortOrder = req.query.sort_order === 'asc' ? 'asc' : 'desc'
     const isAdmin = req.user?.role === 'admin'
+    const shouldMask = shouldMaskSensitiveMetrics(!isAdmin)
 
     // 渠道权限过滤
     const { where, empty } = buildRawDataWhere(req, requestedChannels, isAdmin)
@@ -89,10 +91,13 @@ router.get('/records', async (req, res, next) => {
         take: pageSize,
       }),
     ])
+    const responseRecords = shouldMask
+      ? records.map((r) => ({ ...r, leads: '**', accounts: '**' }))
+      : records
 
     res.json({
       success: true,
-      data: { total, page, pageSize, records },
+      data: { total, page, pageSize, records: responseRecords },
     })
   } catch (err) {
     next(err)
@@ -115,6 +120,7 @@ router.get('/campaign-summary', async (req, res, next) => {
       : 'cost'
     const sortOrder = req.query.sort_order === 'asc' ? 'asc' : 'desc'
     const isAdmin = req.user?.role === 'admin'
+    const shouldMask = shouldMaskSensitiveMetrics(!isAdmin)
     const { where, empty } = buildRawDataWhere(req, requestedChannels, isAdmin)
     if (empty) {
       return res.json({ success: true, data: { total: 0, page, pageSize, records: [] } })
@@ -208,7 +214,12 @@ router.get('/campaign-summary', async (req, res, next) => {
         total: records.length,
         page,
         pageSize,
-        records: records.slice(skip, skip + pageSize),
+        records: records.slice(skip, skip + pageSize).map((r) => ({
+          ...r,
+          leads: maskMetric(r.leads, shouldMask),
+          accounts: maskMetric(r.accounts, shouldMask),
+          activationAccountRate: maskMetric(r.activationAccountRate, shouldMask),
+        })),
       },
     })
   } catch (err) {
@@ -268,6 +279,7 @@ router.get('/records/export', async (req, res, next) => {
     const endDate = req.query.end_date ? String(req.query.end_date) : undefined
     const campaignId = req.query.campaign_id ? String(req.query.campaign_id) : undefined
     const channels = resolveUserChannels(req, requestedChannels)
+    const shouldMask = shouldMaskSensitiveMetrics(req.user?.role !== 'admin')
 
     const where: any = {}
     if (channels && channels.length > 0) {
@@ -317,8 +329,8 @@ router.get('/records/export', async (req, res, next) => {
         r.downloads ?? 0,
         r.activations ?? 0,
         r.formalActivations ?? 0,
-        leads,
-        accounts,
+        shouldMask ? '"**"' : leads,
+        shouldMask ? '"**"' : accounts,
         roi.toFixed(4),
       ].join(',')
     })

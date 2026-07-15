@@ -33,7 +33,7 @@ import { dataManageService } from '@services/dataManageService'
 import { useRefresh } from '@components/layout/RefreshContext'
 import { METRIC_COLORS, SOFT_COLORS, CARD_BASE } from '@utils/constants'
 import { getWeekRange } from '@utils/dates'
-import { formatCost, formatCtr, formatNumber } from '@utils/format'
+import { formatCost, formatCtr, formatNumber, formatPercent, isMaskedValue, MetricValue, toMetricNumber } from '@utils/format'
 import { calcPeriodChange, ChangeText, getPreviousDateRange } from '@utils/changes'
 import { CampaignSummary, ChannelMetrics } from '@/types'
 import AIAnalysisPanel from '@components/ai/AIAnalysisPanel'
@@ -74,14 +74,18 @@ function MetricCard({
   change,
 }: {
   title: string
-  value: number
+  value: MetricValue
   prefix?: string
   suffix?: string
   precision?: number
   icon: React.ReactNode
   color?: string
-  change?: number | null
+  change?: number | null | '**'
 }) {
+  const displayValue = isMaskedValue(value)
+    ? '**'
+    : `${prefix ?? ''}${toMetricNumber(value).toLocaleString(undefined, { minimumFractionDigits: precision, maximumFractionDigits: precision })}${suffix ?? ''}`
+
   return (
     <Card style={CARD_BASE} bodyStyle={{ padding: '28px 24px' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
@@ -113,9 +117,7 @@ function MetricCard({
           lineHeight: 1.2,
         }}
       >
-        {prefix}
-        {value.toLocaleString(undefined, { minimumFractionDigits: precision, maximumFractionDigits: precision })}
-        {suffix}
+        {displayValue}
       </div>
       {change !== undefined && (
         <div
@@ -180,7 +182,7 @@ function CampaignChart({
             data: [...data]
               .reverse()
               .map((d, i) => ({
-                value: d[valueKey],
+                value: toMetricNumber(d[valueKey]),
                 itemStyle: {
                   color: getRankColor(data.length - 1 - i),
                   borderRadius: [0, 4, 4, 0],
@@ -468,7 +470,7 @@ function DetailTable({
       sorter: true,
       sortOrder: activeSortOrder('activationAccountRate'),
       width: 120,
-      render: (v: number) => `${((v ?? 0) * 100).toFixed(2)}%`,
+      render: (v: MetricValue) => formatPercent(v),
     },
     {
       title: 'ROI',
@@ -760,7 +762,7 @@ const ChannelAnalysis: React.FC = () => {
     },
     {
       name: '开户', type: 'line',
-      data: metrics.dailyTrends.map((d) => d.accounts),
+      data: metrics.dailyTrends.map((d) => toMetricNumber(d.accounts)),
       itemStyle: { color: METRIC_COLORS.accounts },
       smooth: true, symbol: 'circle', symbolSize: 6,
     },
@@ -772,7 +774,7 @@ const ChannelAnalysis: React.FC = () => {
     },
     {
       name: '留资', type: 'line',
-      data: metrics.dailyTrends.map((d) => d.leads),
+      data: metrics.dailyTrends.map((d) => toMetricNumber(d.leads)),
       itemStyle: { color: METRIC_COLORS.leads },
       smooth: true, symbol: 'circle', symbolSize: 6,
     },
@@ -830,8 +832,8 @@ const ChannelAnalysis: React.FC = () => {
     totalMetrics.downloads > 0 ||
     totalMetrics.activations > 0 ||
     totalMetrics.formalActivations > 0 ||
-    totalMetrics.leads > 0 ||
-    totalMetrics.accounts > 0
+    toMetricNumber(totalMetrics.leads) > 0 ||
+    toMetricNumber(totalMetrics.accounts) > 0
   ))
   const funnelClickValue = totalMetrics
     ? totalMetrics.impressions > 0
@@ -1080,8 +1082,8 @@ const ChannelAnalysis: React.FC = () => {
                         dataIndex: 'accounts',
                         key: 'accounts',
                         align: 'right' as const,
-                        sorter: (a: any, b: any) => a.accounts - b.accounts,
-                        render: (v: number) => v.toLocaleString(),
+                        sorter: (a: any, b: any) => toMetricNumber(a.accounts) - toMetricNumber(b.accounts),
+                        render: (v: MetricValue) => formatNumber(v),
                       },
                       {
                         title: 'CTR',
@@ -1273,8 +1275,8 @@ const ChannelAnalysis: React.FC = () => {
                             itemStyle: { color: '#A8C6E0' },
                           },
                           {
-                            value: (metrics?.totalMetrics.accounts ?? 0) > 0 && (metrics?.totalMetrics.leads ?? 0) > 0
-                              ? Math.round(((metrics?.totalMetrics.accounts ?? 0) / (metrics?.totalMetrics.leads ?? 0)) * 100)
+                            value: toMetricNumber(metrics?.totalMetrics.accounts) > 0 && toMetricNumber(metrics?.totalMetrics.leads) > 0
+                              ? Math.round((toMetricNumber(metrics?.totalMetrics.accounts) / toMetricNumber(metrics?.totalMetrics.leads)) * 100)
                               : 0,
                             name: '开户',
                             itemStyle: { color: '#D4B483' },
@@ -1327,11 +1329,11 @@ const ChannelAnalysis: React.FC = () => {
                         type: 'bar',
                         data: [
                           {
-                            value: (metrics?.totalMetrics.leads ?? 0) > 0 ? Number((((metrics?.totalMetrics.accounts ?? 0) / (metrics?.totalMetrics.leads ?? 0)) * 100).toFixed(2)) : 0,
+                            value: toMetricNumber(metrics?.totalMetrics.leads) > 0 ? Number(((toMetricNumber(metrics?.totalMetrics.accounts) / toMetricNumber(metrics?.totalMetrics.leads)) * 100).toFixed(2)) : 0,
                             itemStyle: { color: '#D4B483' },
                           },
                           {
-                            value: (metrics?.totalMetrics.activations ?? 0) > 0 ? Number((((metrics?.totalMetrics.leads ?? 0) / (metrics?.totalMetrics.activations ?? 0)) * 100).toFixed(2)) : 0,
+                            value: (metrics?.totalMetrics.activations ?? 0) > 0 ? Number(((toMetricNumber(metrics?.totalMetrics.leads) / (metrics?.totalMetrics.activations ?? 0)) * 100).toFixed(2)) : 0,
                             itemStyle: { color: '#9DB0CE' },
                           },
                           {
@@ -1458,7 +1460,7 @@ const ChannelAnalysis: React.FC = () => {
                     {
                       name: '开户',
                       type: 'line',
-                      data: drillTrends.map((d: any) => d.accounts),
+                      data: drillTrends.map((d: any) => toMetricNumber(d.accounts)),
                       itemStyle: { color: '#7BC4A6' },
                       smooth: true,
                       symbol: 'circle',

@@ -1,3 +1,5 @@
+export type SensitiveMetricValue = number | '**'
+
 export interface RawData {
   id?: number
   channel: string
@@ -10,8 +12,8 @@ export interface RawData {
   downloads: number
   activations: number
   formalActivations: number
-  leads: number
-  accounts: number
+  leads: SensitiveMetricValue
+  accounts: SensitiveMetricValue
   ctr: number
   createdAt?: string
   updatedAt?: string
@@ -27,9 +29,9 @@ export interface CampaignSummary {
   downloads: number
   activations: number
   formalActivations: number
-  leads: number
-  accounts: number
-  activationAccountRate: number
+  leads: SensitiveMetricValue
+  accounts: SensitiveMetricValue
+  activationAccountRate: SensitiveMetricValue
   ctr: number
   cpa: number
   roi: number
@@ -59,30 +61,30 @@ export interface DailyOverview {
   date: string
   cost: number
   activations: number
-  accounts: number
+  accounts: SensitiveMetricValue
   formalActivations: number
-  leads: number
+  leads: SensitiveMetricValue
   ctr: number
   roi: number
   cpa: number
   costChange: number
   activationsChange: number
-  accountsChange: number
+  accountsChange: SensitiveMetricValue
   roiChange: number
   cpaChange: number
   formalActivationsChange: number
-  leadsChange: number
+  leadsChange: SensitiveMetricValue
   ctrChange: number
 }
 
 export interface OverviewChanges {
   costChange: number
   activationsChange: number
-  accountsChange: number
+  accountsChange: SensitiveMetricValue
   roiChange: number
   cpaChange: number
   formalActivationsChange: number
-  leadsChange: number
+  leadsChange: SensitiveMetricValue
   ctrChange: number
 }
 
@@ -90,9 +92,9 @@ export interface DailyTrend {
   date: string
   cost: number
   activations: number
-  accounts: number
+  accounts: SensitiveMetricValue
   formalActivations: number
-  leads: number
+  leads: SensitiveMetricValue
   impressions: number
   clicks: number
   downloads: number
@@ -105,9 +107,9 @@ export interface WeeklyOverview extends OverviewChanges {
   endDate: string
   cost: number
   activations: number
-  accounts: number
+  accounts: SensitiveMetricValue
   formalActivations: number
-  leads: number
+  leads: SensitiveMetricValue
   impressions: number
   clicks: number
   downloads: number
@@ -116,7 +118,7 @@ export interface WeeklyOverview extends OverviewChanges {
   cpa: number
   targetCost: number
   targetActivations: number
-  targetAccounts: number
+  targetAccounts: SensitiveMetricValue
   targetRoi: number
   dailyTrends: DailyTrend[]
 }
@@ -125,9 +127,9 @@ export interface MonthlyOverview extends OverviewChanges {
   month: string
   cost: number
   activations: number
-  accounts: number
+  accounts: SensitiveMetricValue
   formalActivations: number
-  leads: number
+  leads: SensitiveMetricValue
   impressions: number
   clicks: number
   downloads: number
@@ -136,7 +138,7 @@ export interface MonthlyOverview extends OverviewChanges {
   cpa: number
   targetCost: number
   targetActivations: number
-  targetAccounts: number
+  targetAccounts: SensitiveMetricValue
   targetRoi: number
   dailyTrends: DailyTrend[]
 }
@@ -158,9 +160,9 @@ export interface ChannelBreakdownItem {
   channel: string
   cost: number
   activations: number
-  accounts: number
+  accounts: SensitiveMetricValue
   formalActivations: number
-  leads: number
+  leads: SensitiveMetricValue
   impressions: number
   clicks: number
   downloads: number
@@ -175,9 +177,9 @@ export interface ChannelMetrics {
   totalMetrics: {
     cost: number
     activations: number
-    accounts: number
+    accounts: SensitiveMetricValue
     formalActivations: number
-    leads: number
+    leads: SensitiveMetricValue
     impressions: number
     clicks: number
     downloads: number
@@ -187,7 +189,7 @@ export interface ChannelMetrics {
   campaignMetrics: {
     cost: Array<{ campaignId: string; campaignName: string | null; cost: number }>
     activations: Array<{ campaignId: string; campaignName: string | null; activations: number }>
-    accounts: Array<{ campaignId: string; campaignName: string | null; accounts: number }>
+    accounts: Array<{ campaignId: string; campaignName: string | null; accounts: SensitiveMetricValue }>
     roi: Array<{ campaignId: string; campaignName: string | null; roi: number }>
   }
   dailyTrends: DailyTrend[]
