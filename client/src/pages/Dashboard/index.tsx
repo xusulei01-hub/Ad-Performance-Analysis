@@ -22,7 +22,6 @@ import { getWeekRange } from '@utils/dates'
 import { formatNumber } from '@utils/format'
 import { ChangeText } from '@utils/changes'
 import { DailyOverview, WeeklyOverview, MonthlyOverview, RankingsData } from '@/types'
-import { useAuthStore } from '@stores/authStore'
 
 /** 异常值判定阈值 */
 const ALERT_THRESHOLD = 0.3
@@ -250,14 +249,13 @@ function OverviewTab({
   monthly: MonthlyOverview | null
   type: 'daily' | 'weekly' | 'monthly'
 }) {
-  const isAdmin = useAuthStore((s) => s.isAdmin)
   const data = type === 'daily' ? daily : type === 'weekly' ? weekly : monthly
   const isDaily = type === 'daily'
   const labelPrefix = isDaily ? '昨日' : type === 'weekly' ? '本周' : '本月'
 
   if (!data) return <Empty description="暂无数据" style={{ padding: '60px 0' }} />
 
-  /* 核心指标 — 非管理员过滤掉 accounts/leads */
+  /* 核心指标 */
   const coreKpis = [
     {
       title: `${labelPrefix}花费`,
@@ -287,7 +285,7 @@ function OverviewTab({
         : undefined,
       alert: Math.abs(((data as any).activationsChange ?? 0)) >= ALERT_THRESHOLD,
     },
-    ...(isAdmin ? [{
+    {
       title: `${labelPrefix}开户`,
       key: 'accounts',
       icon: <BankOutlined />,
@@ -299,7 +297,7 @@ function OverviewTab({
           : monthly?.targetAccounts
         : undefined,
       alert: Math.abs(((data as any).accountsChange ?? 0)) >= ALERT_THRESHOLD,
-    }] : []),
+    },
     {
       title: `${labelPrefix}ROI`,
       key: 'roi',
@@ -316,7 +314,7 @@ function OverviewTab({
     },
   ]
 
-  /* 效率指标 — 非管理员过滤掉 leads */
+  /* 效率指标 */
   const efficiencyMetrics = [
     {
       title: `${labelPrefix}CPA`,
@@ -334,13 +332,13 @@ function OverviewTab({
       color: METRIC_COLORS.formalActivations,
       change: (data as any).formalActivationsChange,
     },
-    ...(isAdmin ? [{
+    {
       title: `${labelPrefix}留资`,
       key: 'leads',
       icon: <FileTextOutlined />,
       color: METRIC_COLORS.leads,
       change: (data as any).leadsChange,
-    }] : []),
+    },
     {
       title: `${labelPrefix}CTR`,
       key: 'ctr',

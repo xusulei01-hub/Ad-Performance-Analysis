@@ -37,7 +37,6 @@ import { formatCost, formatCtr, formatNumber } from '@utils/format'
 import { calcPeriodChange, ChangeText, getPreviousDateRange } from '@utils/changes'
 import { CampaignSummary, ChannelMetrics } from '@/types'
 import AIAnalysisPanel from '@components/ai/AIAnalysisPanel'
-import { useAuthStore } from '@stores/authStore'
 
 const { RangePicker } = DatePicker
 const DETAIL_PAGE_SIZE = 20
@@ -258,7 +257,6 @@ function DetailTable({
   previewTrends: Record<string, CampaignTrendItem[]>
   previewLoading: boolean
 }) {
-  const isAdmin = useAuthStore((s) => s.isAdmin)
   const activeSortOrder = (key: string) => (sortBy === key ? (sortOrder === 'asc' ? 'ascend' : 'descend') : undefined)
   const getPreviewKey = (record: CampaignSummary) => `${record.channel}::${record.campaignId}`
   const renderRoiPreview = (record: CampaignSummary) => {
@@ -442,40 +440,36 @@ function DetailTable({
       width: 100,
       render: (v: number) => formatNumber(v ?? 0),
     },
-    ...(isAdmin
-      ? [
-          {
-            title: '留资',
-            dataIndex: 'leads',
-            key: 'leads',
-            align: 'right' as const,
-            sorter: true,
-            sortOrder: activeSortOrder('leads'),
-            width: 100,
-            render: (v: number) => formatNumber(v ?? 0),
-          },
-          {
-            title: '开户',
-            dataIndex: 'accounts',
-            key: 'accounts',
-            align: 'right' as const,
-            sorter: true,
-            sortOrder: activeSortOrder('accounts'),
-            width: 100,
-            render: (v: number) => formatNumber(v ?? 0),
-          },
-          {
-            title: '激活开户率',
-            dataIndex: 'activationAccountRate',
-            key: 'activationAccountRate',
-            align: 'right' as const,
-            sorter: true,
-            sortOrder: activeSortOrder('activationAccountRate'),
-            width: 120,
-            render: (v: number) => `${((v ?? 0) * 100).toFixed(2)}%`,
-          },
-        ]
-      : []),
+    {
+      title: '留资',
+      dataIndex: 'leads',
+      key: 'leads',
+      align: 'right',
+      sorter: true,
+      sortOrder: activeSortOrder('leads'),
+      width: 100,
+      render: (v: number) => formatNumber(v ?? 0),
+    },
+    {
+      title: '开户',
+      dataIndex: 'accounts',
+      key: 'accounts',
+      align: 'right',
+      sorter: true,
+      sortOrder: activeSortOrder('accounts'),
+      width: 100,
+      render: (v: number) => formatNumber(v ?? 0),
+    },
+    {
+      title: '激活开户率',
+      dataIndex: 'activationAccountRate',
+      key: 'activationAccountRate',
+      align: 'right',
+      sorter: true,
+      sortOrder: activeSortOrder('activationAccountRate'),
+      width: 120,
+      render: (v: number) => `${((v ?? 0) * 100).toFixed(2)}%`,
+    },
     {
       title: 'ROI',
       dataIndex: 'roi',
@@ -515,7 +509,7 @@ function DetailTable({
         loading={loading}
         rowKey={(r) => `${r.channel}-${r.campaignId}`}
         size="middle"
-        scroll={{ x: isAdmin ? 1850 : 1530, y: 520 }}
+        scroll={{ x: 1850, y: 520 }}
         pagination={{
           current: page,
           pageSize,
@@ -536,7 +530,6 @@ function DetailTable({
 }
 
 const ChannelAnalysis: React.FC = () => {
-  const isAdmin = useAuthStore((s) => s.isAdmin)
   const [channels, setChannels] = useState<string[]>([])
   const [selectedChannels, setSelectedChannels] = useState<string[]>([])
   const [dateRange, setDateRange] = useState<[dayjs.Dayjs, dayjs.Dayjs]>([
@@ -740,13 +733,17 @@ const ChannelAnalysis: React.FC = () => {
     }
   }
 
-  const trendLegendData = isAdmin
-    ? ['花费', '激活', '开户', '转正', '留资', 'ROI', 'CTR']
-    : ['花费', '激活', '转正', 'ROI', 'CTR']
+  const trendLegendData = ['花费', '激活', '开户', '转正', '留资', 'ROI', 'CTR']
 
-  const trendLegendSelected: Record<string, boolean> = isAdmin
-    ? { '花费': true, '激活': true, '开户': true, '转正': false, '留资': false, 'ROI': false, 'CTR': false }
-    : { '花费': true, '激活': true, '转正': false, 'ROI': false, 'CTR': false }
+  const trendLegendSelected: Record<string, boolean> = {
+    '花费': true,
+    '激活': true,
+    '开户': true,
+    '转正': false,
+    '留资': false,
+    'ROI': false,
+    'CTR': false,
+  }
 
   const trendSeries: any[] = !metrics ? [] : [
     {
@@ -761,24 +758,24 @@ const ChannelAnalysis: React.FC = () => {
       itemStyle: { color: METRIC_COLORS.activations },
       smooth: true, symbol: 'circle', symbolSize: 6,
     },
-    ...(isAdmin ? [{
+    {
       name: '开户', type: 'line',
       data: metrics.dailyTrends.map((d) => d.accounts),
       itemStyle: { color: METRIC_COLORS.accounts },
       smooth: true, symbol: 'circle', symbolSize: 6,
-    }] : []),
+    },
     {
       name: '转正', type: 'line',
       data: metrics.dailyTrends.map((d) => d.formalActivations),
       itemStyle: { color: METRIC_COLORS.formalActivations },
       smooth: true, symbol: 'circle', symbolSize: 6,
     },
-    ...(isAdmin ? [{
+    {
       name: '留资', type: 'line',
       data: metrics.dailyTrends.map((d) => d.leads),
       itemStyle: { color: METRIC_COLORS.leads },
       smooth: true, symbol: 'circle', symbolSize: 6,
-    }] : []),
+    },
     {
       name: 'ROI', type: 'line', yAxisIndex: 1,
       data: metrics.dailyTrends.map((d) => Number(d.roi.toFixed(2))),
@@ -988,18 +985,16 @@ const ChannelAnalysis: React.FC = () => {
               change={calcPeriodChange(metrics?.totalMetrics.activations, previousMetrics?.totalMetrics.activations)}
             />
           </Col>
-          {isAdmin && (
-            <Col xs={24} sm={12} lg={6}>
-              <MetricCard
-                title="总开户"
-                value={metrics?.totalMetrics.accounts ?? 0}
-                icon={<BankOutlined />}
-                color={METRIC_COLORS.accounts}
-                change={calcPeriodChange(metrics?.totalMetrics.accounts, previousMetrics?.totalMetrics.accounts)}
-              />
-            </Col>
-          )}
-          <Col xs={24} sm={12} lg={isAdmin ? 6 : 12}>
+          <Col xs={24} sm={12} lg={6}>
+            <MetricCard
+              title="总开户"
+              value={metrics?.totalMetrics.accounts ?? 0}
+              icon={<BankOutlined />}
+              color={METRIC_COLORS.accounts}
+              change={calcPeriodChange(metrics?.totalMetrics.accounts, previousMetrics?.totalMetrics.accounts)}
+            />
+          </Col>
+          <Col xs={24} sm={12} lg={6}>
             <MetricCard
               title="ROI"
               value={metrics?.totalMetrics.roi ?? 0}
@@ -1020,18 +1015,16 @@ const ChannelAnalysis: React.FC = () => {
               change={calcPeriodChange(metrics?.totalMetrics.formalActivations, previousMetrics?.totalMetrics.formalActivations)}
             />
           </Col>
-          {isAdmin && (
-            <Col xs={24} sm={12} lg={8}>
-              <MetricCard
-                title="总留资"
-                value={metrics?.totalMetrics.leads ?? 0}
-                icon={<FileTextOutlined />}
-                color={METRIC_COLORS.leads}
-                change={calcPeriodChange(metrics?.totalMetrics.leads, previousMetrics?.totalMetrics.leads)}
-              />
-            </Col>
-          )}
-          <Col xs={24} sm={12} lg={isAdmin ? 8 : 16}>
+          <Col xs={24} sm={12} lg={8}>
+            <MetricCard
+              title="总留资"
+              value={metrics?.totalMetrics.leads ?? 0}
+              icon={<FileTextOutlined />}
+              color={METRIC_COLORS.leads}
+              change={calcPeriodChange(metrics?.totalMetrics.leads, previousMetrics?.totalMetrics.leads)}
+            />
+          </Col>
+          <Col xs={24} sm={12} lg={8}>
             <MetricCard
               title="CTR"
               value={(metrics?.totalMetrics.ctr ?? 0) * 100}
@@ -1082,14 +1075,14 @@ const ChannelAnalysis: React.FC = () => {
                         sorter: (a: any, b: any) => a.activations - b.activations,
                         render: (v: number) => v.toLocaleString(),
                       },
-                      ...(isAdmin ? [{
+                      {
                         title: '开户',
                         dataIndex: 'accounts',
                         key: 'accounts',
                         align: 'right' as const,
                         sorter: (a: any, b: any) => a.accounts - b.accounts,
                         render: (v: number) => v.toLocaleString(),
-                      }] : []),
+                      },
                       {
                         title: 'CTR',
                         dataIndex: 'ctr',
@@ -1149,17 +1142,15 @@ const ChannelAnalysis: React.FC = () => {
               onBarClick={handleDrillDown}
             />
           </Col>
-          {isAdmin && (
-            <Col xs={24} lg={12}>
-              <CampaignChart
-                title="分计划开户"
-                data={metrics?.campaignMetrics.accounts ?? []}
-                valueKey="accounts"
-                onBarClick={handleDrillDown}
-              />
-            </Col>
-          )}
-          <Col xs={24} lg={isAdmin ? 12 : 24}>
+          <Col xs={24} lg={12}>
+            <CampaignChart
+              title="分计划开户"
+              data={metrics?.campaignMetrics.accounts ?? []}
+              valueKey="accounts"
+              onBarClick={handleDrillDown}
+            />
+          </Col>
+          <Col xs={24} lg={12}>
             <CampaignChart
               title="分计划ROI"
               data={metrics?.campaignMetrics.roi ?? []}

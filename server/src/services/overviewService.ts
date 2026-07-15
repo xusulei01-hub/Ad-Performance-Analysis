@@ -18,7 +18,7 @@ function buildWhere(startDate: Date, endDate: Date, channelFilter?: string[] | n
   return where
 }
 
-// 始终查询 accounts（计算 ROI 需要），非管理员仅在响应中隐藏
+// 始终查询完整转化字段；渠道权限仍由上层过滤。
 const SUM_FIELDS = {
   cost: true, activations: true, accounts: true, formalActivations: true,
   leads: true, impressions: true, clicks: true, downloads: true,
@@ -37,9 +37,9 @@ async function aggregateMetrics(startDate: Date, endDate: Date, channelFilter?: 
   return {
     cost: totalCost,
     activations: agg._sum.activations ?? 0,
-    accounts: isNonAdmin ? 0 : realAccounts,
+    accounts: realAccounts,
     formalActivations: agg._sum.formalActivations ?? 0,
-    leads: isNonAdmin ? 0 : (agg._sum.leads ?? 0),
+    leads: agg._sum.leads ?? 0,
     impressions: totalImpressions,
     clicks: totalClicks,
     downloads: agg._sum.downloads ?? 0,
@@ -53,11 +53,11 @@ function buildChangeMetrics(current: Awaited<ReturnType<typeof aggregateMetrics>
   return {
     costChange: calcChange(current.cost, previous.cost),
     activationsChange: calcChange(current.activations, previous.activations),
-    accountsChange: isNonAdmin ? 0 : calcChange(current.accounts, previous.accounts),
+    accountsChange: calcChange(current.accounts, previous.accounts),
     roiChange: calcChange(current.roi, previous.roi),
     cpaChange: calcChange(current.cpa, previous.cpa),
     formalActivationsChange: calcChange(current.formalActivations, previous.formalActivations),
-    leadsChange: isNonAdmin ? 0 : calcChange(current.leads, previous.leads),
+    leadsChange: calcChange(current.leads, previous.leads),
     ctrChange: calcChange(current.ctr, previous.ctr),
   }
 }
@@ -78,9 +78,9 @@ async function getDailyTrends(startDate: Date, endDate: Date, channelFilter?: st
       date: dayjs(r.recordDate).format('YYYY-MM-DD'),
       cost: r._sum.cost ?? 0,
       activations: r._sum.activations ?? 0,
-      accounts: isNonAdmin ? 0 : realAcc,
+      accounts: realAcc,
       formalActivations: r._sum.formalActivations ?? 0,
-      leads: isNonAdmin ? 0 : (r._sum.leads ?? 0),
+      leads: r._sum.leads ?? 0,
       impressions: r._sum.impressions ?? 0,
       clicks: r._sum.clicks ?? 0,
       downloads: r._sum.downloads ?? 0,

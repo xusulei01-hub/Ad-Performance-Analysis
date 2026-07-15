@@ -291,7 +291,7 @@ const DataManagement: React.FC = () => {
     }
   }
 
-  // 动态构建列（非管理员隐藏 leads/accounts）
+  // 动态构建列
   const recordColumns = [
     { title: '渠道', dataIndex: 'channel', key: 'channel', width: 100 },
     { title: '日期', dataIndex: 'recordDate', key: 'recordDate', width: 120 },
@@ -304,10 +304,8 @@ const DataManagement: React.FC = () => {
     { title: '下载', dataIndex: 'downloads', key: 'downloads', align: 'right' as const, render: (v: number) => <span className="font-number">{v.toLocaleString()}</span> },
     { title: '激活', dataIndex: 'activations', key: 'activations', align: 'right' as const, render: (v: number) => <span className="font-number">{v.toLocaleString()}</span> },
     { title: '转正', dataIndex: 'formalActivations', key: 'formalActivations', align: 'right' as const, render: (v: number) => <span className="font-number">{v.toLocaleString()}</span> },
-    ...(isAdmin ? [
-      { title: '留资', dataIndex: 'leads', key: 'leads', align: 'right' as const, render: (v: number) => <span className="font-number">{v.toLocaleString()}</span> },
-      { title: '开户', dataIndex: 'accounts', key: 'accounts', align: 'right' as const, render: (v: number) => <span className="font-number">{v.toLocaleString()}</span> },
-    ] : []),
+    { title: '留资', dataIndex: 'leads', key: 'leads', align: 'right' as const, render: (v: number) => <span className="font-number">{v.toLocaleString()}</span> },
+    { title: '开户', dataIndex: 'accounts', key: 'accounts', align: 'right' as const, render: (v: number) => <span className="font-number">{v.toLocaleString()}</span> },
   ]
 
   const logColumns = [

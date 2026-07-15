@@ -7,9 +7,6 @@ import { calcCpa, calcCtr, calcRoi } from '../../utils/formulas'
 
 const router = Router()
 
-// 非管理员不可见的敏感字段
-const ADMIN_ONLY_FIELDS = ['leads', 'accounts']
-
 function buildRawDataWhere(req: any, requestedChannels?: string[], isAdmin = false) {
   const channels = resolveUserChannels(req, requestedChannels)
   const where: any = {}
@@ -83,34 +80,19 @@ router.get('/records', async (req, res, next) => {
     }
     // channels === null 表示 admin 不过滤
 
-    // 敏感字段过滤：非管理员不查询 leads 和 accounts
-    const selectFields = isAdmin ? undefined : {
-      id: true, channel: true, recordDate: true, campaignId: true, campaignName: true,
-      impressions: true, clicks: true, cost: true, downloads: true, activations: true,
-      formalActivations: true, ctr: true, uploadLogId: true, createdAt: true, updatedAt: true,
-    }
-
     const [total, records] = await Promise.all([
       prisma.rawData.count({ where }),
       prisma.rawData.findMany({
         where,
-        select: selectFields,
         orderBy: { [sortBy]: sortOrder },
         skip,
         take: pageSize,
       }),
     ])
 
-    // 序列化时把敏感字段补 0（保证前端类型兼容）
-    const sanitized = isAdmin ? records : (records as any[]).map((r) => ({
-      ...r,
-      leads: 0,
-      accounts: 0,
-    }))
-
     res.json({
       success: true,
-      data: { total, page, pageSize, records: sanitized },
+      data: { total, page, pageSize, records },
     })
   } catch (err) {
     next(err)
@@ -133,7 +115,6 @@ router.get('/campaign-summary', async (req, res, next) => {
       : 'cost'
     const sortOrder = req.query.sort_order === 'asc' ? 'asc' : 'desc'
     const isAdmin = req.user?.role === 'admin'
-
     const { where, empty } = buildRawDataWhere(req, requestedChannels, isAdmin)
     if (empty) {
       return res.json({ success: true, data: { total: 0, page, pageSize, records: [] } })
@@ -198,9 +179,9 @@ router.get('/campaign-summary', async (req, res, next) => {
         downloads: g._sum.downloads ?? 0,
         activations,
         formalActivations: g._sum.formalActivations ?? 0,
-        leads: isAdmin ? (g._sum.leads ?? 0) : 0,
-        accounts: isAdmin ? realAccounts : 0,
-        activationAccountRate: isAdmin ? activationAccountRate : 0,
+        leads: g._sum.leads ?? 0,
+        accounts: realAccounts,
+        activationAccountRate,
         ctr: calcCtr(clicks, impressions),
         cpa: calcCpa(cost, activations),
         roi: calcRoi(realAccounts, cost),
@@ -286,8 +267,6 @@ router.get('/records/export', async (req, res, next) => {
     const startDate = req.query.start_date ? String(req.query.start_date) : undefined
     const endDate = req.query.end_date ? String(req.query.end_date) : undefined
     const campaignId = req.query.campaign_id ? String(req.query.campaign_id) : undefined
-    const isAdmin = req.user?.role === 'admin'
-
     const channels = resolveUserChannels(req, requestedChannels)
 
     const where: any = {}
@@ -312,23 +291,15 @@ router.get('/records/export', async (req, res, next) => {
       where.campaignId = { contains: campaignId }
     }
 
-    // 管理员查全字段，非管理员排除 leads/accounts（导出时置 0）
-    const selectFields = isAdmin ? undefined : {
-      id: true, channel: true, recordDate: true, campaignId: true, campaignName: true,
-      impressions: true, clicks: true, cost: true, downloads: true, activations: true,
-      formalActivations: true, ctr: true,
-    }
-
     const records = await prisma.rawData.findMany({
       where,
-      select: selectFields,
       orderBy: [{ channel: 'asc' }, { recordDate: 'asc' }, { campaignId: 'asc' }],
     })
 
     const REVENUE_PER_ACCOUNT = 3100
     const rows = records.map((r: any) => {
-      const accounts = isAdmin ? (r.accounts ?? 0) : 0
-      const leads = isAdmin ? (r.leads ?? 0) : 0
+      const accounts = r.accounts ?? 0
+      const leads = r.leads ?? 0
       const cost = r.cost ?? 0
       const roi = cost > 0 ? Number(((accounts * REVENUE_PER_ACCOUNT) / cost).toFixed(4)) : 0
       const ctr = r.ctr ?? 0
