@@ -27,10 +27,9 @@ model RawData {
   updatedAt         DateTime @updatedAt @map("updated_at")
 
   @@unique([channel, recordDate, campaignId], name: "unique_channel_date_campaign")
-  @@index([channel])
   @@index([recordDate])
   @@index([campaignId])
-  @@index([channel, recordDate])
+  @@index([recordDate, channel])
   @@index([uploadLogId])
   @@map("raw_data")
 }
