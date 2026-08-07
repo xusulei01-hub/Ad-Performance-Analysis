@@ -216,3 +216,9 @@
 - Dashboard 漏斗 6 段 + 效率条 6 根、ChannelAnalysis 漏斗 6 段 + 效率条 6 根全部改用共享常量
 - resize 说明：`echarts-for-react@3.0.6` 的 `autoResize` 默认开启（size-sensor 监听容器），窗口缩放自适应天然满足，无需补代码
 - 验证：`tsc --noEmit` 通过、vite build 通过，前端已部署（HTTP 200）；无后端改动
+
+## 会话：2026-08-07（阶段 4.2：数据管理页请求防抖与并发竞争修复）
+- 问题：fetchRecords 依赖含 filterCampaignId 等筛选值，计划ID 输入框每次击键都发一次请求；快速切换分页/筛选时请求并发，响应乱序到达会导致旧数据覆盖新数据，旧请求的 finally 还会提前关掉新请求的 loading
+- 方案：请求序号守卫（recordsReqSeq/logsReqSeq useRef）——响应返回时序号不匹配直接丢弃，过期请求不改 state、不动 loading、不弹错误；useEffect 层加 300ms 防抖（上传历史 200ms），cleanup 时令序号自增使在途请求失效（同时覆盖组件卸载场景）
+- 上传成功后的主动 fetchRecords() 走同一序号机制，行为不变
+- 验证：tsc + vite build 通过，前端已部署（HTTP 200）；无后端改动

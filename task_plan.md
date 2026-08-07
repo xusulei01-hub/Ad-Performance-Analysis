@@ -36,7 +36,7 @@
   - 关键文件：`client/src/pages/Dashboard/index.tsx`、`client/src/pages/ChannelAnalysis/index.tsx`
   - 工作：统一使用 `METRIC_COLORS`，补充 resize 处理
   - 验收：窗口缩放后图表自适应；Dashboard 与 ChannelAnalysis 漏斗颜色一致
-- [ ] **4.2 前端请求防抖**
+- [x] **4.2 前端请求防抖**
   - 关键文件：`client/src/pages/DataManagement/index.tsx`
   - 工作：分页/筛选切换使用防抖或取消旧请求
   - 验收：快速切换分页不产生并发竞争

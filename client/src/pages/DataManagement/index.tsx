@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react'
+import React, { useEffect, useState, useCallback, useRef } from 'react'
 import {
   Card,
   Upload,
@@ -104,6 +104,10 @@ const DataManagement: React.FC = () => {
 
   const [queryTrigger, setQueryTrigger] = useState(0)
 
+  // 请求序号：用于丢弃被取代的过期响应，避免并发竞争导致旧数据覆盖新数据
+  const recordsReqSeq = useRef(0)
+  const logsReqSeq = useRef(0)
+
   // 获取用户可访问的渠道列表
   const getUserChannels = useCallback((): string[] => {
     if (isAdmin) return []
@@ -132,6 +136,7 @@ const DataManagement: React.FC = () => {
   }, [isAdmin, getUserChannels, filterChannel])
 
   const fetchRecords = useCallback(async () => {
+    const seq = ++recordsReqSeq.current
     setRecordsLoading(true)
     try {
       const params: any = { page: recordsPage, pageSize: recordsPageSize }
@@ -142,12 +147,14 @@ const DataManagement: React.FC = () => {
       }
       if (filterCampaignId) params.campaignId = filterCampaignId
       const res = await dataManageService.getRecords(params)
+      if (seq !== recordsReqSeq.current) return // 已有更新的请求，丢弃过期响应
       setRecords(res.records)
       setRecordsTotal(res.total)
     } catch (e) {
+      if (seq !== recordsReqSeq.current) return
       message.error('获取数据列表失败')
     } finally {
-      setRecordsLoading(false)
+      if (seq === recordsReqSeq.current) setRecordsLoading(false)
     }
   }, [recordsPage, recordsPageSize, filterChannel, filterDateRange, filterCampaignId, queryTrigger])
 
@@ -161,23 +168,35 @@ const DataManagement: React.FC = () => {
   }, [])
 
   const fetchUploadLogs = useCallback(async () => {
+    const seq = ++logsReqSeq.current
     setLogsLoading(true)
     try {
       const res = await dataManageService.getUploadLogs({ page: logsPage, pageSize: logsPageSize })
+      if (seq !== logsReqSeq.current) return // 已有更新的请求，丢弃过期响应
       setLogs(res.logs)
       setLogsTotal(res.total)
     } catch (e) {
+      if (seq !== logsReqSeq.current) return
       console.error('Fetch upload logs error:', e)
       message.error('获取上传历史失败')
     } finally {
-      setLogsLoading(false)
+      if (seq === logsReqSeq.current) setLogsLoading(false)
     }
   }, [logsPage, logsPageSize])
 
   useEffect(() => { fetchChannels() }, [fetchChannels])
-  useEffect(() => { fetchRecords() }, [fetchRecords])
+  // 防抖：筛选输入/分页快速变化时，300ms 内只发最后一次请求；
+  // cleanup 时令序号自增，使未返回的旧请求失效（含组件卸载场景）
+  useEffect(() => {
+    const timer = setTimeout(() => { fetchRecords() }, 300)
+    return () => { clearTimeout(timer); recordsReqSeq.current++ }
+  }, [fetchRecords])
   useEffect(() => { fetchMappings() }, [fetchMappings])
-  useEffect(() => { if (logsVisible) fetchUploadLogs() }, [logsVisible, fetchUploadLogs])
+  useEffect(() => {
+    if (!logsVisible) return
+    const timer = setTimeout(() => { fetchUploadLogs() }, 200)
+    return () => { clearTimeout(timer); logsReqSeq.current++ }
+  }, [logsVisible, fetchUploadLogs])
 
   // ===== 新版：上传转化数据表 =====
   const handleConvUpload = async () => {
