@@ -22,11 +22,7 @@
 - **状态：** complete
 
 ### 阶段 3：数据与性能优化
-- [ ] **3.1 补齐 raw_data 复合索引**
-  - 关键文件：`server/prisma/schema.prisma`
-  - 工作：添加 `(recordDate, channel)`、`(channel, recordDate, campaignId)` 等复合索引
-  - 依赖：无
-  - 验收：上传匹配查询与渠道筛选查询 explain 不再全表扫描
+- [x] **3.1 补齐 raw_data 复合索引**（2026-08-07 完成：新增 `(recordDate, channel)`，删除两个冗余索引，本地+线上已 ANALYZE，聚合查询不再全索引扫描）
 - [ ] **3.2 聚合查询 LIMIT 优化**
   - 关键文件：`server/src/services/overviewService.ts`、`server/src/services/channelService.ts`
   - 工作：排名类查询在数据库层限制返回条数，减少内存排序
