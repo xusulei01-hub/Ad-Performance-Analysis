@@ -209,3 +209,10 @@
 - 关键发现：SQLite 中 Prisma DateTime 以**毫秒整数**存储，raw SQL 日期比较必须传 ms（字符串比较恒 false）；SUM(int) 经 raw 查询返回 BigInt，需 Number() 转换防 JSON 序列化崩溃
 - 一致性验证：本地真实数据新旧逻辑对比 5/5 完全一致（costRanking/performanceRanking/roiTop5 单渠道、全渠道、多渠道）
 - 已部署（ce85dfb），线上 /overview/rankings 实测返回正确
+
+## 会话：2026-08-07（阶段 4.1：图表颜色统一）
+- 统一方案：`utils/constants.ts` 新增 `FUNNEL_STAGE_COLORS`（曝光→点击→下载→激活→转正→开户）与 `EFFICIENCY_STAGE_COLORS`（开户率→留资率→转正率→激活率→下载率→点击率），均取自 `METRIC_COLORS`，两页图表按环节着色
+- 顺带修复撞色：`METRIC_COLORS.formalActivations` 由 `#3B82F6`（与 clicks 相同）改为 `#8B5CF6`（绛紫），转正环节在图表中变为紫色属预期变化
+- Dashboard 漏斗 6 段 + 效率条 6 根、ChannelAnalysis 漏斗 6 段 + 效率条 6 根全部改用共享常量
+- resize 说明：`echarts-for-react@3.0.6` 的 `autoResize` 默认开启（size-sensor 监听容器），窗口缩放自适应天然满足，无需补代码
+- 验证：`tsc --noEmit` 通过、vite build 通过，前端已部署（HTTP 200）；无后端改动

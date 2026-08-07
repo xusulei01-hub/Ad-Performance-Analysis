@@ -32,7 +32,7 @@
 - **状态：** pending
 
 ### 阶段 4：前端体验与代码质量
-- [ ] **4.1 图表响应式与颜色统一**
+- [x] **4.1 图表响应式与颜色统一**
   - 关键文件：`client/src/pages/Dashboard/index.tsx`、`client/src/pages/ChannelAnalysis/index.tsx`
   - 工作：统一使用 `METRIC_COLORS`，补充 resize 处理
   - 验收：窗口缩放后图表自适应；Dashboard 与 ChannelAnalysis 漏斗颜色一致

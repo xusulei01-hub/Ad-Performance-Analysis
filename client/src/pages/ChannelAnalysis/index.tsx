@@ -31,7 +31,7 @@ import ReactECharts from 'echarts-for-react'
 import { channelService } from '@services/channelService'
 import { dataManageService } from '@services/dataManageService'
 import { useRefresh } from '@components/layout/RefreshContext'
-import { METRIC_COLORS, SOFT_COLORS, CARD_BASE } from '@utils/constants'
+import { METRIC_COLORS, SOFT_COLORS, FUNNEL_STAGE_COLORS, EFFICIENCY_STAGE_COLORS, CARD_BASE } from '@utils/constants'
 import { getWeekRange } from '@utils/dates'
 import { formatCost, formatCtr, formatNumber, formatPercent, isMaskedValue, MetricValue, toMetricNumber } from '@utils/format'
 import { calcPeriodChange, ChangeText, getPreviousDateRange } from '@utils/changes'
@@ -1246,40 +1246,40 @@ const ChannelAnalysis: React.FC = () => {
                           {
                             value: (metrics?.totalMetrics.impressions ?? 0) > 0 ? 100 : 0,
                             name: '曝光',
-                            itemStyle: { color: '#6B8DD6' },
+                            itemStyle: { color: FUNNEL_STAGE_COLORS[0] },
                           },
                           {
                             value: funnelClickValue,
                             name: '点击',
-                            itemStyle: { color: '#E8917A' },
+                            itemStyle: { color: FUNNEL_STAGE_COLORS[1] },
                           },
                           {
                             value: (metrics?.totalMetrics.downloads ?? 0) > 0 && (metrics?.totalMetrics.clicks ?? 0) > 0
                               ? Math.round(((metrics?.totalMetrics.downloads ?? 0) / (metrics?.totalMetrics.clicks ?? 0)) * 100)
                               : 0,
                             name: '下载',
-                            itemStyle: { color: '#7BC4A6' },
+                            itemStyle: { color: FUNNEL_STAGE_COLORS[2] },
                           },
                           {
                             value: (metrics?.totalMetrics.activations ?? 0) > 0 && (metrics?.totalMetrics.downloads ?? 0) > 0
                               ? Math.round(((metrics?.totalMetrics.activations ?? 0) / (metrics?.totalMetrics.downloads ?? 0)) * 100)
                               : 0,
                             name: '激活',
-                            itemStyle: { color: '#D4A5A5' },
+                            itemStyle: { color: FUNNEL_STAGE_COLORS[3] },
                           },
                           {
                             value: (metrics?.totalMetrics.formalActivations ?? 0) > 0 && (metrics?.totalMetrics.activations ?? 0) > 0
                               ? Math.round(((metrics?.totalMetrics.formalActivations ?? 0) / (metrics?.totalMetrics.activations ?? 0)) * 100)
                               : 0,
                             name: '转正',
-                            itemStyle: { color: '#A8C6E0' },
+                            itemStyle: { color: FUNNEL_STAGE_COLORS[4] },
                           },
                           {
                             value: toMetricNumber(metrics?.totalMetrics.accounts) > 0 && toMetricNumber(metrics?.totalMetrics.leads) > 0
                               ? Math.round((toMetricNumber(metrics?.totalMetrics.accounts) / toMetricNumber(metrics?.totalMetrics.leads)) * 100)
                               : 0,
                             name: '开户',
-                            itemStyle: { color: '#D4B483' },
+                            itemStyle: { color: FUNNEL_STAGE_COLORS[5] },
                           },
                         ],
                       },
@@ -1330,27 +1330,27 @@ const ChannelAnalysis: React.FC = () => {
                         data: [
                           {
                             value: toMetricNumber(metrics?.totalMetrics.leads) > 0 ? Number(((toMetricNumber(metrics?.totalMetrics.accounts) / toMetricNumber(metrics?.totalMetrics.leads)) * 100).toFixed(2)) : 0,
-                            itemStyle: { color: '#D4B483' },
+                            itemStyle: { color: EFFICIENCY_STAGE_COLORS[0] },
                           },
                           {
                             value: (metrics?.totalMetrics.activations ?? 0) > 0 ? Number(((toMetricNumber(metrics?.totalMetrics.leads) / (metrics?.totalMetrics.activations ?? 0)) * 100).toFixed(2)) : 0,
-                            itemStyle: { color: '#9DB0CE' },
+                            itemStyle: { color: EFFICIENCY_STAGE_COLORS[1] },
                           },
                           {
                             value: (metrics?.totalMetrics.activations ?? 0) > 0 ? Number((((metrics?.totalMetrics.formalActivations ?? 0) / (metrics?.totalMetrics.activations ?? 0)) * 100).toFixed(2)) : 0,
-                            itemStyle: { color: '#A8C6E0' },
+                            itemStyle: { color: EFFICIENCY_STAGE_COLORS[2] },
                           },
                           {
                             value: (metrics?.totalMetrics.downloads ?? 0) > 0 ? Number((((metrics?.totalMetrics.activations ?? 0) / (metrics?.totalMetrics.downloads ?? 0)) * 100).toFixed(2)) : 0,
-                            itemStyle: { color: '#D4A5A5' },
+                            itemStyle: { color: EFFICIENCY_STAGE_COLORS[3] },
                           },
                           {
                             value: (metrics?.totalMetrics.clicks ?? 0) > 0 ? Number((((metrics?.totalMetrics.downloads ?? 0) / (metrics?.totalMetrics.clicks ?? 0)) * 100).toFixed(2)) : 0,
-                            itemStyle: { color: '#7BC4A6' },
+                            itemStyle: { color: EFFICIENCY_STAGE_COLORS[4] },
                           },
                           {
                             value: Number(clickRate.toFixed(2)),
-                            itemStyle: { color: '#E8917A' },
+                            itemStyle: { color: EFFICIENCY_STAGE_COLORS[5] },
                           },
                         ],
                         label: { show: true, position: 'right', formatter: '{c}%', fontFamily: 'var(--font-family-number)', color: '#666' },

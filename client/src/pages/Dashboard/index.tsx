@@ -17,7 +17,7 @@ import { dashboardService } from '@services/dashboardService'
 import { targetService } from '@services/targetService'
 import { useRefresh } from '@components/layout/RefreshContext'
 import AIAnalysisPanel from '@components/ai/AIAnalysisPanel'
-import { METRIC_COLORS, CARD_BASE } from '@utils/constants'
+import { METRIC_COLORS, FUNNEL_STAGE_COLORS, EFFICIENCY_STAGE_COLORS, CARD_BASE } from '@utils/constants'
 import { getWeekRange } from '@utils/dates'
 import { formatNumber, isMaskedValue, MetricValue, toMetricNumber } from '@utils/format'
 import { ChangeText } from '@utils/changes'
@@ -728,39 +728,39 @@ const Dashboard: React.FC = () => {
                           color: '#fff',
                         },
                         data: [
-                          { value: 100, name: '曝光', itemStyle: { color: '#51999F' } },
+                          { value: 100, name: '曝光', itemStyle: { color: FUNNEL_STAGE_COLORS[0] } },
                           {
                             value: monthly.ctr * 100,
                             name: '点击',
-                            itemStyle: { color: '#4198AC' },
+                            itemStyle: { color: FUNNEL_STAGE_COLORS[1] },
                           },
                           {
                             value: monthly.downloads > 0 && monthly.clicks > 0
                               ? Math.round((monthly.downloads / monthly.clicks) * 100)
                               : 0,
                             name: '下载',
-                            itemStyle: { color: '#7BC0CD' },
+                            itemStyle: { color: FUNNEL_STAGE_COLORS[2] },
                           },
                           {
                             value: monthly.activations > 0 && monthly.downloads > 0
                               ? Math.round((monthly.activations / monthly.downloads) * 100)
                               : 0,
                             name: '激活',
-                            itemStyle: { color: '#BDFFD2' },
+                            itemStyle: { color: FUNNEL_STAGE_COLORS[3] },
                           },
                           {
                             value: monthly.formalActivations > 0 && monthly.activations > 0
                               ? Math.round((monthly.formalActivations / monthly.activations) * 100)
                               : 0,
                             name: '转正',
-                            itemStyle: { color: '#DBCB92' },
+                            itemStyle: { color: FUNNEL_STAGE_COLORS[4] },
                           },
                           {
                             value: toMetricNumber(monthly.accounts) > 0 && toMetricNumber(monthly.leads) > 0
                               ? Math.round((toMetricNumber(monthly.accounts) / toMetricNumber(monthly.leads)) * 100)
                               : 0,
                             name: '开户',
-                            itemStyle: { color: '#ED8D5A' },
+                            itemStyle: { color: FUNNEL_STAGE_COLORS[5] },
                           },
                         ],
                       },
@@ -811,27 +811,27 @@ const Dashboard: React.FC = () => {
                         data: [
                           {
                             value: toMetricNumber(monthly.leads) > 0 ? Number(((toMetricNumber(monthly.accounts) / toMetricNumber(monthly.leads)) * 100).toFixed(2)) : 0,
-                            itemStyle: { color: '#ED8D5A' },
+                            itemStyle: { color: EFFICIENCY_STAGE_COLORS[0] },
                           },
                           {
                             value: monthly.activations > 0 ? Number(((toMetricNumber(monthly.leads) / monthly.activations) * 100).toFixed(2)) : 0,
-                            itemStyle: { color: '#EA9E58' },
+                            itemStyle: { color: EFFICIENCY_STAGE_COLORS[1] },
                           },
                           {
                             value: monthly.activations > 0 ? Number(((monthly.formalActivations / monthly.activations) * 100).toFixed(2)) : 0,
-                            itemStyle: { color: '#ECB66C' },
+                            itemStyle: { color: EFFICIENCY_STAGE_COLORS[2] },
                           },
                           {
                             value: monthly.downloads > 0 ? Number(((monthly.activations / monthly.downloads) * 100).toFixed(2)) : 0,
-                            itemStyle: { color: '#DBCB92' },
+                            itemStyle: { color: EFFICIENCY_STAGE_COLORS[3] },
                           },
                           {
                             value: monthly.clicks > 0 ? Number(((monthly.downloads / monthly.clicks) * 100).toFixed(2)) : 0,
-                            itemStyle: { color: '#7BC0CD' },
+                            itemStyle: { color: EFFICIENCY_STAGE_COLORS[4] },
                           },
                           {
                             value: Number((monthly.ctr * 100).toFixed(2)),
-                            itemStyle: { color: '#4198AC' },
+                            itemStyle: { color: EFFICIENCY_STAGE_COLORS[5] },
                           },
                         ],
                         label: { show: true, position: 'right', formatter: '{c}%', fontFamily: 'var(--font-family-number)', color: '#666' },

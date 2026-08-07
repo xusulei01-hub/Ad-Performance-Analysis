@@ -7,13 +7,33 @@ export const METRIC_COLORS: Record<string, string> = {
   accounts: '#059669',          // 深邃绿 - 开户
   roi: '#FF6A00',               // 活力橙 - ROI 收益点睛
   cpa: '#64748B',               // 钢灰蓝 - CPA 成本控制
-  formalActivations: '#3B82F6',  // 闪电蓝 - 转正数
+  formalActivations: '#8B5CF6',  // 绛紫 - 转正数（与点击 #3B82F6 区分）
   leads: '#0D9488',             // 雅致青 - 留资数
   ctr: '#EA580C',               // 暗红橙 - CTR 点击率
   impressions: '#94A3B8',       // 雾灰 - 曝光
   clicks: '#3B82F6',            // 蔚蓝 - 点击
   downloads: '#06B6D4',         // 湖蓝 - 下载
 }
+
+/** 转化漏斗各环节颜色（顺序：曝光→点击→下载→激活→转正→开户），Dashboard / ChannelAnalysis 共用 */
+export const FUNNEL_STAGE_COLORS = [
+  METRIC_COLORS.impressions,
+  METRIC_COLORS.clicks,
+  METRIC_COLORS.downloads,
+  METRIC_COLORS.activations,
+  METRIC_COLORS.formalActivations,
+  METRIC_COLORS.accounts,
+]
+
+/** 转化效率条形图各环节颜色（顺序与 yAxis 一致：开户率→留资率→转正率→激活率→下载率→点击率） */
+export const EFFICIENCY_STAGE_COLORS = [
+  METRIC_COLORS.accounts,
+  METRIC_COLORS.leads,
+  METRIC_COLORS.formalActivations,
+  METRIC_COLORS.activations,
+  METRIC_COLORS.downloads,
+  METRIC_COLORS.ctr,
+]
 
 /** 图表色板（用于多系列图表颜色区分） */
 export const SOFT_COLORS = [
