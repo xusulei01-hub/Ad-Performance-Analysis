@@ -202,3 +202,10 @@
 - 迁移 `20260807071000_raw_data_composite_index`：新增 `(record_date, channel)` 复合索引；删除被唯一索引 `(channel, record_date, campaign_id)` 左前缀覆盖的冗余 `channel_idx` 和 `channel_record_date_idx`
 - 关键发现：SQLite 优化器倾向用 GROUP BY 有序的索引全扫描来回避排序，需 `ANALYZE raw_data` 提供统计信息后才选择范围 SEARCH（本地与线上均已执行）
 - 线上验证：迁移已应用，聚合查询由 SCAN 全索引 → `SEARCH record_date>? + TEMP B-TREE GROUP BY`，只扫描日期范围内的行
+
+## 会话：2026-08-07（阶段 3.2：聚合查询 LIMIT 优化）
+- channelService：开户 Top5 改为 groupBy take 5；ROI Top5 改为 raw SQL（数据库层算 ROI + ORDER BY + LIMIT 5），不再全量聚合后内存排序
+- overviewService.getRankings：花费/效果排名均改为 raw SQL GROUP BY + LIMIT 10；performanceRanking 保留 cost 字段兼容旧契约
+- 关键发现：SQLite 中 Prisma DateTime 以**毫秒整数**存储，raw SQL 日期比较必须传 ms（字符串比较恒 false）；SUM(int) 经 raw 查询返回 BigInt，需 Number() 转换防 JSON 序列化崩溃
+- 一致性验证：本地真实数据新旧逻辑对比 5/5 完全一致（costRanking/performanceRanking/roiTop5 单渠道、全渠道、多渠道）
+- 已部署（ce85dfb），线上 /overview/rankings 实测返回正确
