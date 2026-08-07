@@ -206,6 +206,14 @@ export interface UploadLog {
   errorDetails?: string
   uploadedBy?: string
   uploadedAt: string
+  rolledBackAt?: string | null
+  hasBackup?: boolean
+  canRollback?: boolean
+}
+
+export interface UploadRowError {
+  row: number
+  reason: string
 }
 
 export interface ChannelMapping {

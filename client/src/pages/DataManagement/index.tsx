@@ -37,7 +37,7 @@ import { CARD_BASE } from '@utils/constants'
 import { exportToExcel } from '@utils/export'
 import { formatNumber } from '@utils/format'
 import { useAuthStore } from '@stores/authStore'
-import { RawData, UploadLog, ChannelMapping } from '@/types'
+import { RawData, UploadLog, ChannelMapping, UploadRowError } from '@/types'
 
 const { Dragger } = Upload
 const { RangePicker } = DatePicker
@@ -63,6 +63,22 @@ const DataManagement: React.FC = () => {
   const [oldUploadResult, setOldUploadResult] = useState<any>(null)
   const [uploadError, setUploadError] = useState<any>(null)
   const [uploadErrorVisible, setUploadErrorVisible] = useState(false)
+
+  // ===== 行级校验错误（上传被整体拒绝时展示） =====
+  const [rowErrors, setRowErrors] = useState<{ message: string; errorCount: number; errors: UploadRowError[] } | null>(null)
+
+  const handleUploadError = (e: any): boolean => {
+    const errData = e.responseData
+    if (errData?.data?.errors?.length) {
+      setRowErrors({
+        message: errData.message || '数据校验未通过',
+        errorCount: errData.data.errorCount ?? errData.data.errors.length,
+        errors: errData.data.errors,
+      })
+      return true
+    }
+    return false
+  }
 
   // ===== 数据列表 =====
   const [records, setRecords] = useState<RawData[]>([])
@@ -176,7 +192,9 @@ const DataManagement: React.FC = () => {
       message.success(`转化数据上传成功！共 ${result.totalRecords} 条，新增 ${result.insertedCount} 条，更新 ${result.updatedCount} 条`)
       setConvFile(null)
     } catch (e: any) {
-      message.error(`上传失败: ${e.message || '未知错误'}`)
+      if (!handleUploadError(e)) {
+        message.error(`上传失败: ${e.message || '未知错误'}`)
+      }
     } finally {
       setConvUploading(false)
     }
@@ -203,7 +221,9 @@ const DataManagement: React.FC = () => {
       fetchChannels()
       setMediaFile(null)
     } catch (e: any) {
-      message.error(`上传失败: ${e.message || '未知错误'}`)
+      if (!handleUploadError(e)) {
+        message.error(`上传失败: ${e.message || '未知错误'}`)
+      }
     } finally {
       setMediaUploading(false)
     }
@@ -249,7 +269,9 @@ const DataManagement: React.FC = () => {
       setOldConvFile(null)
     } catch (e: any) {
       const errData = e.responseData
-      if (errData?.data?.diagnosis) {
+      if (handleUploadError(e)) {
+        // 行级校验错误已用弹窗展示
+      } else if (errData?.data?.diagnosis) {
         setUploadError(errData)
         setUploadErrorVisible(true)
       }
@@ -320,22 +342,31 @@ const DataManagement: React.FC = () => {
     {
       title: '操作',
       key: 'action',
-      render: (_: any, record: UploadLog) => (
-        record.errorDetails?.startsWith('已撤销')
-          ? <Tag color="default">已撤销</Tag>
-          : isAdmin ? (
-            <Popconfirm
-              title="确定撤销本次上传？"
-              description="这将删除本次上传首次创建的所有数据，不可恢复。"
-              okButtonProps={{ danger: true }}
-              onConfirm={() => handleRollback(record.id)}
-              okText="撤销"
-              cancelText="取消"
-            >
-              <Button type="link" danger size="small">撤销</Button>
-            </Popconfirm>
-          ) : null
-      ),
+      render: (_: any, record: UploadLog) => {
+        if (record.rolledBackAt || record.errorDetails?.startsWith('已撤销')) {
+          return <Tag color="default">已撤销</Tag>
+        }
+        if (!isAdmin) return null
+        if (!record.canRollback) {
+          return <span style={{ fontSize: 12, color: 'var(--color-text-tertiary)' }}>仅最近一次可撤销</span>
+        }
+        return (
+          <Popconfirm
+            title="确定撤销本次上传？"
+            description={
+              record.hasBackup
+                ? `将删除本次新增的 ${record.insertedCount} 条数据，并恢复被覆盖的 ${record.updatedCount} 条数据。`
+                : '旧格式记录：仅删除本次新增的数据，被覆盖的旧数据无法恢复。'
+            }
+            okButtonProps={{ danger: true }}
+            onConfirm={() => handleRollback(record.id)}
+            okText="撤销"
+            cancelText="取消"
+          >
+            <Button type="link" danger size="small">撤销</Button>
+          </Popconfirm>
+        )
+      },
     },
   ]
 
@@ -808,6 +839,34 @@ const DataManagement: React.FC = () => {
                 </Card>
               </Col>
             </Row>
+          </div>
+        )}
+      </Modal>
+      <Modal
+        title="上传被拒绝：数据校验未通过"
+        open={!!rowErrors}
+        onCancel={() => setRowErrors(null)}
+        footer={<Button type="primary" onClick={() => setRowErrors(null)}>知道了</Button>}
+        width={560}
+      >
+        {rowErrors && (
+          <div>
+            <div style={{ marginBottom: 16, padding: 12, backgroundColor: 'var(--color-background-secondary)', borderRadius: 'var(--radius-large)' }}>
+              {rowErrors.message}
+            </div>
+            <div style={{ maxHeight: 320, overflowY: 'auto' }}>
+              {rowErrors.errors.map((err, i) => (
+                <div key={i} style={{ padding: '6px 0', borderBottom: '1px solid var(--color-border-secondary, #f0f0f0)', fontSize: 13 }}>
+                  {err.row > 0 && <Tag color="red">第 {err.row} 行</Tag>}
+                  {err.reason}
+                </div>
+              ))}
+              {rowErrors.errorCount > rowErrors.errors.length && (
+                <div style={{ padding: '8px 0', color: 'var(--color-text-tertiary)', fontSize: 12 }}>
+                  … 其余 {rowErrors.errorCount - rowErrors.errors.length} 条错误未展示
+                </div>
+              )}
+            </div>
           </div>
         )}
       </Modal>

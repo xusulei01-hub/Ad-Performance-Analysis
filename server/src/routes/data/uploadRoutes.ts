@@ -1,27 +1,21 @@
 import { Router } from 'express'
-import dayjs from 'dayjs'
 import { prisma } from '../../lib/prisma'
 import { createMulterUpload, parseBuffer, parseRows, normalizeDate } from '../../utils/upload'
 import { toNum } from '../../utils/formulas'
 import { MEDIA_HEADERS } from '../../utils/mediaHeaders'
-import type { ParsedMedia, ParsedConv, MatchedRow } from '../../types'
+import {
+  ingestRows,
+  dedupeRows,
+  looksLikeSwappedCampaign,
+  type IngestRow,
+  type RowError,
+  type UploadBackup,
+} from '../../utils/ingest'
 
 const router = Router()
 const upload = createMulterUpload()
 
-async function getChannelMappings(): Promise<Map<string, string>> {
-  const rows = await prisma.channelMapping.findMany()
-  const map = new Map<string, string>()
-  for (const row of rows) {
-    map.set(row.sourceName.toLowerCase(), row.targetName)
-  }
-  return map
-}
-
-function normalizeChannel(name: string, map: Map<string, string>): string {
-  const key = String(name).trim().toLowerCase()
-  return map.get(key) || key
-}
+const TRANSACTION_OPTIONS = { timeout: 60000, maxWait: 10000 }
 
 const CONV_HEADERS: Record<string, string> = {
   '付费拉新时间': 'recordDate',
@@ -34,12 +28,20 @@ const CONV_HEADERS: Record<string, string> = {
   '累计开户用户数': 'accounts',
 }
 
-// POST /api/v1/data/upload
+async function getChannelMappings(): Promise<Map<string, string>> {
+  const rows = await prisma.channelMapping.findMany()
+  const map = new Map<string, string>()
+  for (const row of rows) {
+    map.set(row.sourceName.toLowerCase(), row.targetName)
+  }
+  return map
+}
+
+// POST /api/v1/data/upload — 旧版双文件上传（媒体表 + 转化表）
 router.post('/upload', upload.fields([
   { name: 'mediaFile', maxCount: 1 },
   { name: 'convFile', maxCount: 1 },
 ]), async (req, res, next) => {
-  // multer 已处理 multipart，req.body 包含非文件字段
   try {
     const files = req.files as { mediaFile?: Express.Multer.File[]; convFile?: Express.Multer.File[] }
     if (!files.mediaFile?.[0] || !files.convFile?.[0]) {
@@ -59,60 +61,150 @@ router.post('/upload', upload.fields([
     }
 
     const chMap = await getChannelMappings()
-
-    const mediaParsed: ParsedMedia[] = parseRows(mediaRaw, MEDIA_HEADERS)
-      .map((r) => {
-        const d = normalizeDate(r.recordDate)
-        if (!d) return null
-        return {
-          channel: normalizeChannel(String(r.channel || ''), chMap),
-          recordDate: d,
-          campaignId: String(r.campaignId || '').trim(),
-          campaignName: r.campaignName ? String(r.campaignName).trim() : null,
-          impressions: toNum(r.impressions),
-          clicks: toNum(r.clicks),
-          cost: toNum(r.cost),
-          downloads: toNum(r.downloads),
-        }
-      })
-      .filter((r): r is ParsedMedia => r !== null && !!r.channel && !!r.campaignId)
-
-    const convParsed: ParsedConv[] = parseRows(convRaw, CONV_HEADERS)
-      .map((r) => {
-        const d = normalizeDate(r.recordDate)
-        if (!d) return null
-        return {
-          channel: normalizeChannel(String(r.channel || ''), chMap),
-          recordDate: d,
-          campaignId: String(r.campaignId || '').trim(),
-          activations: toNum(r.activations),
-          formalActivations: toNum(r.formalActivations),
-          leads: toNum(r.leads),
-          accounts: toNum(r.accounts),
-        }
-      })
-      .filter((r): r is ParsedConv => r !== null && !!r.channel && !!r.campaignId)
-
-    const convMap = new Map<string, ParsedConv>()
-    for (const c of convParsed) {
-      const key = `${c.channel}__${c.recordDate}__${c.campaignId}`
-      convMap.set(key, c)
+    const normalizeChannel = (name: string): string => {
+      const key = String(name).trim().toLowerCase()
+      return chMap.get(key) || key
     }
 
-    const matched: MatchedRow[] = []
-    const unmatchedMedia: ParsedMedia[] = []
+    // ===== 全量校验（媒体表）：任何一行不合格则整体拒绝 =====
+    const errors: RowError[] = []
+    interface MediaRow {
+      channel: string
+      recordDate: string
+      campaignId: string
+      campaignName: string | null
+      impressions: number
+      clicks: number
+      cost: number
+      downloads: number
+    }
+    const mediaParsed: MediaRow[] = []
+    parseRows(mediaRaw, MEDIA_HEADERS).forEach((r, idx) => {
+      const excelRow = idx + 2
+      const d = normalizeDate(r.recordDate)
+      const channel = normalizeChannel(String(r.channel ?? ''))
+      const campaignId = String(r.campaignId ?? '').trim()
+      if (!d) {
+        errors.push({ row: excelRow, reason: `【媒体表】日期无法识别（值：${String(r.recordDate ?? '').slice(0, 30) || '空'}）` })
+        return
+      }
+      if (!channel) {
+        errors.push({ row: excelRow, reason: '【媒体表】渠道为空' })
+        return
+      }
+      if (!campaignId) {
+        errors.push({ row: excelRow, reason: '【媒体表】计划ID为空' })
+        return
+      }
+      mediaParsed.push({
+        channel,
+        recordDate: d,
+        campaignId,
+        campaignName: r.campaignName ? String(r.campaignName).trim() : null,
+        impressions: toNum(r.impressions),
+        clicks: toNum(r.clicks),
+        cost: toNum(r.cost),
+        downloads: toNum(r.downloads),
+      })
+    })
 
-    for (const m of mediaParsed) {
+    // ===== 全量校验（转化表） =====
+    interface ConvRow {
+      channel: string
+      recordDate: string
+      campaignId: string
+      activations: number
+      formalActivations: number
+      leads: number
+      accounts: number
+    }
+    const convParsed: ConvRow[] = []
+    parseRows(convRaw, CONV_HEADERS).forEach((r, idx) => {
+      const excelRow = idx + 2
+      const d = normalizeDate(r.recordDate)
+      const channel = normalizeChannel(String(r.channel ?? ''))
+      const campaignId = String(r.campaignId ?? '').trim()
+      if (!d) {
+        errors.push({ row: excelRow, reason: `【转化表】日期无法识别（值：${String(r.recordDate ?? '').slice(0, 30) || '空'}）` })
+        return
+      }
+      if (!channel) {
+        errors.push({ row: excelRow, reason: '【转化表】渠道为空' })
+        return
+      }
+      if (!campaignId) {
+        errors.push({ row: excelRow, reason: '【转化表】计划ID为空' })
+        return
+      }
+      convParsed.push({
+        channel,
+        recordDate: d,
+        campaignId,
+        activations: toNum(r.activations),
+        formalActivations: toNum(r.formalActivations),
+        leads: toNum(r.leads),
+        accounts: toNum(r.accounts),
+      })
+    })
+
+    if (errors.length > 0) {
+      res.status(400).json({
+        success: false,
+        message: `共 ${errors.length} 行数据校验未通过，未入库任何数据，请修正后重新上传`,
+        data: { errorCount: errors.length, errors: errors.slice(0, 20) },
+      })
+      return
+    }
+
+    // ===== 媒体表计划ID / 计划名称填反检测 =====
+    const swapped = mediaParsed.filter((r) => looksLikeSwappedCampaign(r.campaignId, r.campaignName))
+    if (swapped.length > 0 && swapped.length / mediaParsed.length >= 0.5) {
+      res.status(400).json({
+        success: false,
+        message: `媒体表疑似「计划ID」与「计划名称」两列填反（${swapped.length}/${mediaParsed.length} 行的名称列是纯数字而ID列是文本），未入库任何数据，请检查文件后重新上传`,
+        data: {
+          errorCount: swapped.length,
+          errors: swapped.slice(0, 10).map((r) => ({
+            row: 0,
+            reason: `计划ID="${r.campaignId.slice(0, 30)}"，计划名称="${r.campaignName}"`,
+          })),
+        },
+      })
+      return
+    }
+
+    // 文件内主键去重（保留最后一行）
+    const { rows: mediaRows } = dedupeRows(mediaParsed)
+    const { rows: convRows } = dedupeRows(convParsed)
+
+    const convMap = new Map<string, ConvRow>()
+    for (const c of convRows) {
+      convMap.set(`${c.channel}__${c.recordDate}__${c.campaignId}`, c)
+    }
+
+    const ingestInput: IngestRow[] = []
+    const unmatchedMedia: MediaRow[] = []
+
+    for (const m of mediaRows) {
       const key = `${m.channel}__${m.recordDate}__${m.campaignId}`
       const c = convMap.get(key)
       if (c) {
-        matched.push({
-          ...m,
-          activations: c.activations,
-          formalActivations: c.formalActivations,
-          leads: c.leads,
-          accounts: c.accounts,
-          ctr: m.impressions > 0 ? Number((m.clicks / m.impressions).toFixed(4)) : 0,
+        ingestInput.push({
+          channel: m.channel,
+          recordDate: m.recordDate,
+          campaignId: m.campaignId,
+          data: {
+            campaignName: m.campaignName,
+            impressions: m.impressions,
+            clicks: m.clicks,
+            cost: m.cost,
+            downloads: m.downloads,
+            activations: c.activations,
+            formalActivations: c.formalActivations,
+            leads: c.leads,
+            accounts: c.accounts,
+            ctr: m.impressions > 0 ? Number((m.clicks / m.impressions).toFixed(4)) : 0,
+          },
         })
         convMap.delete(key)
       } else {
@@ -120,20 +212,20 @@ router.post('/upload', upload.fields([
       }
     }
 
-    if (matched.length === 0) {
-      const mediaChannels = [...new Set(mediaParsed.map((r) => r.channel))].slice(0, 10)
-      const convChannels = [...new Set(convParsed.map((r) => r.channel))].slice(0, 10)
-      const mediaDates = [...new Set(mediaParsed.map((r) => r.recordDate))].slice(0, 5)
-      const convDates = [...new Set(convParsed.map((r) => r.recordDate))].slice(0, 5)
-      const mediaCampaignIds = mediaParsed.slice(0, 3).map((r) => r.campaignId)
-      const convCampaignIds = convParsed.slice(0, 3).map((r) => r.campaignId)
+    if (ingestInput.length === 0) {
+      const mediaChannels = [...new Set(mediaRows.map((r) => r.channel))].slice(0, 10)
+      const convChannels = [...new Set(convRows.map((r) => r.channel))].slice(0, 10)
+      const mediaDates = [...new Set(mediaRows.map((r) => r.recordDate))].slice(0, 5)
+      const convDates = [...new Set(convRows.map((r) => r.recordDate))].slice(0, 5)
+      const mediaCampaignIds = mediaRows.slice(0, 3).map((r) => r.campaignId)
+      const convCampaignIds = convRows.slice(0, 3).map((r) => r.campaignId)
 
       res.status(400).json({
         success: false,
         message: '两份文件未能匹配到任何数据，请检查日期格式和计划ID是否一致',
         data: {
-          mediaRows: mediaParsed.length,
-          convRows: convParsed.length,
+          mediaRows: mediaRows.length,
+          convRows: convRows.length,
           matchedCount: 0,
           unmatchedMediaCount: unmatchedMedia.length,
           unmatchedConvCount: convMap.size,
@@ -155,96 +247,51 @@ router.post('/upload', upload.fields([
       return
     }
 
-    const uploadLog = await prisma.uploadLog.create({
-      data: {
-        filename: `${mediaBuf.originalname} + ${convBuf.originalname}`,
-        recordCount: matched.length,
-        insertedCount: 0,
-        updatedCount: 0,
-        failedCount: 0,
-        uploadedBy: req.body.uploadedBy || null,
-      },
-    })
-    const uploadLogId = uploadLog.id
+    // ===== 事务化入库：全部成功才提交，失败整体回滚 =====
+    const result = await prisma.$transaction(async (tx) => {
+      const uploadLog = await tx.uploadLog.create({
+        data: {
+          filename: `${mediaBuf.originalname} + ${convBuf.originalname}`,
+          recordCount: ingestInput.length,
+          insertedCount: 0,
+          updatedCount: 0,
+          failedCount: 0,
+          uploadedBy: req.body.uploadedBy || req.user?.username || null,
+        },
+      })
 
-    let insertedCount = 0
-    let updatedCount = 0
+      const ingestResult = await ingestRows(tx, 'rawData', ingestInput, uploadLog.id)
 
-    const allDates = [...new Set(matched.map((r) => r.recordDate))]
-    const allChannels = [...new Set(matched.map((r) => r.channel))]
-    const existingRows = await prisma.rawData.findMany({
-      where: {
-        recordDate: { in: allDates.map((d) => new Date(d)) },
-        channel: { in: allChannels },
-      },
-      select: { id: true, channel: true, recordDate: true, campaignId: true, uploadLogId: true },
-    })
+      const backup: UploadBackup = { rawData: ingestResult.backup }
+      await tx.uploadLog.update({
+        where: { id: uploadLog.id },
+        data: {
+          insertedCount: ingestResult.insertedCount,
+          updatedCount: ingestResult.updatedCount,
+          backupData: JSON.stringify(backup),
+        },
+      })
 
-    const existingMap = new Map<string, { id: number; uploadLogId: number | null }>()
-    for (const r of existingRows) {
-      const key = `${r.channel}__${dayjs(r.recordDate).format('YYYY-MM-DD')}__${r.campaignId}`
-      existingMap.set(key, { id: r.id, uploadLogId: r.uploadLogId })
-    }
-
-    for (const row of matched) {
-      const data = {
-        channel: row.channel,
-        recordDate: new Date(row.recordDate),
-        campaignId: row.campaignId,
-        campaignName: row.campaignName,
-        impressions: row.impressions,
-        clicks: row.clicks,
-        cost: row.cost,
-        downloads: row.downloads,
-        activations: row.activations,
-        formalActivations: row.formalActivations,
-        leads: row.leads,
-        accounts: row.accounts,
-        ctr: row.ctr,
-      }
-
-      const key = `${row.channel}__${row.recordDate}__${row.campaignId}`
-      const existing = existingMap.get(key)
-
-      if (existing) {
-        await prisma.rawData.update({ where: { id: existing.id }, data })
-        updatedCount++
-      } else {
-        await prisma.rawData.create({ data: { ...data, uploadLogId } })
-        insertedCount++
-      }
-    }
-
-    await prisma.uploadLog.update({
-      where: { id: uploadLogId },
-      data: { insertedCount, updatedCount },
-    })
+      return { uploadLogId: uploadLog.id, ...ingestResult }
+    }, TRANSACTION_OPTIONS)
 
     res.json({
       success: true,
       data: {
         filename: `${mediaBuf.originalname} + ${convBuf.originalname}`,
-        totalRecords: matched.length,
-        mediaRows: mediaParsed.length,
-        convRows: convParsed.length,
-        insertedCount,
-        updatedCount,
+        uploadLogId: result.uploadLogId,
+        totalRecords: ingestInput.length,
+        mediaRows: mediaRows.length,
+        convRows: convRows.length,
+        insertedCount: result.insertedCount,
+        updatedCount: result.updatedCount,
         unmatchedMediaCount: unmatchedMedia.length,
         unmatchedConvCount: convMap.size,
-        preview: matched.slice(0, 5).map((r) => ({
+        preview: ingestInput.slice(0, 5).map((r) => ({
           channel: r.channel,
           recordDate: r.recordDate,
           campaignId: r.campaignId,
-          campaignName: r.campaignName,
-          cost: r.cost,
-          impressions: r.impressions,
-          clicks: r.clicks,
-          downloads: r.downloads,
-          activations: r.activations,
-          formalActivations: r.formalActivations,
-          leads: r.leads,
-          accounts: r.accounts,
-          ctr: r.ctr,
+          ...(r.data as Record<string, unknown>),
         })),
       },
     })

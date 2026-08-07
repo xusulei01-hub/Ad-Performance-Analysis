@@ -1,6 +1,6 @@
+import 'dotenv/config' // 必须最先加载：保证 utils/auth.ts 等模块在初始化时能读到环境变量
 import express from 'express'
 import cors from 'cors'
-import dotenv from 'dotenv'
 import { errorHandler } from './middleware/errorHandler'
 import { authenticate } from './middleware/authenticate'
 import dataRoutes from './routes/dataRoutes'
@@ -13,8 +13,6 @@ import aiRoutes from './routes/aiRoutes'
 import aiReportRoutes from './routes/aiReportRoutes'
 import authRoutes from './routes/authRoutes'
 import userRoutes from './routes/userRoutes'
-
-dotenv.config()
 
 const app = express()
 const PORT = process.env.PORT || 3001

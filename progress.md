@@ -140,3 +140,38 @@
 
 ---
 *每个阶段完成后或遇到错误时更新此文件*
+
+## 会话：2026-08-07（上传事务化 + 快照撤销落地）
+
+### 阶段 2.1/2.2：上传稳定性改造 + 最近一次上传可回溯
+- **状态：** complete
+- 背景：线上一次媒体表「计划ID/计划名称」填反仍成功入库，且旧撤销功能无法安全清理（媒体上传会把被更新的老行也打上新 uploadLogId，撤销会误删老数据；旧版双文件上传的更新行无 uploadLogId，撤销恢复不了旧值）。
+- 执行的操作：
+  - UploadLog 新增 `backupData`（JSON 快照：本次插入行 id + 被更新行旧值）、`rolledBackAt` 字段，迁移 `20260807054000_upload_rollback_snapshot`
+  - 新增 `server/src/utils/ingest.ts`：事务内 createMany 批量插入 + 逐条更新 + 快照生成；文件内主键去重；填反检测（名称列纯数字≥4位且ID列非纯数字，占比≥50% 拒绝）
+  - 三个上传路由（upload-media / upload-conv / upload 双文件）全部改为：全量行级校验（任何一行不合格整体 400 拒绝，不入库）→ `$transaction`（timeout 60s）内建日志、写入、存快照，失败整体回滚
+  - 撤销接口重写：仅最近一次未撤销上传可撤销（否则 409）；优先按快照精确回滚（删新增 + 恢复旧值），事务内完成；旧格式无快照记录回退为 legacy 删除；已撤销记录拒绝重复撤销；撤销需 admin
+  - 前端：上传历史按 `rolledBackAt` 显示已撤销、仅最近一次显示撤销按钮、按 hasBackup 区分提示文案；上传被拒时弹窗展示行号级错误明细
+  - 修复潜在 bug：`index.ts` 中 `dotenv.config()` 在 import 之后执行，导致 `utils/auth.ts` 读不到 JWT_SECRET，一直用兜底密钥——改为首行 `import 'dotenv/config'`（注意：部署后旧 token 失效，用户需重新登录）
+- 创建/修改的文件：
+  - `server/prisma/schema.prisma`、`server/prisma/migrations/20260807054000_upload_rollback_snapshot/`
+  - `server/src/utils/ingest.ts`（新增）、`server/src/index.ts`
+  - `server/src/routes/data/{uploadRoutes,mediaUploadRoutes,convUploadRoutes,uploadLogRoutes}.ts`
+  - `client/src/pages/DataManagement/index.tsx`、`client/src/services/dataManageService.ts`、`client/src/types/index.ts`
+  - `server/scripts/e2e-upload-test.mjs`（新增，24 项端到端断言）
+
+## 测试结果
+| 测试 | 输入 | 预期结果 | 实际结果 | 状态 |
+|------|------|---------|---------|------|
+| server tsc --noEmit | 全量后端代码 | 无错误 | 无错误 | complete |
+| client vite build + tsc | 全量前端代码 | 构建成功 | 构建成功 | complete |
+| E2E：正常转化/媒体上传 | 3 行 xlsx | 入库+快照 | 通过 | complete |
+| E2E：计划ID/名称填反 | 3 行填反 xlsx | 400 整体拒绝无脏数据 | 通过 | complete |
+| E2E：含坏行文件 | 1 行坏日期 | 400 且正确行也不入库 | 通过 | complete |
+| E2E：覆盖上传+撤销 | 更新 1 条后撤销 | 旧值精确恢复 | 通过 | complete |
+| E2E：撤销顺序/重复撤销 | 撤销更早记录/重复撤销 | 409 / 400 | 通过 | complete |
+
+## 待办（部署相关）
+- 线上需先执行 `prisma migrate deploy` 加列，再重启
+- 线上脏数据清理：部署后按 uploadLogId 撤销或 SQL 删除填反产生的垃圾行（campaignId 为中文计划名称的行）
+- 部署后 JWT_SECRET 真正生效，所有已登录用户需重新登录

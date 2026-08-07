@@ -45,6 +45,8 @@ model UploadLog {
   errorDetails   String?  @map("error_details")
   uploadedBy     String?  @map("uploaded_by")
   uploadedAt     DateTime @default(now()) @map("uploaded_at")
+  backupData     String?  @map("backup_data") // JSON 快照：本次插入的行 id + 被更新行的旧值，用于撤销
+  rolledBackAt   DateTime? @map("rolled_back_at") // 撤销时间，非空表示已撤销
 
   @@index([uploadedAt])
   @@map("upload_logs")

@@ -2,11 +2,19 @@ import { Router } from 'express'
 import { prisma } from '../../lib/prisma'
 import { createMulterUpload, parseBuffer, parseRows, normalizeDate } from '../../utils/upload'
 import { toNum } from '../../utils/formulas'
-import { requireAdmin, requireChannelPermission } from '../../middleware/authorize'
-import type { ParsedConv } from '../../types'
+import { requireAdmin } from '../../middleware/authorize'
+import {
+  ingestRows,
+  dedupeRows,
+  type IngestRow,
+  type RowError,
+  type UploadBackup,
+} from '../../utils/ingest'
 
 const router = Router()
 const upload = createMulterUpload()
+
+const TRANSACTION_OPTIONS = { timeout: 60000, maxWait: 10000 }
 
 const CONV_HEADERS: Record<string, string> = {
   '付费拉新时间': 'recordDate',
@@ -39,92 +47,118 @@ router.post('/upload-conv', requireAdmin, upload.single('file'), async (req, res
     for (const row of mappings) {
       chMap.set(row.sourceName.toLowerCase(), row.targetName)
     }
-
-    function normalizeChannel(name: string): string {
+    const normalizeChannel = (name: string): string => {
       const key = String(name).trim().toLowerCase()
       return chMap.get(key) || key
     }
 
-    const parsed: ParsedConv[] = parseRows(raw, CONV_HEADERS)
-      .map((r) => {
-        const d = normalizeDate(r.recordDate)
-        if (!d) return null
-        const channel = normalizeChannel(String(r.channel || ''))
-        const campaignId = String(r.campaignId || '').trim()
-        if (!channel || !campaignId) return null
-        return {
-          channel,
-          recordDate: d,
-          campaignId,
-          activations: toNum(r.activations),
-          formalActivations: toNum(r.formalActivations),
-          leads: toNum(r.leads),
-          accounts: toNum(r.accounts),
-        }
+    // ===== 全量校验：任何一行不合格则整体拒绝，不入库 =====
+    const errors: RowError[] = []
+    interface ConvRow {
+      channel: string
+      recordDate: string
+      campaignId: string
+      activations: number
+      formalActivations: number
+      leads: number
+      accounts: number
+    }
+    const parsed: ConvRow[] = []
+
+    parseRows(raw, CONV_HEADERS).forEach((r, idx) => {
+      const excelRow = idx + 2
+      const d = normalizeDate(r.recordDate)
+      const channel = normalizeChannel(String(r.channel ?? ''))
+      const campaignId = String(r.campaignId ?? '').trim()
+      if (!d) {
+        errors.push({ row: excelRow, reason: `日期无法识别（值：${String(r.recordDate ?? '').slice(0, 30) || '空'}）` })
+        return
+      }
+      if (!channel) {
+        errors.push({ row: excelRow, reason: '渠道为空' })
+        return
+      }
+      if (!campaignId) {
+        errors.push({ row: excelRow, reason: '计划ID为空' })
+        return
+      }
+      parsed.push({
+        channel,
+        recordDate: d,
+        campaignId,
+        activations: toNum(r.activations),
+        formalActivations: toNum(r.formalActivations),
+        leads: toNum(r.leads),
+        accounts: toNum(r.accounts),
       })
-      .filter((r): r is ParsedConv => r !== null)
+    })
+
+    if (errors.length > 0) {
+      res.status(400).json({
+        success: false,
+        message: `共 ${errors.length} 行数据校验未通过，未入库任何数据，请修正后重新上传`,
+        data: { errorCount: errors.length, errors: errors.slice(0, 20) },
+      })
+      return
+    }
 
     if (parsed.length === 0) {
       res.status(400).json({ success: false, message: '未能解析到任何有效数据，请检查表头和格式' })
       return
     }
 
-    // 创建上传记录
-    const uploadLog = await prisma.uploadLog.create({
+    // 文件内主键去重（保留最后一行）
+    const { rows: uniqueRows, duplicateCount } = dedupeRows(parsed)
+
+    const ingestInput: IngestRow[] = uniqueRows.map((row) => ({
+      channel: row.channel,
+      recordDate: row.recordDate,
+      campaignId: row.campaignId,
       data: {
-        filename: req.file.originalname,
-        recordCount: parsed.length,
-        insertedCount: 0,
-        updatedCount: 0,
-        failedCount: 0,
-        uploadedBy: req.body.uploadedBy || null,
-      },
-    })
-    const uploadLogId = uploadLog.id
-
-    let insertedCount = 0
-    let updatedCount = 0
-
-    for (const row of parsed) {
-      const key = `${row.channel}__${row.recordDate}__${row.campaignId}`
-
-      const data = {
-        channel: row.channel,
-        recordDate: new Date(row.recordDate),
-        campaignId: row.campaignId,
         activations: row.activations,
         formalActivations: row.formalActivations,
         leads: row.leads,
         accounts: row.accounts,
-      }
+      },
+    }))
 
-      // 先查 ConvData 是否存在
-      const existing = await prisma.convData.findFirst({
-        where: { channel: row.channel, recordDate: new Date(row.recordDate), campaignId: row.campaignId },
+    // ===== 事务化入库：全部成功才提交，失败整体回滚 =====
+    const result = await prisma.$transaction(async (tx) => {
+      const uploadLog = await tx.uploadLog.create({
+        data: {
+          filename: req.file!.originalname,
+          recordCount: uniqueRows.length,
+          insertedCount: 0,
+          updatedCount: 0,
+          failedCount: 0,
+          uploadedBy: req.body.uploadedBy || req.user?.username || null,
+        },
       })
 
-      if (existing) {
-        await prisma.convData.update({ where: { id: existing.id }, data: { ...data, uploadLogId } })
-        updatedCount++
-      } else {
-        await prisma.convData.create({ data: { ...data, uploadLogId } })
-        insertedCount++
-      }
-    }
+      const ingestResult = await ingestRows(tx, 'convData', ingestInput, uploadLog.id)
 
-    // 更新上传记录
-    await prisma.uploadLog.update({
-      where: { id: uploadLogId },
-      data: { insertedCount, updatedCount },
-    })
+      const backup: UploadBackup = { convData: ingestResult.backup }
+      await tx.uploadLog.update({
+        where: { id: uploadLog.id },
+        data: {
+          insertedCount: ingestResult.insertedCount,
+          updatedCount: ingestResult.updatedCount,
+          backupData: JSON.stringify(backup),
+        },
+      })
+
+      return { uploadLogId: uploadLog.id, ...ingestResult }
+    }, TRANSACTION_OPTIONS)
 
     res.json({
       success: true,
       data: {
         filename: req.file.originalname,
-        totalRecords: parsed.length,
-        insertedCount,
-        updatedCount,
+        uploadLogId: result.uploadLogId,
+        totalRecords: uniqueRows.length,
+        duplicateCount,
+        insertedCount: result.insertedCount,
+        updatedCount: result.updatedCount,
       },
     })
   } catch (err) {
