@@ -175,3 +175,10 @@
 - 线上需先执行 `prisma migrate deploy` 加列，再重启
 - 线上脏数据清理：部署后按 uploadLogId 撤销或 SQL 删除填反产生的垃圾行（campaignId 为中文计划名称的行）
 - 部署后 JWT_SECRET 真正生效，所有已登录用户需重新登录
+
+## 会话：2026-08-07（部署 + 线上脏数据清理）
+- 提交 `29558ed` 推送并部署到 8.136.157.93：服务器 reset 到最新、`prisma migrate deploy` 应用快照迁移、`tsc` 编译、PM2 重启，前端 dist 已上传（已删 sourcemap）
+- 验证：首页 200、API 正常响应（未带 token 返回 401 符合预期）
+- 脏数据清理：上传记录 #107（rednote，计划ID/名称填反）的 7471 条脏行已删除，修正版 #109 的 7469 条完好；清理前已备份线上库为 `prisma/dev.db.bak-20260807`；#107 已标记 rolledBackAt
+- 发现同类历史遗留：#57（kwai，304 条，同样填反且日期错乱到 9998 年等）——待用户确认后清理
+- 注意：dotenv 修复后线上 JWT_SECRET 真正生效，所有旧登录 token 失效，用户需重新登录
