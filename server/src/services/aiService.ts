@@ -2,8 +2,7 @@ import crypto from 'crypto'
 import https from 'node:https'
 
 const DEEPSEEK_BASE = 'https://api.deepseek.com'
-
-const httpsAgent = new https.Agent({ rejectUnauthorized: false })
+// 注意：不得使用 rejectUnauthorized: false，证书校验必须保持开启
 
 interface DashboardSnapshot {
   daily: {
@@ -163,7 +162,6 @@ async function deepseekChat(messages: { role: string; content: string }[]): Prom
           'Content-Type': 'application/json',
           Authorization: `Bearer ${apiKey}`,
         },
-        agent: httpsAgent,
         timeout: 25000,
       },
       (res) => {
