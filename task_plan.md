@@ -23,10 +23,7 @@
 
 ### 阶段 3：数据与性能优化
 - [x] **3.1 补齐 raw_data 复合索引**（2026-08-07 完成：新增 `(recordDate, channel)`，删除两个冗余索引，本地+线上已 ANALYZE，聚合查询不再全索引扫描）
-- [ ] **3.2 聚合查询 LIMIT 优化**
-  - 关键文件：`server/src/services/overviewService.ts`、`server/src/services/channelService.ts`
-  - 工作：排名类查询在数据库层限制返回条数，减少内存排序
-  - 验收：Top 10 / Top 5 查询不依赖全量聚合
+- [x] **3.2 聚合查询 LIMIT 优化**（2026-08-07 完成：ROI/开户 Top5、总览 Top10 均在数据库层 ORDER BY + LIMIT，新旧逻辑 5/5 一致性验证通过）
 - [ ] **3.3 ROI 口径明确化与可配置**
   - 关键文件：`server/src/constants/index.ts`、`server/src/services/overviewService.ts`、`server/src/services/channelService.ts`
   - 工作：确认 ROI 公式，将 `REVENUE_PER_ACCOUNT` 改为可配置目标项或常量并补充注释
