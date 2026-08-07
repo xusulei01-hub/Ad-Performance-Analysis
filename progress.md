@@ -189,3 +189,10 @@
 - 教训：U+FFFD 字面量在传输中会被剥离成空串，导致 `includes('')` 恒真、修复失效——源码中必须用 charCodeAt 判断，已验证
 - 线上 110 条历史 upload_logs 文件名中 109 条乱码已批量修复为正确中文
 - 部署完成：首页 200，API 正常
+
+## 会话：2026-08-07（阶段 2.3：HTTPS 证书校验修复 — 阶段 2 全部完成）
+- 服务器实测 curl/Node 到 api.deepseek.com 默认 CA 校验均正常 → 直接移除 `rejectUnauthorized: false` 与自定义 agent（`1a1ba1f`）
+- 部署后真实调用 `/api/v1/ai/analyze` 返回 200 + 正常分析文本，TLS 修复端到端验证通过
+- 连带发现更大隐患：线上 .env 未配置 JWT_SECRET，生产一直用代码兜底密钥（等于公开，可伪造 admin token）。已生成强随机密钥写入线上 .env 并 `pm2 restart --update-env`
+- 验证：新密钥 token 通过、旧兜底密钥 token 被拒；所有用户需重新登录
+- **阶段 2（核心稳定性改造）三项全部完成**：2.1 上传事务化 ✅ 2.2 批量写入 ✅ 2.3 HTTPS 修复 ✅
