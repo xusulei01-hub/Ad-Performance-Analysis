@@ -1,6 +1,6 @@
 import dayjs from 'dayjs'
 import { prisma } from '../lib/prisma'
-import { parseBuffer, parseRows, normalizeDate } from '../utils/upload'
+import { parseBuffer, parseRows, normalizeDate, toUtf8Filename } from '../utils/upload'
 import { toEndOfDay } from '../utils/date'
 import { COST_PER_MERCHANT_LEAD } from '../constants'
 import type { ParsedMerchantRow } from '../types'
@@ -89,7 +89,7 @@ export async function processMerchantUpload(file: Express.Multer.File) {
   return {
     success: true as const,
     data: {
-      filename: file.originalname,
+      filename: toUtf8Filename(file.originalname),
       totalRecords: uniqueParsed.length,
       insertedCount: toInsert.length,
       updatedCount: toUpdate.length,

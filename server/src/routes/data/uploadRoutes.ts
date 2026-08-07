@@ -1,6 +1,6 @@
 import { Router } from 'express'
 import { prisma } from '../../lib/prisma'
-import { createMulterUpload, parseBuffer, parseRows, normalizeDate } from '../../utils/upload'
+import { createMulterUpload, parseBuffer, parseRows, normalizeDate, toUtf8Filename } from '../../utils/upload'
 import { toNum } from '../../utils/formulas'
 import { MEDIA_HEADERS } from '../../utils/mediaHeaders'
 import {
@@ -51,6 +51,7 @@ router.post('/upload', upload.fields([
 
     const mediaBuf = files.mediaFile[0]
     const convBuf = files.convFile[0]
+    const combinedName = `${toUtf8Filename(mediaBuf.originalname)} + ${toUtf8Filename(convBuf.originalname)}`
 
     const mediaRaw = parseBuffer(mediaBuf.buffer, mediaBuf.originalname)
     const convRaw = parseBuffer(convBuf.buffer, convBuf.originalname)
@@ -251,7 +252,7 @@ router.post('/upload', upload.fields([
     const result = await prisma.$transaction(async (tx) => {
       const uploadLog = await tx.uploadLog.create({
         data: {
-          filename: `${mediaBuf.originalname} + ${convBuf.originalname}`,
+          filename: combinedName,
           recordCount: ingestInput.length,
           insertedCount: 0,
           updatedCount: 0,
@@ -278,7 +279,7 @@ router.post('/upload', upload.fields([
     res.json({
       success: true,
       data: {
-        filename: `${mediaBuf.originalname} + ${convBuf.originalname}`,
+        filename: combinedName,
         uploadLogId: result.uploadLogId,
         totalRecords: ingestInput.length,
         mediaRows: mediaRows.length,

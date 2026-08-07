@@ -22,6 +22,19 @@ export function createMulterUpload() {
 }
 
 /**
+ * 修复 multer/busboy 把 UTF-8 文件名按 latin1 解码导致的乱码
+ * （如「媒体表模板.xlsx」变成「åªÆä½è¡¨æ¨¡æ¿.xlsx」）
+ */
+export function toUtf8Filename(name: string): string {
+  // eslint-disable-next-line no-control-regex
+  if (!/[\u0080-\u00ff]/.test(name)) return name // 纯 ASCII 无需转换
+  const converted = Buffer.from(name, 'latin1').toString('utf8')
+  // 转换后出现替换字符说明原始字节不是合法 UTF-8，保留原名
+  const hasReplacementChar = [...converted].some((ch) => ch.charCodeAt(0) === 0xfffd)
+  return hasReplacementChar ? name : converted
+}
+
+/**
  * 解析 Buffer（CSV 或 Excel）为二维数组
  */
 export function parseBuffer(buffer: Buffer, filename: string): unknown[][] {

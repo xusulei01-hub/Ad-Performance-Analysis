@@ -1,6 +1,6 @@
 import { Router } from 'express'
 import { prisma } from '../../lib/prisma'
-import { createMulterUpload, parseBuffer, parseRows, normalizeDate } from '../../utils/upload'
+import { createMulterUpload, parseBuffer, parseRows, normalizeDate, toUtf8Filename } from '../../utils/upload'
 import { toNum, calcCtr } from '../../utils/formulas'
 import { MEDIA_HEADERS } from '../../utils/mediaHeaders'
 import {
@@ -39,6 +39,7 @@ router.post('/upload-media', upload.single('file'), async (req, res, next) => {
       res.status(400).json({ success: false, message: '请上传媒体数据表文件' })
       return
     }
+    const safeName = toUtf8Filename(req.file.originalname)
 
     const raw = parseBuffer(req.file.buffer, req.file.originalname)
     if (raw.length < 2) {
@@ -172,7 +173,7 @@ router.post('/upload-media', upload.single('file'), async (req, res, next) => {
     const result = await prisma.$transaction(async (tx) => {
       const uploadLog = await tx.uploadLog.create({
         data: {
-          filename: req.file!.originalname,
+          filename: safeName,
           recordCount: uniqueRows.length,
           insertedCount: 0,
           updatedCount: 0,
@@ -199,7 +200,7 @@ router.post('/upload-media', upload.single('file'), async (req, res, next) => {
     res.json({
       success: true,
       data: {
-        filename: req.file.originalname,
+        filename: safeName,
         channel: normalizedChannel,
         uploadLogId: result.uploadLogId,
         totalRecords: uniqueRows.length,
