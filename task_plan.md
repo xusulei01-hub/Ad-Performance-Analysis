@@ -16,20 +16,10 @@
 - **状态：** in_progress
 
 ### 阶段 2：核心稳定性改造
-- [ ] **2.1 上传操作事务化**
-  - 关键文件：`server/src/routes/data/uploadRoutes.ts`
-  - 工作：用 Prisma `$transaction` 包裹解析、匹配、写入全过程
-  - 验收：中途报错时数据库无部分写入；测试用例覆盖重复上传、异常中断
-- [ ] **2.2 批量写入替代逐条操作**
-  - 关键文件：`server/src/routes/data/uploadRoutes.ts`
-  - 工作：拆分新增/更新逻辑，使用 `createMany` + 批量 `update`
-  - 依赖：2.1 完成后进行
-  - 验收：1000 条以上数据上传耗时下降 50% 以上
-- [ ] **2.3 HTTPS 证书校验修复**
-  - 关键文件：`server/src/services/aiService.ts`
-  - 工作：移除 `rejectUnauthorized: false`，改用正常 axios + CA 验证
-  - 验收：AI 诊断接口仍可正常调用，不再禁用证书校验
-- **状态：** pending
+- [x] **2.1 上传操作事务化**（2026-08-07 完成：全量校验 + `$transaction` 入库 + 快照）
+- [x] **2.2 批量写入替代逐条操作**（2026-08-07 完成：createMany 分批 + 事务内逐条更新）
+- [x] **2.3 HTTPS 证书校验修复**（2026-08-07 完成：移除 `rejectUnauthorized: false`，线上真实调用验证通过；另发现并修复线上 JWT_SECRET 缺失问题）
+- **状态：** complete
 
 ### 阶段 3：数据与性能优化
 - [ ] **3.1 补齐 raw_data 复合索引**
