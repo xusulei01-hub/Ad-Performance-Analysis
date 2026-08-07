@@ -1,9 +1,10 @@
 import dayjs from 'dayjs'
+import { Prisma } from '@prisma/client'
 import { prisma } from '../lib/prisma'
 import { getWeekRange } from '../utils/date'
 import { calcChange, calcRoi, calcCtr, calcCpa } from '../utils/formulas'
 import { getCurrentTarget } from './targetService'
-import { DEFAULT_TARGETS } from '../constants'
+import { DEFAULT_TARGETS, REVENUE_PER_ACCOUNT } from '../constants'
 import { maskMetric, shouldMaskSensitiveMetrics } from '../utils/sensitiveMask'
 import type { DailyTrendItem } from '../types'
 
@@ -202,36 +203,58 @@ export async function getMonthlyMetrics(channelFilter?: string[] | null, isNonAd
 
 export async function getRankings(channelFilter?: string[] | null, isNonAdmin = false) {
   const now = dayjs()
-  const startOfMonth = now.startOf('month').toDate()
-  const endOfMonth = now.endOf('month').toDate()
+  // 注意：SQLite 中 record_date 以毫秒时间戳存储，参数必须传 ms 整数
+  const startMs = now.startOf('month').toDate().getTime()
+  const endMs = now.endOf('month').toDate().getTime()
 
-  const where = buildWhere(startOfMonth, endOfMonth, channelFilter)
+  // 无可用渠道 → 空结果
+  if (channelFilter && channelFilter.length === 0) {
+    return { costRanking: [], performanceRanking: [] }
+  }
+  const channelCond = channelFilter && channelFilter.length > 0
+    ? Prisma.sql`AND channel IN (${Prisma.join(channelFilter)})`
+    : Prisma.empty
 
-  const channelGroups = await prisma.rawData.groupBy({
-    by: ['channel'],
-    where,
-    _sum: { cost: true, activations: true, accounts: true },
-  })
+  // 数据库层聚合 + ORDER BY + LIMIT，不再全量回传后内存排序
+  const [costRows, perfRows] = await Promise.all([
+    prisma.$queryRaw<Array<{ channel: string; cost: number }>>`
+      SELECT channel, SUM(cost) AS cost
+      FROM raw_data
+      WHERE record_date >= ${startMs} AND record_date <= ${endMs}
+      ${channelCond}
+      GROUP BY channel
+      ORDER BY cost DESC
+      LIMIT 10
+    `,
+    prisma.$queryRaw<Array<{ channel: string; cost: number; roi: number; cpa: number; activations: number | bigint }>>`
+      SELECT channel,
+             SUM(cost) AS cost,
+             CASE WHEN SUM(cost) > 0
+               THEN ROUND(SUM(accounts) * ${REVENUE_PER_ACCOUNT} * 1.0 / SUM(cost), 4)
+               ELSE 0
+             END AS roi,
+             CASE WHEN SUM(activations) > 0
+               THEN ROUND(SUM(cost) * 1.0 / SUM(activations), 2)
+               ELSE 0
+             END AS cpa,
+             SUM(activations) AS activations
+      FROM raw_data
+      WHERE record_date >= ${startMs} AND record_date <= ${endMs}
+      ${channelCond}
+      GROUP BY channel
+      ORDER BY roi DESC
+      LIMIT 10
+    `,
+  ])
 
-  const channelData = channelGroups.map((g) => {
-    const realAcc = g._sum.accounts ?? 0
-    return {
-      channel: g.channel,
-      cost: g._sum.cost ?? 0,
-      roi: calcRoi(realAcc, g._sum.cost ?? 0),
-      cpa: calcCpa(g._sum.cost ?? 0, g._sum.activations ?? 0),
-      activations: g._sum.activations ?? 0,
-    }
-  })
-
-  const costRanking = channelData
-    .sort((a, b) => b.cost - a.cost)
-    .slice(0, 10)
-    .map(({ channel, cost }) => ({ channel, cost }))
-
-  const performanceRanking = channelData
-    .sort((a, b) => b.roi - a.roi)
-    .slice(0, 10)
-
-  return { costRanking, performanceRanking }
+  return {
+    costRanking: costRows.map((r) => ({ channel: r.channel, cost: r.cost ?? 0 })),
+    performanceRanking: perfRows.map((r) => ({
+      channel: r.channel,
+      cost: r.cost ?? 0,
+      roi: r.roi ?? 0,
+      cpa: r.cpa ?? 0,
+      activations: Number(r.activations ?? 0), // SUM(int) 在 raw 查询中可能返回 BigInt
+    })),
+  }
 }
