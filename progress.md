@@ -196,3 +196,9 @@
 - 连带发现更大隐患：线上 .env 未配置 JWT_SECRET，生产一直用代码兜底密钥（等于公开，可伪造 admin token）。已生成强随机密钥写入线上 .env 并 `pm2 restart --update-env`
 - 验证：新密钥 token 通过、旧兜底密钥 token 被拒；所有用户需重新登录
 - **阶段 2（核心稳定性改造）三项全部完成**：2.1 上传事务化 ✅ 2.2 批量写入 ✅ 2.3 HTTPS 修复 ✅
+
+## 会话：2026-08-07（阶段 3.1：raw_data 复合索引）
+- 排查四类典型查询计划：上传匹配/数据列表已走唯一索引左前缀（无需改动）；总览按日期聚合为全索引 SCAN（真问题）
+- 迁移 `20260807071000_raw_data_composite_index`：新增 `(record_date, channel)` 复合索引；删除被唯一索引 `(channel, record_date, campaign_id)` 左前缀覆盖的冗余 `channel_idx` 和 `channel_record_date_idx`
+- 关键发现：SQLite 优化器倾向用 GROUP BY 有序的索引全扫描来回避排序，需 `ANALYZE raw_data` 提供统计信息后才选择范围 SEARCH（本地与线上均已执行）
+- 线上验证：迁移已应用，聚合查询由 SCAN 全索引 → `SEARCH record_date>? + TEMP B-TREE GROUP BY`，只扫描日期范围内的行
