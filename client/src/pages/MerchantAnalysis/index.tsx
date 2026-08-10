@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useCallback } from 'react'
 import { Card, DatePicker, Table, Spin, Empty, Space, Button, Row, Col, Select } from 'antd'
-import { ReloadOutlined, DollarOutlined, FileTextOutlined, BankOutlined, PercentageOutlined, DownloadOutlined } from '@ant-design/icons'
+import { ReloadOutlined, DollarOutlined, FileTextOutlined, BankOutlined, PercentageOutlined, DownloadOutlined, ClockCircleOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import ReactECharts from 'echarts-for-react'
 import { merchantService } from '@services/merchantService'
@@ -8,10 +8,30 @@ import { useRefresh } from '@components/layout/RefreshContext'
 import { METRIC_COLORS, SOFT_COLORS, CARD_BASE } from '@utils/constants'
 import { exportToExcel } from '@utils/export'
 import { calcPeriodChange, ChangeText, getPreviousDateRange } from '@utils/changes'
-import { MerchantReportItem, ChannelReportItem } from '@/types'
+import { MerchantReportItem, ChannelReportItem, DailyTrendItem } from '@/types'
 import AIAnalysisPanel from '@components/ai/AIAnalysisPanel'
 
 const { RangePicker } = DatePicker
+
+// 日期快捷选项：周按周一为起点（与平台周报口径一致）
+function getDatePresets(): { label: string; value: [dayjs.Dayjs, dayjs.Dayjs] }[] {
+  const today = dayjs()
+  const dayOfWeek = today.day()
+  const daysSinceMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1
+  const thisMonday = today.subtract(daysSinceMonday, 'day').startOf('day')
+  const yesterday = today.subtract(1, 'day')
+  const lastMonth = today.subtract(1, 'month')
+  return [
+    { label: '今天', value: [today.startOf('day'), today.endOf('day')] },
+    { label: '昨天', value: [yesterday.startOf('day'), yesterday.endOf('day')] },
+    { label: '本周', value: [thisMonday, today.endOf('day')] },
+    { label: '上周', value: [thisMonday.subtract(7, 'day'), thisMonday.subtract(1, 'day').endOf('day')] },
+    { label: '近7天', value: [today.subtract(6, 'day').startOf('day'), today.endOf('day')] },
+    { label: '近30天', value: [today.subtract(29, 'day').startOf('day'), today.endOf('day')] },
+    { label: '本月', value: [today.startOf('month'), today.endOf('day')] },
+    { label: '上月', value: [lastMonth.startOf('month'), lastMonth.endOf('month')] },
+  ]
+}
 
 function MetricCard({
   title,
@@ -84,6 +104,14 @@ function getMerchantTotals(report: MerchantReportItem[]) {
   return { leads, accounts, cost, accountRate }
 }
 
+// 整体平均开户天数：按各期商开户数加权
+function getOverallAvgConvertDays(report: MerchantReportItem[]) {
+  const accounts = report.reduce((sum, r) => sum + r.accounts, 0)
+  if (accounts === 0) return 0
+  const weighted = report.reduce((sum, r) => sum + r.avgConvertDays * r.accounts, 0)
+  return Number((weighted / accounts).toFixed(1))
+}
+
 const MerchantAnalysis: React.FC = () => {
   const [dateRange, setDateRange] = useState<[dayjs.Dayjs, dayjs.Dayjs]>([
     dayjs().startOf('month'),
@@ -98,6 +126,7 @@ const MerchantAnalysis: React.FC = () => {
   const [loading, setLoading] = useState(false)
   const [merchantReport, setMerchantReport] = useState<MerchantReportItem[]>([])
   const [channelReport, setChannelReport] = useState<ChannelReportItem[]>([])
+  const [dailyTrend, setDailyTrend] = useState<DailyTrendItem[]>([])
   const [previousMerchantReport, setPreviousMerchantReport] = useState<MerchantReportItem[]>([])
   const [previousChannelReport, setPreviousChannelReport] = useState<ChannelReportItem[]>([])
 
@@ -144,16 +173,18 @@ const MerchantAnalysis: React.FC = () => {
       if (selectedMerchants.length > 0) previousParams.qs_id = selectedMerchants.join(',')
       if (selectedChannels.length > 0) previousParams.channel = selectedChannels.join(',')
 
-      const [mRes, cRes, previousMRes, previousCRes] = await Promise.all([
+      const [mRes, cRes, previousMRes, previousCRes, trendRes] = await Promise.all([
         merchantService.getMerchantReport(params),
         merchantService.getChannelReport(params),
         merchantService.getMerchantReport(previousParams),
         merchantService.getChannelReport(previousParams),
+        merchantService.getDailyTrend(params),
       ])
       setMerchantReport(mRes.report)
       setChannelReport(cRes.report)
       setPreviousMerchantReport(previousMRes.report)
       setPreviousChannelReport(previousCRes.report)
+      setDailyTrend(trendRes.trend)
     } catch (e) {
       console.error('Fetch merchant report error:', e)
     } finally {
@@ -167,6 +198,8 @@ const MerchantAnalysis: React.FC = () => {
   const totalAccounts = totals.accounts
   const totalCost = totals.cost
   const overallAccountRate = totals.accountRate
+  const overallAvgConvertDays = getOverallAvgConvertDays(merchantReport)
+  const previousOverallAvgConvertDays = getOverallAvgConvertDays(previousMerchantReport)
   const previousMerchantMap = new Map(previousMerchantReport.map((r) => [r.qsId, r]))
   const previousChannelMap = new Map(previousChannelReport.map((r) => [r.channel, r]))
   const renderChange = (value: number | null) => <ChangeText value={value} label="" compact />
@@ -273,6 +306,57 @@ const MerchantAnalysis: React.FC = () => {
       }
     : null
 
+  const trendChartOption = dailyTrend.length
+    ? {
+        tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
+        legend: { data: ['留资数', '开户率'], bottom: 0, textStyle: { color: '#888' } },
+        grid: { left: '3%', right: '4%', bottom: '15%', top: '8%', containLabel: true },
+        xAxis: {
+          type: 'category',
+          data: dailyTrend.map((t) => dayjs(t.date).format('MM-DD')),
+          axisLine: { lineStyle: { color: '#E8E8E8' } },
+          axisTick: { show: false },
+          axisLabel: { fontFamily: 'var(--font-family-number)', color: '#888' },
+        },
+        yAxis: [
+          {
+            type: 'value',
+            name: '留资数',
+            position: 'left',
+            splitLine: { lineStyle: { type: 'dashed', color: '#F0F0F0' } },
+            axisLabel: { fontFamily: 'var(--font-family-number)', color: '#888' },
+            nameTextStyle: { color: '#888' },
+          },
+          {
+            type: 'value',
+            name: '开户率',
+            position: 'right',
+            splitLine: { show: false },
+            axisLabel: { formatter: (v: number) => v + '%', fontFamily: 'var(--font-family-number)', color: '#888' },
+            nameTextStyle: { color: '#888' },
+          },
+        ],
+        series: [
+          {
+            name: '留资数',
+            type: 'bar',
+            data: dailyTrend.map((t) => ({ value: t.leads, itemStyle: { color: METRIC_COLORS.leads, borderRadius: [4, 4, 0, 0] } })),
+            barWidth: '45%',
+          },
+          {
+            name: '开户率',
+            type: 'line',
+            yAxisIndex: 1,
+            data: dailyTrend.map((t) => Number((t.accountRate * 100).toFixed(2))),
+            itemStyle: { color: METRIC_COLORS.accounts },
+            lineStyle: { width: 3 },
+            symbol: 'circle',
+            symbolSize: 6,
+          },
+        ],
+      }
+    : null
+
   const merchantColumns = [
     { title: '期商', dataIndex: 'merchantName', key: 'merchantName', render: (v: string, record: MerchantReportItem) => v || record.qsId },
     { title: '留资数', dataIndex: 'leads', key: 'leads', align: 'right' as const, render: (v: number) => v.toLocaleString() },
@@ -285,6 +369,8 @@ const MerchantAnalysis: React.FC = () => {
     { title: '开户率环比', key: 'accountRateChange', align: 'right' as const, render: (_: unknown, record: MerchantReportItem) => renderChange(calcPeriodChange(record.accountRate, previousMerchantMap.get(record.qsId)?.accountRate)) },
     { title: '开户成本', dataIndex: 'accountCost', key: 'accountCost', align: 'right' as const, render: (v: number) => '¥' + v.toLocaleString() },
     { title: '开户成本环比', key: 'accountCostChange', align: 'right' as const, render: (_: unknown, record: MerchantReportItem) => renderChange(calcPeriodChange(record.accountCost, previousMerchantMap.get(record.qsId)?.accountCost)) },
+    { title: '平均开户天数', dataIndex: 'avgConvertDays', key: 'avgConvertDays', align: 'right' as const, render: (v: number, record: MerchantReportItem) => record.accounts > 0 ? v.toFixed(1) + ' 天' : '-' },
+    { title: '开户天数环比', key: 'avgConvertDaysChange', align: 'right' as const, render: (_: unknown, record: MerchantReportItem) => renderChange(calcPeriodChange(record.avgConvertDays, previousMerchantMap.get(record.qsId)?.avgConvertDays)) },
   ]
 
   const channelColumns = [
@@ -295,6 +381,8 @@ const MerchantAnalysis: React.FC = () => {
     { title: '开户环比', key: 'accountsChange', align: 'right' as const, render: (_: unknown, record: ChannelReportItem) => renderChange(calcPeriodChange(record.accounts, previousChannelMap.get(record.channel)?.accounts)) },
     { title: '开户率', dataIndex: 'accountRate', key: 'accountRate', align: 'right' as const, render: (v: number) => (v * 100).toFixed(2) + '%' },
     { title: '开户率环比', key: 'accountRateChange', align: 'right' as const, render: (_: unknown, record: ChannelReportItem) => renderChange(calcPeriodChange(record.accountRate, previousChannelMap.get(record.channel)?.accountRate)) },
+    { title: '平均开户天数', dataIndex: 'avgConvertDays', key: 'avgConvertDays', align: 'right' as const, render: (v: number, record: ChannelReportItem) => record.accounts > 0 ? v.toFixed(1) + ' 天' : '-' },
+    { title: '开户天数环比', key: 'avgConvertDaysChange', align: 'right' as const, render: (_: unknown, record: ChannelReportItem) => renderChange(calcPeriodChange(record.avgConvertDays, previousChannelMap.get(record.channel)?.avgConvertDays)) },
   ]
 
   return (
@@ -327,6 +415,7 @@ const MerchantAnalysis: React.FC = () => {
               <RangePicker
                 style={{ width: '100%' }}
                 value={dateRange as any}
+                presets={getDatePresets()}
                 onChange={(dates) => dates && setDateRange(dates as [dayjs.Dayjs, dayjs.Dayjs])}
               />
             </Col>
@@ -379,7 +468,7 @@ const MerchantAnalysis: React.FC = () => {
 
         {/* 核心指标 */}
         <Row gutter={[20, 20]} style={{ marginBottom: 'var(--margin-super-loose)' }}>
-          <Col xs={24} sm={12} lg={6}>
+          <Col flex="1 1 220px">
             <MetricCard
               title="总消耗"
               value={totalCost}
@@ -390,7 +479,7 @@ const MerchantAnalysis: React.FC = () => {
               change={calcPeriodChange(totalCost, previousTotals.cost)}
             />
           </Col>
-          <Col xs={24} sm={12} lg={6}>
+          <Col flex="1 1 220px">
             <MetricCard
               title="总留资"
               value={totalLeads}
@@ -399,7 +488,7 @@ const MerchantAnalysis: React.FC = () => {
               change={calcPeriodChange(totalLeads, previousTotals.leads)}
             />
           </Col>
-          <Col xs={24} sm={12} lg={6}>
+          <Col flex="1 1 220px">
             <MetricCard
               title="总开户"
               value={totalAccounts}
@@ -408,7 +497,7 @@ const MerchantAnalysis: React.FC = () => {
               change={calcPeriodChange(totalAccounts, previousTotals.accounts)}
             />
           </Col>
-          <Col xs={24} sm={12} lg={6}>
+          <Col flex="1 1 220px">
             <MetricCard
               title="开户率"
               value={overallAccountRate * 100}
@@ -419,7 +508,30 @@ const MerchantAnalysis: React.FC = () => {
               change={calcPeriodChange(overallAccountRate, previousTotals.accountRate)}
             />
           </Col>
+          <Col flex="1 1 220px">
+            <MetricCard
+              title="平均开户天数"
+              value={overallAvgConvertDays}
+              suffix=" 天"
+              precision={1}
+              icon={<ClockCircleOutlined />}
+              color={METRIC_COLORS.activations}
+              change={calcPeriodChange(overallAvgConvertDays, previousOverallAvgConvertDays)}
+            />
+          </Col>
         </Row>
+
+        {/* 按日趋势 */}
+        <Card style={{ ...CARD_BASE, marginBottom: 'var(--margin-super-loose)' }} bodyStyle={{ padding: '20px 24px' }}>
+          <div style={{ fontSize: 15, fontWeight: 500, color: 'var(--color-text-primary)', marginBottom: 16 }}>
+            每日留资与开户率趋势
+          </div>
+          {trendChartOption ? (
+            <ReactECharts option={trendChartOption} style={{ height: 320 }} />
+          ) : (
+            <Empty description="暂无数据" style={{ padding: '60px 0' }} />
+          )}
+        </Card>
 
         {/* 期商报表 */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--margin-loose)' }}>
@@ -460,7 +572,7 @@ const MerchantAnalysis: React.FC = () => {
                 rowKey="qsId"
                 pagination={false}
                 columns={merchantColumns}
-                scroll={{ x: 1120, y: 320 }}
+                scroll={{ x: 1300, y: 320 }}
                 locale={{ emptyText: <Empty description="暂无数据" /> }}
                 size="small"
               />
@@ -501,7 +613,7 @@ const MerchantAnalysis: React.FC = () => {
                 rowKey="channel"
                 pagination={false}
                 columns={channelColumns}
-                scroll={{ x: 780, y: 320 }}
+                scroll={{ x: 960, y: 320 }}
                 locale={{ emptyText: <Empty description="暂无数据" /> }}
                 size="small"
               />

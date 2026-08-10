@@ -263,6 +263,7 @@ export interface MerchantReportItem {
   cost: number
   accountRate: number
   accountCost: number
+  avgConvertDays: number
 }
 
 export interface MerchantReport {
@@ -275,11 +276,24 @@ export interface ChannelReportItem {
   leads: number
   accounts: number
   accountRate: number
+  avgConvertDays: number
 }
 
 export interface ChannelReport {
   dateRange: DateRange
   report: ChannelReportItem[]
+}
+
+export interface DailyTrendItem {
+  date: string
+  leads: number
+  accounts: number
+  accountRate: number
+}
+
+export interface DailyTrend {
+  dateRange: DateRange
+  trend: DailyTrendItem[]
 }
 
 export interface Milestone {

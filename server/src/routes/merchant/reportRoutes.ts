@@ -34,4 +34,15 @@ router.get('/reports/channel', async (req, res, next) => {
   }
 })
 
+// GET /api/v1/merchants/reports/daily-trend
+router.get('/reports/daily-trend', async (req, res, next) => {
+  try {
+    const { startDate, endDate, qsIds, channels } = extractFilters(req)
+    const data = await merchantService.getDailyTrend(startDate, endDate, qsIds, channels)
+    res.json({ success: true, data })
+  } catch (err) {
+    next(err)
+  }
+})
+
 export default router

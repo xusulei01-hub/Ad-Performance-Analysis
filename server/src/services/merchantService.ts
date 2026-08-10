@@ -111,17 +111,24 @@ export async function getMerchantReport(startDate: string, endDate: string, qsId
   const mappings = await prisma.merchantMapping.findMany()
   const mappingMap = new Map(mappings.map((m) => [m.qsId, m.merchantName]))
 
-  const merchantMap = new Map<string, { leads: number; accounts: number; merchantName: string }>()
+  const merchantMap = new Map<string, { leads: number; accounts: number; convertDaysSum: number; merchantName: string }>()
 
   for (const row of rows) {
+    const convertDays = row.accountDate
+      ? (row.accountDate.getTime() - row.leadDate.getTime()) / 86400000
+      : null
     const existing = merchantMap.get(row.qsId)
     if (existing) {
       existing.leads++
-      if (row.accountDate) existing.accounts++
+      if (convertDays !== null) {
+        existing.accounts++
+        existing.convertDaysSum += convertDays
+      }
     } else {
       merchantMap.set(row.qsId, {
         leads: 1,
-        accounts: row.accountDate ? 1 : 0,
+        accounts: convertDays !== null ? 1 : 0,
+        convertDaysSum: convertDays ?? 0,
         merchantName: mappingMap.get(row.qsId) || row.qsId,
       })
     }
@@ -137,6 +144,7 @@ export async function getMerchantReport(startDate: string, endDate: string, qsId
       cost,
       accountRate: data.leads > 0 ? Number((data.accounts / data.leads).toFixed(4)) : 0,
       accountCost: data.accounts > 0 ? Number((cost / data.accounts).toFixed(2)) : 0,
+      avgConvertDays: data.accounts > 0 ? Number((data.convertDaysSum / data.accounts).toFixed(1)) : 0,
     }
   }).sort((a, b) => b.cost - a.cost)
 
@@ -155,17 +163,24 @@ export async function getChannelReport(startDate: string, endDate: string, qsIdF
 
   const rows = await prisma.merchantData.findMany({ where })
 
-  const channelMap = new Map<string, { leads: number; accounts: number }>()
+  const channelMap = new Map<string, { leads: number; accounts: number; convertDaysSum: number }>()
 
   for (const row of rows) {
+    const convertDays = row.accountDate
+      ? (row.accountDate.getTime() - row.leadDate.getTime()) / 86400000
+      : null
     const existing = channelMap.get(row.channel)
     if (existing) {
       existing.leads++
-      if (row.accountDate) existing.accounts++
+      if (convertDays !== null) {
+        existing.accounts++
+        existing.convertDaysSum += convertDays
+      }
     } else {
       channelMap.set(row.channel, {
         leads: 1,
-        accounts: row.accountDate ? 1 : 0,
+        accounts: convertDays !== null ? 1 : 0,
+        convertDaysSum: convertDays ?? 0,
       })
     }
   }
@@ -175,7 +190,54 @@ export async function getChannelReport(startDate: string, endDate: string, qsIdF
     leads: data.leads,
     accounts: data.accounts,
     accountRate: data.leads > 0 ? Number((data.accounts / data.leads).toFixed(4)) : 0,
+    avgConvertDays: data.accounts > 0 ? Number((data.convertDaysSum / data.accounts).toFixed(1)) : 0,
   })).sort((a, b) => b.leads - a.leads)
 
   return { dateRange: { startDate, endDate }, report }
+}
+
+// 按日趋势：留资数、开户数（留资同期群口径）、开户率
+export async function getDailyTrend(startDate: string, endDate: string, qsIdFilter?: string[], channelFilter?: string[]) {
+  const where: any = {
+    leadDate: {
+      gte: new Date(startDate),
+      lte: toEndOfDay(endDate),
+    },
+  }
+  if (qsIdFilter && qsIdFilter.length > 0) where.qsId = { in: qsIdFilter }
+  if (channelFilter && channelFilter.length > 0) where.channel = { in: channelFilter }
+
+  const rows = await prisma.merchantData.findMany({
+    where,
+    select: { leadDate: true, accountDate: true },
+  })
+
+  const dayMap = new Map<string, { leads: number; accounts: number }>()
+  for (const row of rows) {
+    const day = dayjs(row.leadDate).format('YYYY-MM-DD')
+    const existing = dayMap.get(day)
+    if (existing) {
+      existing.leads++
+      if (row.accountDate) existing.accounts++
+    } else {
+      dayMap.set(day, { leads: 1, accounts: row.accountDate ? 1 : 0 })
+    }
+  }
+
+  // 补齐区间内无数据的日期，保证趋势连续
+  const trend: { date: string; leads: number; accounts: number; accountRate: number }[] = []
+  const start = dayjs(startDate)
+  const end = dayjs(endDate)
+  for (let d = start; !d.isAfter(end, 'day'); d = d.add(1, 'day')) {
+    const key = d.format('YYYY-MM-DD')
+    const item = dayMap.get(key) || { leads: 0, accounts: 0 }
+    trend.push({
+      date: key,
+      leads: item.leads,
+      accounts: item.accounts,
+      accountRate: item.leads > 0 ? Number((item.accounts / item.leads).toFixed(4)) : 0,
+    })
+  }
+
+  return { dateRange: { startDate, endDate }, trend }
 }
