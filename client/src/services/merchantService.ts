@@ -7,6 +7,7 @@ import {
   MerchantReport,
   ChannelReport,
   DailyTrend,
+  ConvertDaysReport,
 } from '@/types'
 
 export const merchantService = {
@@ -69,6 +70,15 @@ export const merchantService = {
     channel?: string
   }): Promise<DailyTrend> {
     return request.get('/v1/merchants/reports/daily-trend', { params })
+  },
+
+  async getConvertDaysReport(params?: {
+    start_date?: string
+    end_date?: string
+    qs_id?: string
+    channel?: string
+  }): Promise<ConvertDaysReport> {
+    return request.get('/v1/merchants/reports/convert-days', { params })
   },
 
   async getMerchantMappings(): Promise<MerchantMapping[]> {

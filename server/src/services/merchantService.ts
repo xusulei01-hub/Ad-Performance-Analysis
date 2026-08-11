@@ -241,3 +241,85 @@ export async function getDailyTrend(startDate: string, endDate: string, qsIdFilt
 
   return { dateRange: { startDate, endDate }, trend }
 }
+
+// 开户周期分布：仅统计已开户的留资（同期群口径），按 留资→开户 间隔分桶
+export async function getConvertDaysReport(startDate: string, endDate: string, qsIdFilter?: string[], channelFilter?: string[]) {
+  const where: any = {
+    leadDate: {
+      gte: new Date(startDate),
+      lte: toEndOfDay(endDate),
+    },
+    accountDate: { not: null },
+  }
+  if (qsIdFilter && qsIdFilter.length > 0) where.qsId = { in: qsIdFilter }
+  if (channelFilter && channelFilter.length > 0) where.channel = { in: channelFilter }
+
+  const rows = await prisma.merchantData.findMany({
+    where,
+    select: { qsId: true, leadDate: true, accountDate: true },
+  })
+  const mappings = await prisma.merchantMapping.findMany()
+  const mappingMap = new Map(mappings.map((m) => [m.qsId, m.merchantName]))
+
+  type BucketKey = 'sameDay' | 'days1to3' | 'days4to7' | 'over7'
+  const bucketOf = (days: number): BucketKey => {
+    if (days <= 0) return 'sameDay'
+    if (days <= 3) return 'days1to3'
+    if (days <= 7) return 'days4to7'
+    return 'over7'
+  }
+
+  const emptyBuckets = () => ({ sameDay: 0, days1to3: 0, days4to7: 0, over7: 0 })
+  const summary = { accounts: 0, convertDaysSum: 0, ...emptyBuckets() }
+  const merchantMap = new Map<string, { merchantName: string; accounts: number; convertDaysSum: number } & ReturnType<typeof emptyBuckets>>()
+
+  for (const row of rows) {
+    const days = Math.round(((row.accountDate as Date).getTime() - row.leadDate.getTime()) / 86400000)
+    const bucket = bucketOf(days)
+
+    summary.accounts++
+    summary.convertDaysSum += days
+    summary[bucket]++
+
+    const existing = merchantMap.get(row.qsId)
+    if (existing) {
+      existing.accounts++
+      existing.convertDaysSum += days
+      existing[bucket]++
+    } else {
+      merchantMap.set(row.qsId, {
+        merchantName: mappingMap.get(row.qsId) || row.qsId,
+        accounts: 1,
+        convertDaysSum: days,
+        ...emptyBuckets(),
+        [bucket]: 1,
+      })
+    }
+  }
+
+  const merchants = Array.from(merchantMap.entries())
+    .map(([qsId, d]) => ({
+      qsId,
+      merchantName: d.merchantName,
+      accounts: d.accounts,
+      sameDay: d.sameDay,
+      days1to3: d.days1to3,
+      days4to7: d.days4to7,
+      over7: d.over7,
+      avgConvertDays: d.accounts > 0 ? Number((d.convertDaysSum / d.accounts).toFixed(1)) : 0,
+    }))
+    .sort((a, b) => b.accounts - a.accounts)
+
+  return {
+    dateRange: { startDate, endDate },
+    summary: {
+      accounts: summary.accounts,
+      sameDay: summary.sameDay,
+      days1to3: summary.days1to3,
+      days4to7: summary.days4to7,
+      over7: summary.over7,
+      avgConvertDays: summary.accounts > 0 ? Number((summary.convertDaysSum / summary.accounts).toFixed(1)) : 0,
+    },
+    merchants,
+  }
+}

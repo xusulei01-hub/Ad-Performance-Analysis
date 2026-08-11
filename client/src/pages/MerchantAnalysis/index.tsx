@@ -8,7 +8,7 @@ import { useRefresh } from '@components/layout/RefreshContext'
 import { METRIC_COLORS, SOFT_COLORS, CARD_BASE } from '@utils/constants'
 import { exportToExcel } from '@utils/export'
 import { calcPeriodChange, ChangeText, getPreviousDateRange } from '@utils/changes'
-import { MerchantReportItem, ChannelReportItem, DailyTrendItem } from '@/types'
+import { MerchantReportItem, ChannelReportItem, DailyTrendItem, ConvertDaysReport, ConvertDaysMerchantItem } from '@/types'
 import AIAnalysisPanel from '@components/ai/AIAnalysisPanel'
 
 const { RangePicker } = DatePicker
@@ -127,6 +127,7 @@ const MerchantAnalysis: React.FC = () => {
   const [merchantReport, setMerchantReport] = useState<MerchantReportItem[]>([])
   const [channelReport, setChannelReport] = useState<ChannelReportItem[]>([])
   const [dailyTrend, setDailyTrend] = useState<DailyTrendItem[]>([])
+  const [convertDaysReport, setConvertDaysReport] = useState<ConvertDaysReport | null>(null)
   const [previousMerchantReport, setPreviousMerchantReport] = useState<MerchantReportItem[]>([])
   const [previousChannelReport, setPreviousChannelReport] = useState<ChannelReportItem[]>([])
 
@@ -173,18 +174,20 @@ const MerchantAnalysis: React.FC = () => {
       if (selectedMerchants.length > 0) previousParams.qs_id = selectedMerchants.join(',')
       if (selectedChannels.length > 0) previousParams.channel = selectedChannels.join(',')
 
-      const [mRes, cRes, previousMRes, previousCRes, trendRes] = await Promise.all([
+      const [mRes, cRes, previousMRes, previousCRes, trendRes, convertDaysRes] = await Promise.all([
         merchantService.getMerchantReport(params),
         merchantService.getChannelReport(params),
         merchantService.getMerchantReport(previousParams),
         merchantService.getChannelReport(previousParams),
         merchantService.getDailyTrend(params),
+        merchantService.getConvertDaysReport(params),
       ])
       setMerchantReport(mRes.report)
       setChannelReport(cRes.report)
       setPreviousMerchantReport(previousMRes.report)
       setPreviousChannelReport(previousCRes.report)
       setDailyTrend(trendRes.trend)
+      setConvertDaysReport(convertDaysRes)
     } catch (e) {
       console.error('Fetch merchant report error:', e)
     } finally {
@@ -356,6 +359,84 @@ const MerchantAnalysis: React.FC = () => {
         ],
       }
     : null
+
+  const convertDaysSummary = convertDaysReport?.summary
+  const convertDaysChartOption = convertDaysSummary && convertDaysSummary.accounts > 0
+    ? (() => {
+        const buckets = [
+          { name: '当日开户', value: convertDaysSummary.sameDay, color: METRIC_COLORS.accounts },
+          { name: '1-3 天', value: convertDaysSummary.days1to3, color: METRIC_COLORS.leads },
+          { name: '4-7 天', value: convertDaysSummary.days4to7, color: METRIC_COLORS.activations },
+          { name: '7 天以上', value: convertDaysSummary.over7, color: METRIC_COLORS.formalActivations },
+        ]
+        const total = convertDaysSummary.accounts
+        let cumulative = 0
+        const cumulativePct = buckets.map((b) => {
+          cumulative += b.value
+          return Number(((cumulative / total) * 100).toFixed(1))
+        })
+        return {
+          tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
+          legend: { data: ['开户数', '累计占比'], bottom: 0, textStyle: { color: '#888' } },
+          grid: { left: '3%', right: '4%', bottom: '15%', top: '8%', containLabel: true },
+          xAxis: {
+            type: 'category',
+            data: buckets.map((b) => b.name),
+            axisLine: { lineStyle: { color: '#E8E8E8' } },
+            axisTick: { show: false },
+            axisLabel: { fontFamily: 'var(--font-family-cn)', color: '#888' },
+          },
+          yAxis: [
+            {
+              type: 'value',
+              name: '开户数',
+              position: 'left',
+              splitLine: { lineStyle: { type: 'dashed', color: '#F0F0F0' } },
+              axisLabel: { fontFamily: 'var(--font-family-number)', color: '#888' },
+              nameTextStyle: { color: '#888' },
+            },
+            {
+              type: 'value',
+              name: '累计占比',
+              position: 'right',
+              max: 100,
+              splitLine: { show: false },
+              axisLabel: { formatter: (v: number) => v + '%', fontFamily: 'var(--font-family-number)', color: '#888' },
+              nameTextStyle: { color: '#888' },
+            },
+          ],
+          series: [
+            {
+              name: '开户数',
+              type: 'bar',
+              data: buckets.map((b) => ({ value: b.value, itemStyle: { color: b.color, borderRadius: [4, 4, 0, 0] } })),
+              barWidth: '45%',
+              label: { show: true, position: 'top', fontFamily: 'var(--font-family-number)', color: '#666' },
+            },
+            {
+              name: '累计占比',
+              type: 'line',
+              yAxisIndex: 1,
+              data: cumulativePct,
+              itemStyle: { color: METRIC_COLORS.roi },
+              lineStyle: { width: 3 },
+              symbol: 'circle',
+              symbolSize: 8,
+            },
+          ],
+        }
+      })()
+    : null
+
+  const convertDaysColumns = [
+    { title: '期商', dataIndex: 'merchantName', key: 'merchantName', render: (v: string, record: ConvertDaysMerchantItem) => v || record.qsId },
+    { title: '开户数', dataIndex: 'accounts', key: 'accounts', align: 'right' as const, render: (v: number) => v.toLocaleString() },
+    { title: '当日开户', dataIndex: 'sameDay', key: 'sameDay', align: 'right' as const, render: (v: number) => v.toLocaleString() },
+    { title: '1-3 天', dataIndex: 'days1to3', key: 'days1to3', align: 'right' as const, render: (v: number) => v.toLocaleString() },
+    { title: '4-7 天', dataIndex: 'days4to7', key: 'days4to7', align: 'right' as const, render: (v: number) => v.toLocaleString() },
+    { title: '7 天以上', dataIndex: 'over7', key: 'over7', align: 'right' as const, render: (v: number) => v.toLocaleString() },
+    { title: '平均开户天数', dataIndex: 'avgConvertDays', key: 'avgConvertDays', align: 'right' as const, render: (v: number) => v.toFixed(1) + ' 天' },
+  ]
 
   const merchantColumns = [
     { title: '期商', dataIndex: 'merchantName', key: 'merchantName', render: (v: string, record: MerchantReportItem) => v || record.qsId },
@@ -614,6 +695,47 @@ const MerchantAnalysis: React.FC = () => {
                 pagination={false}
                 columns={channelColumns}
                 scroll={{ x: 960, y: 320 }}
+                locale={{ emptyText: <Empty description="暂无数据" /> }}
+                size="small"
+              />
+            </Card>
+          </Col>
+        </Row>
+
+        {/* 开户周期报表 */}
+        <h2
+          style={{
+            fontSize: 'var(--font-size-large)',
+            fontWeight: 'var(--font-weight-medium)',
+            marginBottom: 'var(--margin-loose)',
+          }}
+        >
+          开户周期报表
+        </h2>
+        <Row gutter={[20, 20]}>
+          <Col xs={24} lg={12}>
+            <Card style={CARD_BASE} bodyStyle={{ padding: '20px 24px' }}>
+              <div style={{ fontSize: 15, fontWeight: 500, color: 'var(--color-text-primary)', marginBottom: 16 }}>
+                开户周期分布（留资 → 开户）
+              </div>
+              {convertDaysChartOption ? (
+                <ReactECharts option={convertDaysChartOption} style={{ height: 320 }} />
+              ) : (
+                <Empty description="所选时段内暂无开户数据" style={{ padding: '60px 0' }} />
+              )}
+            </Card>
+          </Col>
+          <Col xs={24} lg={12}>
+            <Card style={CARD_BASE} bodyStyle={{ padding: '20px 24px' }}>
+              <div style={{ fontSize: 15, fontWeight: 500, color: 'var(--color-text-primary)', marginBottom: 16 }}>
+                期商开户周期明细
+              </div>
+              <Table
+                dataSource={convertDaysReport?.merchants ?? []}
+                rowKey="qsId"
+                pagination={false}
+                columns={convertDaysColumns}
+                scroll={{ x: 900, y: 320 }}
                 locale={{ emptyText: <Empty description="暂无数据" /> }}
                 size="small"
               />

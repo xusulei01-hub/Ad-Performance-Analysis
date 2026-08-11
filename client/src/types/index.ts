@@ -296,6 +296,32 @@ export interface DailyTrend {
   trend: DailyTrendItem[]
 }
 
+export interface ConvertDaysMerchantItem {
+  qsId: string
+  merchantName: string
+  accounts: number
+  sameDay: number
+  days1to3: number
+  days4to7: number
+  over7: number
+  avgConvertDays: number
+}
+
+export interface ConvertDaysSummary {
+  accounts: number
+  sameDay: number
+  days1to3: number
+  days4to7: number
+  over7: number
+  avgConvertDays: number
+}
+
+export interface ConvertDaysReport {
+  dateRange: DateRange
+  summary: ConvertDaysSummary
+  merchants: ConvertDaysMerchantItem[]
+}
+
 export interface Milestone {
   id: number
   planId: number

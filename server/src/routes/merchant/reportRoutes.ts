@@ -45,4 +45,15 @@ router.get('/reports/daily-trend', async (req, res, next) => {
   }
 })
 
+// GET /api/v1/merchants/reports/convert-days
+router.get('/reports/convert-days', async (req, res, next) => {
+  try {
+    const { startDate, endDate, qsIds, channels } = extractFilters(req)
+    const data = await merchantService.getConvertDaysReport(startDate, endDate, qsIds, channels)
+    res.json({ success: true, data })
+  } catch (err) {
+    next(err)
+  }
+})
+
 export default router

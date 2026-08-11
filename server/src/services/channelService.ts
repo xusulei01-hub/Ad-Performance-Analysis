@@ -15,7 +15,7 @@ async function queryRoiTopCampaigns(sDate: Date, eDate: Date, channels: string[]
   const channelCond = channels.length > 0
     ? Prisma.sql`AND channel IN (${Prisma.join(channels)})`
     : Prisma.empty
-  const rows = await prisma.$queryRaw<Array<{ campaignId: string; campaignName: string | null; roi: number }>>`
+  const rows = await prisma.$queryRaw<Array<{ campaignId: string; campaignName: string | null; roi: number | bigint }>>`
     SELECT campaign_id AS campaignId,
            campaign_name AS campaignName,
            CASE WHEN SUM(cost) > 0
@@ -29,7 +29,8 @@ async function queryRoiTopCampaigns(sDate: Date, eDate: Date, channels: string[]
     ORDER BY roi DESC
     LIMIT ${take}
   `
-  return rows
+  // ELSE 0 分支在 SQLite 中为整型，Prisma 会反序列化为 BigInt，必须强转避免 JSON 序列化崩溃
+  return rows.map((r) => ({ campaignId: r.campaignId, campaignName: r.campaignName, roi: Number(r.roi) }))
 }
 
 export async function getChannelMetrics(channels: string[], startDate: string, endDate: string, isNonAdmin = false) {

@@ -248,12 +248,12 @@ export async function getRankings(channelFilter?: string[] | null, isNonAdmin = 
   ])
 
   return {
-    costRanking: costRows.map((r) => ({ channel: r.channel, cost: r.cost ?? 0 })),
+    costRanking: costRows.map((r) => ({ channel: r.channel, cost: Number(r.cost ?? 0) })),
     performanceRanking: perfRows.map((r) => ({
       channel: r.channel,
-      cost: r.cost ?? 0,
-      roi: r.roi ?? 0,
-      cpa: r.cpa ?? 0,
+      cost: Number(r.cost ?? 0),
+      roi: Number(r.roi ?? 0),   // CASE ELSE 0 分支为整型，可能反序列化为 BigInt
+      cpa: Number(r.cpa ?? 0),   // 同上
       activations: Number(r.activations ?? 0), // SUM(int) 在 raw 查询中可能返回 BigInt
     })),
   }
