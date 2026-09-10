@@ -234,3 +234,13 @@
 - 线上报错 "Do not know how to serialize a BigInt" 定位：channelService ROI Top5 原生 SQL 的 `CASE ... ELSE 0` 分支在花费为 0 的计划上返回整型 0，Prisma 将 SQLite 整型反序列化为 BigInt，res.json 崩溃；已 Number() 强转修复，overviewService 排名接口 roi/cpa/cost 同步加固
 - 新增开户周期报表（与期商/渠道报表并列的第三个区块）：后端 `GET /merchants/reports/convert-days` 按 留资→开户 间隔分桶（当日/1-3天/4-7天/7天以上，同期群口径，仅统计已开户留资）；前端组合图（开户数柱状 + 累计占比折线）+ 期商开户周期明细表
 - 已部署（1522137）：后端编译重启、前端上传，首页 200、新接口 401 鉴权正常
+
+## 会话：2026-09-09~10（素材审核功能上线）
+- 新增素材管理模块：渠道代理上传图片/视频素材（批量 + zip 服务端解压拆分），管理员统一审核（通过/驳回必填原因/驳回后重提），素材可后关联计划ID（1:N 关联表预留）并查看关联计划近30天投放效果
+- 数据模型：creatives + creative_campaigns 两表（迁移 20260909103000_creatives）
+- 视频 ffmpeg 异步压缩（H.264/CRF28/最长边1280），失败降级保留原文件；服务器已 apt 安装 ffmpeg 4.4.2
+- 素材文件存 server/uploads/creatives（gitignore），按上传者/管理员鉴权访问（Bearer 或 ?token= 支持媒体标签）
+- 渠道主清单 MASTER_CHANNELS 17 渠道 ∪ 动态数据渠道，非管理员按权限过滤
+- 健壮性：前端上传大小预检、zip 逐条容错、进程级异常兜底（unhandledRejection/uncaughtException 不退出）、列表加载失败明确提示
+- 本地全流程验收 34 项用例通过（验收报告：素材审核功能验收报告.md，脚本 acceptance_test_creatives.py）
+- 线上验证：迁移 up to date、新接口 401 鉴权正常、前端 200（a0fa023）
