@@ -11,6 +11,7 @@ import planRoutes from './routes/planRoutes'
 import targetRoutes from './routes/targetRoutes'
 import aiRoutes from './routes/aiRoutes'
 import aiReportRoutes from './routes/aiReportRoutes'
+import creativeRoutes from './routes/creativeRoutes'
 import authRoutes from './routes/authRoutes'
 import userRoutes from './routes/userRoutes'
 
@@ -42,9 +43,18 @@ app.use('/api/v1/plans', authenticate, planRoutes)
 app.use('/api/v1/targets', authenticate, targetRoutes)
 app.use('/api/v1/ai', authenticate, aiRoutes)
 app.use('/api/v1/ai-reports', authenticate, aiReportRoutes)
+app.use('/api/v1/creatives', creativeRoutes) // 路由内自行处理认证（文件服务支持 ?token=）
 
 // 错误处理中间件
 app.use(errorHandler)
+
+// 进程级兜底：异步回调中的异常不再导致进程崩溃（崩溃会让预览环境整体挂掉）
+process.on('unhandledRejection', (err) => {
+  console.error('[unhandledRejection]', err)
+})
+process.on('uncaughtException', (err) => {
+  console.error('[uncaughtException]', err)
+})
 
 app.listen(PORT, () => {
   console.log(`Server running on http://localhost:${PORT}`)

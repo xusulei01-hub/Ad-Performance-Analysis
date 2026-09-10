@@ -9,6 +9,7 @@ import {
   FileTextOutlined,
   LogoutOutlined,
   SettingOutlined,
+  PictureOutlined,
 } from '@ant-design/icons'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useRefresh } from '@components/layout/RefreshContext'
@@ -17,9 +18,18 @@ import { useAuthStore } from '@stores/authStore'
 const { Header, Sider, Content, Footer } = Layout
 const { Title } = Typography
 
-const CURRENT_VERSION = '3.0'
+const CURRENT_VERSION = '3.1'
 
 const CHANGELOG = [
+  {
+    version: '3.1',
+    date: '2026-09-09',
+    changes: [
+      '素材管理：渠道代理上传图片/视频素材（支持批量与 zip 压缩包自动拆分），视频自动压缩',
+      '素材审核：管理员统一审核，支持驳回原因与驳回后重新提交',
+      '素材可关联计划ID（支持后关联），直接查看关联计划的投放效果',
+    ],
+  },
   {
     version: '3.0',
     date: '2026-07-06',
@@ -168,6 +178,11 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
             label: <Link to="/data-management">数据管理</Link>,
           },
         ],
+      },
+      {
+        key: '/creatives',
+        icon: <PictureOutlined />,
+        label: <Link to="/creatives">素材管理</Link>,
       },
     ]
 
@@ -406,6 +421,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
                 '/merchant-analysis': { parent: '期商买断', label: '期商分析' },
                 '/merchant-data': { parent: '期商买断', label: '期商数据' },
                 '/schedule': { parent: '', label: '日程表' },
+                '/creatives': { parent: '', label: '素材管理' },
                 '/ai-reports': { parent: '', label: '历史报告' },
                 '/user-management': { parent: '', label: '用户管理' },
               }

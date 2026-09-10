@@ -387,3 +387,69 @@ export interface ApiResponse<T> {
   error?: string
   timestamp: string
 }
+
+// ===== 素材审核 =====
+export type CreativeStatus = 'processing' | 'pending' | 'approved' | 'rejected'
+
+export interface CreativeCampaignLink {
+  channel: string
+  campaignId: string
+}
+
+export interface Creative {
+  id: number
+  userId: number
+  uploaderName?: string
+  channel: string
+  mediaType: 'image' | 'video'
+  filename: string
+  storedName: string
+  fileSize: number
+  mimeType: string
+  title: string | null
+  status: CreativeStatus
+  reviewComment: string | null
+  reviewedBy: string | null
+  reviewedAt: string | null
+  version: number
+  createdAt: string
+  updatedAt: string
+  campaigns: CreativeCampaignLink[]
+}
+
+export interface CreativeListResult {
+  total: number
+  page: number
+  pageSize: number
+  records: Creative[]
+}
+
+export interface CreativeUploadResult {
+  created: number
+  videosProcessing: number
+  zips: number
+  zipExtracted: number
+  rejected: { filename: string; reason: string }[]
+}
+
+export interface CreativePerformanceItem {
+  channel: string
+  campaignId: string
+  cost: number
+  impressions: number
+  clicks: number
+  downloads: number
+  activations: number
+  formalActivations: number
+  leads: number
+  accounts: number
+  ctr: number
+  cpa: number
+  roi: number
+}
+
+export interface CreativePerformance {
+  dateRange: DateRange
+  campaigns: CreativePerformanceItem[]
+  message?: string
+}

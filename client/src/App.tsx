@@ -10,6 +10,7 @@ import ChannelAnalysis from '@pages/ChannelAnalysis'
 import DataManagement from '@pages/DataManagement'
 import MerchantDataManagement from '@pages/MerchantDataManagement'
 import MerchantAnalysis from '@pages/MerchantAnalysis'
+import CreativeManagement from '@pages/CreativeManagement'
 import Schedule from '@pages/Schedule'
 import AIReportHistory from '@pages/AIReportHistory'
 import UserManagement from '@pages/UserManagement'
@@ -56,6 +57,7 @@ function AppInit() {
               }
             />
             <Route path="/schedule" element={<Schedule />} />
+            <Route path="/creatives" element={<CreativeManagement />} />
             <Route path="/ai-reports" element={<AIReportHistory />} />
             <Route
               path="/user-management"

@@ -1,6 +1,13 @@
 /** 每账户收益（元） */
 export const REVENUE_PER_ACCOUNT = 3100
 
+/** 正式环境渠道主清单（转化表口径全集；新渠道数据上传后仍会自动并入动态列表） */
+export const MASTER_CHANNELS = [
+  'apple', 'baidusearch', 'harmonymarket', 'huawei', 'huaweiads', 'kwai', 'mi',
+  'oppo', 'oppoinfo', 'rednote', 'rongyao', 'vivo', 'vivofeed', 'wangyi',
+  'weibo', 'ximalaya', 'youngcrowd',
+]
+
 /** 每个期商留资的估算获客成本（元） */
 export const COST_PER_MERCHANT_LEAD = 1000
 

@@ -154,6 +154,46 @@ model User {
   @@map("users")
 }
 
+model Creative {
+  id            Int       @id @default(autoincrement())
+  userId        Int       @map("user_id")
+  channel       String
+  mediaType     String    @map("media_type") // image | video
+  filename      String // 原始文件名（展示用）
+  storedName    String    @map("stored_name") // 磁盘随机文件名
+  fileSize      Int       @map("file_size")
+  mimeType      String    @map("mime_type")
+  title         String?
+  status        String    @default("pending") // processing | pending | approved | rejected
+  reviewComment String?   @map("review_comment")
+  reviewedBy    String?   @map("reviewed_by")
+  reviewedAt    DateTime? @map("reviewed_at")
+  version       Int       @default(1) // 驳回后重新提交 +1
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+  campaigns     CreativeCampaign[]
+
+  @@index([userId])
+  @@index([channel])
+  @@index([status])
+  @@index([createdAt])
+  @@map("creatives")
+}
+
+// 素材-计划关联（1:N 预留，当前 UI 按 1:1 操作）
+model CreativeCampaign {
+  id         Int      @id @default(autoincrement())
+  creativeId Int      @map("creative_id")
+  channel    String
+  campaignId String   @map("campaign_id")
+  createdAt  DateTime @default(now()) @map("created_at")
+  creative   Creative @relation(fields: [creativeId], references: [id], onDelete: Cascade)
+
+  @@unique([creativeId, channel, campaignId], name: "unique_creative_campaign")
+  @@index([channel, campaignId])
+  @@map("creative_campaigns")
+}
+
 model ConvData {
   id                Int      @id @default(autoincrement())
   channel           String
